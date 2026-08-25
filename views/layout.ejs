@@ -122,7 +122,7 @@
           <span class="text-xs mt-1">History</span>
           <span class="sidebar-tooltip group-hover:scale-100">Stream History</span>
         </a>
-        <% if (req.session && req.session.user_role === 'admin') { %>
+        <% if (req.session && req.session.user_role === 'admin' && !req.session.isImpersonating) { %>
         <a href="/users" class="sidebar-icon group <%= active === 'users' ? 'bg-primary' : '' %>">
           <i class="ti ti-users text-xl"></i>
           <span class="text-xs mt-1">Users</span>
