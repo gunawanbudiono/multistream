@@ -42,14 +42,30 @@ const thumbnailStorage = multer.diskStorage({
   }
 });
 
+const universalStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const audioExts = ['.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac'];
+    if (audioExts.includes(ext) || file.mimetype.startsWith('audio/')) {
+      cb(null, paths.audio);
+    } else {
+      cb(null, paths.videos);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueFilename = getUniqueFilename(file.originalname);
+    cb(null, uniqueFilename);
+  }
+});
+
 const videoFilter = (req, file, cb) => {
-  const allowedFormats = ['video/mp4', 'video/avi', 'video/quicktime'];
+  const allowedFormats = ['video/mp4', 'video/avi', 'video/quicktime', 'video/x-matroska', 'video/webm'];
   const fileExt = path.extname(file.originalname).toLowerCase();
-  const allowedExts = ['.mp4', '.avi', '.mov'];
+  const allowedExts = ['.mp4', '.avi', '.mov', '.mkv', '.webm'];
   if (allowedFormats.includes(file.mimetype) || allowedExts.includes(fileExt)) {
     cb(null, true);
   } else {
-    cb(new Error('Only .mp4, .avi, and .mov formats are allowed'), false);
+    cb(new Error('Only .mp4, .avi, .mov, .mkv, and .webm video formats are allowed'), false);
   }
 };
 
@@ -60,7 +76,7 @@ const audioFilter = (req, file, cb) => {
   if (allowedFormats.includes(file.mimetype) || allowedExts.includes(fileExt)) {
     cb(null, true);
   } else {
-    cb(new Error('Only .mp3, .wav, .aac, .m4a, .ogg, and .flac formats are allowed'), false);
+    cb(new Error('Only .mp3, .wav, .aac, .m4a, .ogg, and .flac audio formats are allowed'), false);
   }
 };
 
@@ -75,6 +91,25 @@ const imageFilter = (req, file, cb) => {
   }
 };
 
+const universalFilter = (req, file, cb) => {
+  const fileExt = path.extname(file.originalname).toLowerCase();
+  const allowedExts = [
+    '.mp4', '.avi', '.mov', '.mkv', '.webm',
+    '.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac',
+    '.jpg', '.jpeg', '.png', '.gif', '.webp'
+  ];
+  if (
+    allowedExts.includes(fileExt) ||
+    file.mimetype.startsWith('video/') ||
+    file.mimetype.startsWith('audio/') ||
+    file.mimetype.startsWith('image/')
+  ) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Unsupported file type (${fileExt}). Supported: Video (MP4, AVI, MOV, MKV, WebM), Audio (MP3, M4A, AAC, WAV, FLAC), Image (JPG, PNG, WebP)`), false);
+  }
+};
+
 const uploadVideo = multer({
   storage: videoStorage,
   fileFilter: videoFilter
@@ -83,6 +118,11 @@ const uploadVideo = multer({
 const uploadAudio = multer({
   storage: audioStorage,
   fileFilter: audioFilter
+});
+
+const uploadUniversalMedia = multer({
+  storage: universalStorage,
+  fileFilter: universalFilter
 });
 
 const upload = multer({
@@ -104,6 +144,7 @@ const uploadThumbnail = multer({
 module.exports = {
   uploadVideo,
   uploadAudio,
+  uploadUniversalMedia,
   upload,
   uploadThumbnail
 };

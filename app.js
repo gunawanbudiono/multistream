@@ -23,7 +23,7 @@ const rateLimit = require('express-rate-limit');
 const User = require('./models/User');
 const { db, checkIfUsersExist, initializeDatabase } = require('./db/database');
 const systemMonitor = require('./services/systemMonitor');
-const { uploadVideo, upload, uploadThumbnail, uploadAudio } = require('./middleware/uploadMiddleware');
+const { uploadVideo, upload, uploadThumbnail, uploadAudio, uploadUniversalMedia } = require('./middleware/uploadMiddleware');
 const chunkUploadService = require('./services/chunkUploadService');
 const audioConverter = require('./services/audioConverter');
 const { ensureDirectories } = require('./utils/storage');
@@ -283,10 +283,13 @@ const isAdmin = async (req, res, next) => {
     res.redirect('/dashboard');
   }
 };
-app.use('/uploads', function (req, res, next) {
-  res.header('Cache-Control', 'no-cache');
-  res.header('Pragma', 'no-cache');
-  res.header('Expires', '0');
+// High-speed browser caching for static thumbnails (0ms instant loading)
+app.use('/uploads/thumbnails', (req, res, next) => {
+  res.header('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+  next();
+});
+app.use('/images', (req, res, next) => {
+  res.header('Cache-Control', 'public, max-age=2592000, immutable');
   next();
 });
 app.use('/uploads/avatars', (req, res, next) => {
@@ -303,11 +306,19 @@ app.use('/uploads/avatars', (req, res, next) => {
     else if (ext === '.gif') contentType = 'image/gif';
     else if (ext === '.webp') contentType = 'image/webp';
     res.header('Content-Type', contentType);
-    res.header('Cache-Control', 'max-age=60, must-revalidate');
+    res.header('Cache-Control', 'public, max-age=86400, stale-while-revalidate=3600');
     fs.createReadStream(file).pipe(res);
   } else {
     next();
   }
+});
+app.use('/uploads', function (req, res, next) {
+  if (!req.path.startsWith('/thumbnails') && !req.path.startsWith('/avatars')) {
+    res.header('Cache-Control', 'no-cache');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+  }
+  next();
 });
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -1834,10 +1845,13 @@ app.get('/api/user/disk-usage', isAuthenticated, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);
     const diskUsage = await User.getDiskUsage(req.session.userId);
+    const quotaGb = Number(user.disk_quota_gb) || 0;
+    const diskLimit = quotaGb > 0 ? (quotaGb * 1024 * 1024 * 1024) : (Number(user.disk_limit) || 0);
     res.json({
       success: true,
       diskUsage: diskUsage,
-      diskLimit: user.disk_limit || 0
+      diskLimit: diskLimit,
+      quotaGb: quotaGb
     });
   } catch (error) {
     console.error('Get disk usage error:', error);
@@ -2155,6 +2169,200 @@ app.post('/upload/video', isAuthenticated, uploadVideo.single('video'), async (r
     });
   }
 });
+app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
+  uploadUniversalMedia.array('media', 20)(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ success: false, error: 'File too large. Maximum batch size is 50GB.' });
+      }
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    const files = req.files || (req.file ? [req.file] : []);
+    if (!files || files.length === 0) {
+      return res.status(400).json({ success: false, error: 'No media files provided' });
+    }
+
+    const folderId = normalizeFolderId(req.body.folderId);
+    if (folderId) {
+      const folder = await MediaFolder.findById(folderId, req.session.userId);
+      if (!folder) {
+        return res.status(404).json({ success: false, error: 'Folder not found' });
+      }
+    }
+
+    const totalBatchBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
+    const quotaCheck = await checkUserDiskQuota(req.session.userId, totalBatchBytes);
+    if (!quotaCheck.allowed) {
+      files.forEach(f => {
+        const p = path.join(f.destination, f.filename);
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      });
+      return res.status(400).json({ success: false, error: quotaCheck.error });
+    }
+
+    const results = [];
+    const videoExts = ['.mp4', '.avi', '.mov', '.mkv', '.webm'];
+    const audioExts = ['.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac'];
+    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
+    for (const file of files) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const rawTitle = path.parse(file.originalname).name;
+      const fullFilePath = path.join(file.destination, file.filename);
+
+      if (videoExts.includes(ext) || file.mimetype.startsWith('video/')) {
+        const relativeFilePath = `/uploads/videos/${file.filename}`;
+        const thumbnailFilename = `thumb-${path.parse(file.filename).name}.jpg`;
+        const thumbnailRelativePath = `/uploads/thumbnails/${thumbnailFilename}`;
+        const fullThumbPath = path.join(__dirname, 'public', thumbnailRelativePath);
+
+        let duration = 0;
+        let resolution = '';
+        let bitrate = null;
+        let fps = null;
+        let format = ext.replace('.', '') || 'mp4';
+
+        await new Promise((resolve) => {
+          ffmpeg.ffprobe(fullFilePath, (probeErr, metadata) => {
+            if (!probeErr && metadata) {
+              const videoStream = metadata.streams && metadata.streams.find(s => s.codec_type === 'video');
+              duration = metadata.format && metadata.format.duration ? Math.round(metadata.format.duration) : 0;
+              format = (metadata.format && metadata.format.format_name) ? metadata.format.format_name.split(',')[0] : format;
+              if (videoStream) {
+                resolution = `${videoStream.width}x${videoStream.height}`;
+                if (videoStream.avg_frame_rate) {
+                  const parts = videoStream.avg_frame_rate.split('/');
+                  if (parts.length === 2 && parseInt(parts[1]) !== 0) {
+                    fps = Math.round(parseInt(parts[0]) / parseInt(parts[1]));
+                  }
+                }
+              }
+              if (metadata.format && metadata.format.bit_rate) {
+                bitrate = Math.round(parseInt(metadata.format.bit_rate) / 1000);
+              }
+            }
+
+            ffmpeg(fullFilePath)
+              .screenshots({
+                timestamps: ['10%'],
+                filename: thumbnailFilename,
+                folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
+                size: '640x360'
+              })
+              .on('end', () => resolve())
+              .on('error', () => resolve());
+          });
+        });
+
+        const videoRecord = await Video.create({
+          title: rawTitle,
+          filepath: relativeFilePath,
+          thumbnail_path: fs.existsSync(fullThumbPath) ? thumbnailRelativePath : '/images/default-video-thumbnail.svg',
+          file_size: file.size,
+          duration: duration,
+          format: format,
+          resolution: resolution,
+          bitrate: bitrate,
+          fps: fps,
+          user_id: req.session.userId,
+          folder_id: folderId
+        });
+
+        results.push(videoRecord);
+
+        logActivity({
+          userId: req.session.userId,
+          performedBy: req.session.username,
+          actionType: 'MEDIA_UPLOAD',
+          category: 'media',
+          description: `Uploaded video '${videoRecord.title}' (${(videoRecord.file_size / (1024 * 1024)).toFixed(1)} MB)`,
+          ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+        });
+
+      } else if (audioExts.includes(ext) || file.mimetype.startsWith('audio/')) {
+        const converted = await audioConverter.processAudioFile(fullFilePath, file.originalname);
+        const finalFilename = path.basename(converted.filepath);
+        const relativeFilePath = `/uploads/audio/${finalFilename}`;
+        const audioInfo = await audioConverter.getAudioInfo(converted.filepath);
+        const stats = fs.statSync(converted.filepath);
+
+        const audioRecord = await Video.create({
+          title: rawTitle,
+          filepath: relativeFilePath,
+          thumbnail_path: '/images/audio-thumbnail.svg',
+          file_size: stats.size,
+          duration: audioInfo.duration || 0,
+          format: 'aac',
+          resolution: null,
+          bitrate: audioInfo.bitrate || null,
+          fps: null,
+          user_id: req.session.userId,
+          folder_id: folderId
+        });
+
+        results.push(audioRecord);
+
+        logActivity({
+          userId: req.session.userId,
+          performedBy: req.session.username,
+          actionType: 'MEDIA_UPLOAD',
+          category: 'media',
+          description: `Uploaded audio '${audioRecord.title}' (${(audioRecord.file_size / (1024 * 1024)).toFixed(1)} MB)`,
+          ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+        });
+
+      } else if (imageExts.includes(ext) || file.mimetype.startsWith('image/')) {
+        const relativeFilePath = `/uploads/videos/${file.filename}`;
+        const thumbnailFilename = `thumb-${path.parse(file.filename).name}${ext}`;
+        const thumbnailRelativePath = `/uploads/thumbnails/${thumbnailFilename}`;
+        const fullThumbPath = path.join(__dirname, 'public', thumbnailRelativePath);
+
+        try {
+          fs.copyFileSync(fullFilePath, fullThumbPath);
+        } catch (copyErr) {}
+
+        const imageRecord = await Video.create({
+          title: rawTitle,
+          filepath: relativeFilePath,
+          thumbnail_path: fs.existsSync(fullThumbPath) ? thumbnailRelativePath : relativeFilePath,
+          file_size: file.size,
+          duration: 0,
+          format: ext.replace('.', '') || 'image',
+          resolution: null,
+          bitrate: null,
+          fps: null,
+          user_id: req.session.userId,
+          folder_id: folderId
+        });
+
+        results.push(imageRecord);
+
+        logActivity({
+          userId: req.session.userId,
+          performedBy: req.session.username,
+          actionType: 'MEDIA_UPLOAD',
+          category: 'media',
+          description: `Uploaded image '${imageRecord.title}' (${(imageRecord.file_size / (1024 * 1024)).toFixed(1)} MB)`,
+          ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully uploaded ${results.length} media file(s)`,
+      files: results
+    });
+  } catch (error) {
+    console.error('Universal upload error:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload media files: ' + error.message });
+  }
+});
+
 app.post('/api/videos/upload', isAuthenticated, (req, res, next) => {
   uploadVideo.single('video')(req, res, (err) => {
     if (err) {
@@ -2655,6 +2863,23 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
     const stat = fs.statSync(videoPath);
     const fileSize = stat.size;
     const range = req.headers.range;
+
+    const ext = path.extname(videoPath).toLowerCase();
+    let contentType = 'video/mp4';
+    if (ext === '.mp3') contentType = 'audio/mpeg';
+    else if (ext === '.m4a' || ext === '.aac') contentType = 'audio/mp4';
+    else if (ext === '.wav') contentType = 'audio/wav';
+    else if (ext === '.flac') contentType = 'audio/flac';
+    else if (ext === '.ogg') contentType = 'audio/ogg';
+    else if (ext === '.mov') contentType = 'video/quicktime';
+    else if (ext === '.avi') contentType = 'video/x-msvideo';
+    else if (ext === '.webm') contentType = 'video/webm';
+    else if (ext === '.mkv') contentType = 'video/x-matroska';
+    else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+    else if (ext === '.png') contentType = 'image/png';
+    else if (ext === '.webp') contentType = 'image/webp';
+    else if (ext === '.gif') contentType = 'image/gif';
+
     res.setHeader('Content-Disposition', 'inline');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'no-store');
@@ -2668,13 +2893,13 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunkSize,
-        'Content-Type': 'video/mp4',
+        'Content-Type': contentType,
       });
       file.pipe(res);
     } else {
       res.writeHead(200, {
         'Content-Length': fileSize,
-        'Content-Type': 'video/mp4',
+        'Content-Type': contentType,
       });
       fs.createReadStream(videoPath).pipe(res);
     }
