@@ -984,7 +984,7 @@ function showRenameDialog(id, currentTitle) {
       <input type="text" id="newMediaTitle" value="${currentTitle}" class="w-full bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg mb-4 focus:outline-none focus:ring-1 focus:ring-primary">
       <div class="flex justify-end gap-3">
         <button id="cancelRenameBtn" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg">Cancel</button>
-        <button id="confirmRenameBtn" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg">Save</button>
+        <button id="confirmRenameBtn" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg flex items-center gap-2">Save</button>
       </div>
     </div>
   `;
@@ -996,9 +996,12 @@ function showRenameDialog(id, currentTitle) {
   const close = () => modal.remove();
   makeModalDismissible(modal, close);
   document.getElementById('cancelRenameBtn').onclick = close;
-  document.getElementById('confirmRenameBtn').onclick = async () => {
+  const confirmBtn = document.getElementById('confirmRenameBtn');
+  confirmBtn.onclick = async () => {
     const title = input.value.trim();
     if (!title) return;
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="ti ti-loader animate-spin text-sm"></i> Saving...';
     try {
       const res = await fetch(`/api/videos/${id}/rename`, {
         method: 'POST',
@@ -1012,9 +1015,13 @@ function showRenameDialog(id, currentTitle) {
         await window.refreshGalleryData?.();
       } else {
         showToast('error', data.error || 'Failed to rename');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = 'Save';
       }
     } catch (e) {
       showToast('error', e.message);
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = 'Save';
     }
   };
 }
@@ -1031,7 +1038,7 @@ function showDeleteDialog(id, title) {
       <p class="text-sm text-gray-300 mb-6">Are you sure you want to delete <strong class="text-white">"${title}"</strong>? This action cannot be undone.</p>
       <div class="flex justify-end gap-3">
         <button id="cancelDeleteBtn" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg">Cancel</button>
-        <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">Delete</button>
+        <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2">Delete</button>
       </div>
     </div>
   `;
@@ -1039,7 +1046,10 @@ function showDeleteDialog(id, title) {
   const close = () => modal.remove();
   makeModalDismissible(modal, close);
   document.getElementById('cancelDeleteBtn').onclick = close;
-  document.getElementById('confirmDeleteBtn').onclick = async () => {
+  const confirmBtn = document.getElementById('confirmDeleteBtn');
+  confirmBtn.onclick = async () => {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="ti ti-loader animate-spin text-sm"></i> Deleting...';
     try {
       const res = await fetch(`/api/videos/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -1050,9 +1060,13 @@ function showDeleteDialog(id, title) {
         loadDiskUsage();
       } else {
         showToast('error', data.error || 'Failed to delete');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = 'Delete';
       }
     } catch (e) {
       showToast('error', e.message);
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = 'Delete';
     }
   };
 }
@@ -1066,7 +1080,7 @@ function openCreateFolderDialog() {
       <input type="text" id="newFolderName" placeholder="Folder name" class="w-full bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg mb-4 focus:outline-none focus:ring-1 focus:ring-primary">
       <div class="flex justify-end gap-3">
         <button id="cancelFolderBtn" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg">Cancel</button>
-        <button id="confirmFolderBtn" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg">Create</button>
+        <button id="confirmFolderBtn" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg flex items-center gap-2">Create</button>
       </div>
     </div>
   `;
@@ -1076,9 +1090,12 @@ function openCreateFolderDialog() {
   const close = () => modal.remove();
   makeModalDismissible(modal, close);
   document.getElementById('cancelFolderBtn').onclick = close;
-  document.getElementById('confirmFolderBtn').onclick = async () => {
+  const confirmBtn = document.getElementById('confirmFolderBtn');
+  confirmBtn.onclick = async () => {
     const name = input.value.trim();
     if (!name) return;
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="ti ti-loader animate-spin text-sm"></i> Creating...';
     try {
       const res = await fetch('/api/media-folders', {
         method: 'POST',
@@ -1092,9 +1109,13 @@ function openCreateFolderDialog() {
         await window.refreshGalleryData?.();
       } else {
         showToast('error', data.error || 'Failed to create folder');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = 'Create';
       }
     } catch (e) {
       showToast('error', e.message);
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = 'Create';
     }
   };
 }
@@ -1108,7 +1129,7 @@ function showRenameFolderDialog(id, currentName) {
       <input type="text" id="newFolderNameInput" value="${currentName}" class="w-full bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg mb-4 focus:outline-none focus:ring-1 focus:ring-primary">
       <div class="flex justify-end gap-3">
         <button id="cancelRenameFolderBtn" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg">Cancel</button>
-        <button id="confirmRenameFolderBtn" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg">Save</button>
+        <button id="confirmRenameFolderBtn" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg flex items-center gap-2">Save</button>
       </div>
     </div>
   `;
@@ -1119,9 +1140,12 @@ function showRenameFolderDialog(id, currentName) {
   const close = () => modal.remove();
   makeModalDismissible(modal, close);
   document.getElementById('cancelRenameFolderBtn').onclick = close;
-  document.getElementById('confirmRenameFolderBtn').onclick = async () => {
+  const confirmBtn = document.getElementById('confirmRenameFolderBtn');
+  confirmBtn.onclick = async () => {
     const name = input.value.trim();
     if (!name) return;
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="ti ti-loader animate-spin text-sm"></i> Saving...';
     try {
       const res = await fetch(`/api/media-folders/${id}`, {
         method: 'PUT',
@@ -1135,9 +1159,13 @@ function showRenameFolderDialog(id, currentName) {
         await window.refreshGalleryData?.();
       } else {
         showToast('error', data.error || 'Failed to rename folder');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = 'Save';
       }
     } catch (e) {
       showToast('error', e.message);
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = 'Save';
     }
   };
 }
@@ -1154,7 +1182,7 @@ function showDeleteFolderDialog(id, name) {
       <p class="text-sm text-gray-300 mb-6">Are you sure you want to delete folder <strong class="text-white">"${name}"</strong>? Contained media files will be moved to root.</p>
       <div class="flex justify-end gap-3">
         <button id="cancelDeleteFolderBtn" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg">Cancel</button>
-        <button id="confirmDeleteFolderBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">Delete</button>
+        <button id="confirmDeleteFolderBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2">Delete</button>
       </div>
     </div>
   `;
@@ -1162,7 +1190,10 @@ function showDeleteFolderDialog(id, name) {
   const close = () => modal.remove();
   makeModalDismissible(modal, close);
   document.getElementById('cancelDeleteFolderBtn').onclick = close;
-  document.getElementById('confirmDeleteFolderBtn').onclick = async () => {
+  const confirmBtn = document.getElementById('confirmDeleteFolderBtn');
+  confirmBtn.onclick = async () => {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="ti ti-loader animate-spin text-sm"></i> Deleting...';
     try {
       const res = await fetch(`/api/media-folders/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -1172,9 +1203,13 @@ function showDeleteFolderDialog(id, name) {
         await window.refreshGalleryData?.();
       } else {
         showToast('error', data.error || 'Failed to delete folder');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = 'Delete';
       }
     } catch (e) {
       showToast('error', e.message);
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = 'Delete';
     }
   };
 }
@@ -2519,6 +2554,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function renderPage() {
+    const totalPages = Math.ceil(filteredGridItems.length / itemsPerPage) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
     const start = (currentPage - 1) * itemsPerPage;
     const end = start + itemsPerPage;
     
@@ -2589,7 +2628,19 @@ document.addEventListener('DOMContentLoaded', function() {
     container.appendChild(next);
   }
 
-  if (searchInput) searchInput.addEventListener('input', filterAndSort);
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  if (searchInput) searchInput.addEventListener('input', debounce(filterAndSort, 150));
   if (sortSelect) sortSelect.addEventListener('change', filterAndSort);
   const typeFilter = document.getElementById('typeFilter');
   if (typeFilter) typeFilter.addEventListener('change', filterAndSort);
