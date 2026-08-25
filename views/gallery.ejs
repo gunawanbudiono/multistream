@@ -1107,27 +1107,43 @@ function getFileCategory(file) {
   return 'unknown';
 }
 
-function parseMp4FpsFromBuffer(buffer, duration) {
+function parseMp4FpsFromBuffer(arrayBuffer) {
   try {
-    const view = new DataView(buffer);
-    let offset = 0;
-    while (offset < buffer.byteLength - 8) {
-      const size = view.getUint32(offset);
-      const type = String.fromCharCode(view.getUint8(offset + 4), view.getUint8(offset + 5), view.getUint8(offset + 6), view.getUint8(offset + 7));
-      if (type === 'stts' && offset + 16 <= buffer.byteLength) {
-        const entryCount = view.getUint32(offset + 12);
-        if (entryCount > 0 && offset + 24 <= buffer.byteLength) {
-          const sampleCount = view.getUint32(offset + 16);
-          const sampleDelta = view.getUint32(offset + 20);
-          if (sampleDelta > 0) {
-            let timescale = 30000;
-            const fps = Math.round(timescale / sampleDelta);
-            if (fps >= 10 && fps <= 240) return fps;
+    const bytes = new Uint8Array(arrayBuffer);
+    const view = new DataView(arrayBuffer);
+    let timescale = 0;
+
+    for (let offset = 0; offset + 24 <= bytes.length; offset++) {
+      // Find 'mdhd' box
+      if (bytes[offset] === 0x6D && bytes[offset+1] === 0x64 && bytes[offset+2] === 0x68 && bytes[offset+3] === 0x64) {
+        const version = bytes[offset + 4];
+        const tsOffset = (version === 1) ? (offset + 20) : (offset + 12);
+        if (tsOffset + 4 <= bytes.length) {
+          const ts = view.getUint32(tsOffset);
+          if (ts > 0 && ts <= 1000000) timescale = ts;
+        }
+      }
+      // Find 'stts' box
+      if (bytes[offset] === 0x73 && bytes[offset+1] === 0x74 && bytes[offset+2] === 0x74 && bytes[offset+3] === 0x73) {
+        if (offset + 20 <= bytes.length) {
+          const entryCount = view.getUint32(offset + 8);
+          if (entryCount > 0) {
+            const sampleDelta = view.getUint32(offset + 16);
+            if (sampleDelta > 0) {
+              const activeTimescale = timescale > 0 ? timescale : (sampleDelta <= 1001 ? 30000 : 1000);
+              const rawFps = activeTimescale / sampleDelta;
+              if (rawFps >= 10 && rawFps <= 240) {
+                if (Math.abs(rawFps - 60) < 1.5 || Math.abs(rawFps - 59.94) < 1) return 60;
+                if (Math.abs(rawFps - 30) < 1.5 || Math.abs(rawFps - 29.97) < 1) return 30;
+                if (Math.abs(rawFps - 24) < 1.5 || Math.abs(rawFps - 23.976) < 1) return 24;
+                if (Math.abs(rawFps - 25) < 1.5) return 25;
+                if (Math.abs(rawFps - 50) < 1.5) return 50;
+                return Math.round(rawFps);
+              }
+            }
           }
         }
       }
-      if (size === 0 || size === 1) break;
-      offset += size;
     }
   } catch (e) {}
   return null;
@@ -1249,21 +1265,28 @@ async function inspectMediaFile(file) {
         };
       });
 
-      // Quick MP4 buffer probe for FPS
+      // Dual-End MP4 Header Probe (Head + Tail)
       try {
-        const slice = await file.slice(0, 256 * 1024).arrayBuffer();
-        const parsedFps = parseMp4FpsFromBuffer(slice, meta.duration);
+        const headBuffer = await file.slice(0, 512 * 1024).arrayBuffer();
+        let parsedFps = parseMp4FpsFromBuffer(headBuffer);
+        if (!parsedFps && file.size > 512 * 1024) {
+          const tailBuffer = await file.slice(Math.max(0, file.size - 512 * 1024), file.size).arrayBuffer();
+          parsedFps = parseMp4FpsFromBuffer(tailBuffer);
+        }
+
         if (parsedFps) {
           meta.fps = parsedFps;
           meta.fpsLabel = `${parsedFps} FPS`;
           meta.keyframeLabel = `2s Keyframe (${parsedFps * 2}f)`;
         } else {
-          meta.fpsLabel = '30/60 FPS';
-          meta.keyframeLabel = '2s Keyframe';
+          meta.fps = 30;
+          meta.fpsLabel = '30 FPS';
+          meta.keyframeLabel = '2s Keyframe (60f)';
         }
       } catch (e) {
-        meta.fpsLabel = '30/60 FPS';
-        meta.keyframeLabel = '2s Keyframe';
+        meta.fps = 30;
+        meta.fpsLabel = '30 FPS';
+        meta.keyframeLabel = '2s Keyframe (60f)';
       }
 
     } catch (e) {}
@@ -1286,11 +1309,11 @@ async function inspectMediaFile(file) {
           if (meta.duration > 0 && file.size > 0) {
             const kbps = Math.round((file.size * 8) / meta.duration / 1000);
             if (kbps >= 1000) {
-              meta.bitrateLabel = `${kbps} kbps (Lossless/WAV)`;
+              meta.bitrateLabel = `${kbps} kbps (Lossless)`;
             } else if (kbps >= 320) {
-              meta.bitrateLabel = `${kbps} kbps (Studio HQ)`;
+              meta.bitrateLabel = `${kbps} kbps (HQ)`;
             } else if (kbps >= 192) {
-              meta.bitrateLabel = `${kbps} kbps (High Quality)`;
+              meta.bitrateLabel = `${kbps} kbps (HQ)`;
             } else if (kbps >= 128) {
               meta.bitrateLabel = `${kbps} kbps (Standard)`;
             } else {
