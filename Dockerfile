@@ -1,8 +1,13 @@
 # Gunakan base image Node.js versi 20 dengan Debian Bookworm
 FROM node:20-bookworm
 
-# Install dependency sistem yang dibutuhkan (ffmpeg untuk video, build tools untuk native module seperti sqlite3)
+# Set Timezone ke Asia/Jakarta
+ENV TZ=Asia/Jakarta
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Install dependency sistem yang dibutuhkan (ffmpeg untuk video, build tools untuk native module seperti sqlite3, tzdata)
 RUN apt-get update && apt-get install -y \
+    tzdata \
     ffmpeg \
     python3 \
     make \

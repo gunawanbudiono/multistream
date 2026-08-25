@@ -1,3 +1,4 @@
+process.env.TZ = 'Asia/Jakarta';
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
@@ -4639,10 +4640,11 @@ app.get('/api/server-time', (req, res) => {
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const seconds = String(now.getSeconds()).padStart(2, '0');
   const formattedTime = `${day} ${month} ${year} ${hours}:${minutes}:${seconds}`;
-  const serverTimezoneOffset = now.getTimezoneOffset();
+  const serverTimezoneOffset = now.getTimezoneOffset(); // -420 for Asia/Jakarta (UTC+7)
   res.json({
     serverTime: now.toISOString(),
     formattedTime: formattedTime,
+    timezone: 'Asia/Jakarta',
     timezoneOffset: serverTimezoneOffset
   });
 });

@@ -2,7 +2,7 @@ version: '3.8'
 services:
   app:
     build: .
-    container_name: streamflow-app
+    container_name: multistream-app
     restart: unless-stopped
     ports:
       - "7575:7575"
@@ -14,5 +14,4 @@ services:
       - ./public/uploads:/app/public/uploads
     environment:
       - NODE_ENV=production
-    # Uncomment jika ingin mengatur timezone container
-    # - TZ=Asia/Jakarta 
+      - TZ=Asia/Jakarta
