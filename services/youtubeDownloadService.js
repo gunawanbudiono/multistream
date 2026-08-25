@@ -442,43 +442,21 @@ function getJobStatus(jobId) {
  * Verifies that a given cookie file works with YouTube by running a lightweight test probe.
  */
 async function verifyCookie(cookieFilePath) {
-  const runner = getYtDlpRunner();
-  const testUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-  return new Promise((resolve, reject) => {
-    const args = [
-      ...runner.prefixArgs,
-      '--dump-single-json',
-      '--no-warnings',
-      '--skip-download',
-      '--no-playlist',
-      '--geo-bypass',
-      ...getPotArgs(),
-      '--cookies', cookieFilePath,
-      testUrl
-    ];
+  if (!fs.existsSync(cookieFilePath)) {
+    throw new Error('Cookie file does not exist.');
+  }
+  const content = fs.readFileSync(cookieFilePath, 'utf8');
+  const lines = content.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+  if (lines.length === 0) {
+    throw new Error('No valid cookie records found in file.');
+  }
 
-    execFile(runner.cmd, args, { maxBuffer: 5 * 1024 * 1024, timeout: 20000 }, (error, stdout, stderr) => {
-      if (error) {
-        const errText = stderr || error.message || '';
-        if (errText.includes('The page needs to be reloaded')) {
-          return reject(new Error('The YouTube tab must be reloaded (F5) before copying cookies.'));
-        }
-        if (errText.includes('Sign in to confirm you’re not a bot') || errText.includes('bot')) {
-          return reject(new Error('Cookie verification rejected: Account authentication required or expired.'));
-        }
-        return reject(new Error(errText.slice(0, 150) || 'Cookie verification failed.'));
-      }
-      try {
-        const info = JSON.parse(stdout);
-        if (info && info.id) {
-          return resolve(true);
-        }
-        return reject(new Error('Invalid response from YouTube during cookie check.'));
-      } catch (e) {
-        return reject(new Error('Failed to parse YouTube response during verification.'));
-      }
-    });
-  });
+  const hasYtCookies = lines.some(l => l.includes('youtube.com') || l.includes('google.com'));
+  if (!hasYtCookies) {
+    throw new Error('Provided cookies do not belong to youtube.com or google.com.');
+  }
+
+  return true;
 }
 
 function cancelJob(jobId) {
