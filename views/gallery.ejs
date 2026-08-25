@@ -2211,6 +2211,11 @@ document.addEventListener('DOMContentLoaded', function() {
       await Promise.all(workers);
       if (uploadAborted) return { success: false };
 
+      const queueSub = document.querySelector(`#upload-queue-item-${index} .file-substatus`);
+      if (queueSub) queueSub.textContent = 'Assembling chunks & generating thumbnail...';
+      const floatSub = document.getElementById('floatingUploadSubtitle');
+      if (floatSub) floatSub.textContent = '100% • Finalizing media on server...';
+
       const complete = await fetch('/api/videos/chunk/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
