@@ -33,6 +33,7 @@ async function run() {
     '-m', 'yt_dlp',
     '-v',
     '--cookies', '/app/db/test_user_cookie.txt',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
     '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
     '--dump-single-json',
     '--no-warnings',
