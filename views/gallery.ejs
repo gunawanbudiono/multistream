@@ -19,11 +19,11 @@ function formatDuration(seconds) {
 } 
 function formatBitrate(bitrate) {
   if (!bitrate) return '';
-  const num = Number(bitrate);
+  let num = Number(bitrate);
   if (isNaN(num) || num <= 0) return '';
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)} Mbps`;
-  if (num >= 1000) return `${Math.round(num / 1000)} kbps`;
-  return `${num} bps`;
+  if (num > 50000) num = num / 1000;
+  if (num >= 1000) return `${(num / 1000).toFixed(1)} Mbps`;
+  return `${Math.round(num)} kbps`;
 }
 function detectMediaType(item) {
   const fp = (item.filepath || '').toLowerCase();
@@ -228,30 +228,24 @@ function detectMediaType(item) {
             <% } %>
           </div>
           <div class="p-3 pb-2">
-            <h3 class="font-medium text-sm truncate mb-1.5 text-white" title="<%= video.title %>"><%= video.title %></h3>
-            <div class="flex items-center gap-1 flex-wrap">
-              <% if (mediaType === 'video') { %>
-                <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-dark-800 text-gray-300 border border-gray-700 font-mono"><%= ext %></span>
-                <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 font-mono">H.264</span>
-                <% if (video.resolution) { %>
-                  <span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20"><%= video.resolution %></span>
-                <% } %>
-                <span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/20"><%= video.fps || 30 %> FPS</span>
-                <span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">2s Keyframe</span>
-                <% if (formatBitrate(video.bitrate)) { %>
-                  <span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"><%= formatBitrate(video.bitrate) %></span>
-                <% } %>
-              <% } else if (mediaType === 'audio') { %>
-                <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-dark-800 text-gray-300 border border-gray-700 font-mono"><%= ext %></span>
-                <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-mono"><%= ext === 'AAC' ? 'AAC' : 'MP3' %></span>
-                <span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20"><%= formatBitrate(video.bitrate) || '128 kbps' %></span>
-              <% } else if (mediaType === 'image') { %>
-                <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-dark-800 text-gray-300 border border-gray-700 font-mono"><%= ext %></span>
-                <% if (video.resolution) { %>
-                  <span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"><%= video.resolution %></span>
-                <% } %>
-              <% } %>
-            </div>
+            <h3 class="font-medium text-sm truncate mb-1 text-white" title="<%= video.title %>"><%= video.title %></h3>
+            <% 
+              let metaLine = '';
+              if (mediaType === 'video') {
+                const parts = [];
+                if (video.resolution) parts.push(video.resolution);
+                parts.push((video.fps || 30) + ' FPS');
+                parts.push('H.264');
+                parts.push(ext);
+                metaLine = parts.join(' • ');
+              } else if (mediaType === 'audio') {
+                const br = formatBitrate(video.bitrate);
+                metaLine = 'Audio • ' + ext + (br ? ' • ' + br : '');
+              } else if (mediaType === 'image') {
+                metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext + ' Image';
+              }
+            %>
+            <p class="text-xs text-gray-400 font-mono truncate"><%= metaLine %></p>
           </div>
         </div>
         <div class="p-3 pt-0">
@@ -3409,11 +3403,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function formatBitrate(bitrate) {
     if (!bitrate) return '';
-    const num = Number(bitrate);
+    let num = Number(bitrate);
     if (isNaN(num) || num <= 0) return '';
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)} Mbps`;
-    if (num >= 1000) return `${Math.round(num / 1000)} kbps`;
-    return `${num} bps`;
+    if (num > 50000) num = num / 1000;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)} Mbps`;
+    return `${Math.round(num)} kbps`;
   }
 
   function buildVideoGridMarkup(video) {
@@ -3455,36 +3449,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const ext = (video.format || (video.filepath ? video.filepath.split('.').pop() : (mediaType === 'audio' ? 'mp3' : 'mp4'))).toUpperCase();
-    let metaBadgesHtml = '';
+    let metaLine = '';
 
     if (mediaType === 'video') {
-      const resBadge = video.resolution ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20">${video.resolution}</span>` : '';
-      const fpsBadge = `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">${video.fps || 30} FPS</span>`;
-      const kfBadge = `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">2s Keyframe</span>`;
-      const bitrateStr = formatBitrate(video.bitrate);
-      const brBadge = bitrateStr ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">${bitrateStr}</span>` : '';
-
-      metaBadgesHtml = `
-        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-dark-800 text-gray-300 border border-gray-700 font-mono">${ext}</span>
-        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 font-mono">H.264</span>
-        ${resBadge}
-        ${fpsBadge}
-        ${kfBadge}
-        ${brBadge}
-      `;
+      const parts = [];
+      if (video.resolution) parts.push(video.resolution);
+      parts.push((video.fps || 30) + ' FPS');
+      parts.push('H.264');
+      parts.push(ext);
+      metaLine = parts.join(' • ');
     } else if (mediaType === 'audio') {
-      const bitrateStr = formatBitrate(video.bitrate) || '128 kbps';
-      metaBadgesHtml = `
-        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-dark-800 text-gray-300 border border-gray-700 font-mono">${ext}</span>
-        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-mono">${ext === 'AAC' ? 'AAC' : 'MP3'}</span>
-        <span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20">${bitrateStr}</span>
-      `;
+      const br = formatBitrate(video.bitrate);
+      metaLine = 'Audio • ' + ext + (br ? ' • ' + br : '');
     } else if (mediaType === 'image') {
-      const resBadge = video.resolution ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">${video.resolution}</span>` : '';
-      metaBadgesHtml = `
-        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-dark-800 text-gray-300 border border-gray-700 font-mono">${ext}</span>
-        ${resBadge}
-      `;
+      metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext + ' Image';
     }
 
     return `
@@ -3503,10 +3481,8 @@ document.addEventListener('DOMContentLoaded', function() {
             ${topBadge}
           </div>
           <div class="p-3 pb-2">
-            <h3 class="font-medium text-sm truncate mb-1.5 text-white" title="${title}">${title}</h3>
-            <div class="flex items-center gap-1 flex-wrap">
-              ${metaBadgesHtml}
-            </div>
+            <h3 class="font-medium text-sm truncate mb-1 text-white" title="${title}">${title}</h3>
+            <p class="text-xs text-gray-400 font-mono truncate">${metaLine}</p>
           </div>
         </div>
         <div class="p-3 pt-0">
@@ -3564,18 +3540,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const ext = (video.format || (video.filepath ? video.filepath.split('.').pop() : (mediaType === 'audio' ? 'mp3' : 'mp4'))).toUpperCase();
     
     const typeBadge = mediaType === 'video'
-      ? `<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-medium capitalize">Video</span>`
+      ? `<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-medium capitalize shrink-0">Video</span>`
       : (mediaType === 'audio'
-        ? `<span class="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded font-medium capitalize">Audio</span>`
-        : `<span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-medium capitalize">Image</span>`);
+        ? `<span class="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded font-medium capitalize shrink-0">Audio</span>`
+        : `<span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-medium capitalize shrink-0">Image</span>`);
 
-    let metaSummary = '';
+    let metaLine = '';
     if (mediaType === 'video') {
-      metaSummary = `<span class="text-[11px] text-gray-400 ml-2 font-mono">${ext} • H.264 • ${video.resolution || ''} • ${video.fps || 30} FPS • 2s KF</span>`;
+      const parts = [];
+      if (video.resolution) parts.push(video.resolution);
+      parts.push((video.fps || 30) + ' FPS');
+      parts.push('H.264');
+      parts.push(ext);
+      metaLine = parts.join(' • ');
     } else if (mediaType === 'audio') {
-      metaSummary = `<span class="text-[11px] text-gray-400 ml-2 font-mono">${ext} • ${formatBitrate(video.bitrate) || '128 kbps'}</span>`;
-    } else {
-      metaSummary = `<span class="text-[11px] text-gray-400 ml-2 font-mono">${ext} ${video.resolution ? '• ' + video.resolution : ''}</span>`;
+      const br = formatBitrate(video.bitrate);
+      metaLine = 'Audio • ' + ext + (br ? ' • ' + br : '');
+    } else if (mediaType === 'image') {
+      metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext + ' Image';
     }
 
     return `
@@ -3590,7 +3572,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="flex items-center gap-2 min-w-0">
               <span class="font-medium text-sm truncate max-w-xs text-white">${title}</span>
               ${typeBadge}
-              ${metaSummary}
+              <span class="text-[11px] text-gray-400 ml-2 font-mono truncate">${metaLine}</span>
             </div>
           </div>
         </td>

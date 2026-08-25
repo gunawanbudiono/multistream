@@ -911,6 +911,28 @@ app.get('/gallery', isAuthenticated, async (req, res) => {
       return res.redirect('/gallery');
     }
     const videos = await Video.findByUserAndFolder(req.session.userId, currentFolderId);
+    for (const v of (videos || [])) {
+      if (!v.resolution && v.filepath) {
+        const fullP = path.join(__dirname, 'public', v.filepath);
+        if (fs.existsSync(fullP)) {
+          try {
+            await new Promise((resProbe) => {
+              ffmpeg.ffprobe(fullP, (err, meta) => {
+                if (!err && meta && meta.streams && meta.streams[0]) {
+                  const s = meta.streams[0];
+                  if (s.width && s.height) {
+                    v.resolution = `${s.width}x${s.height}`;
+                    db.run('UPDATE videos SET resolution = ? WHERE id = ?', [v.resolution, v.id]);
+                  }
+                }
+                resProbe();
+              });
+            });
+          } catch (e) {}
+        }
+      }
+    }
+
     res.render('gallery', {
       title: 'Video Gallery',
       active: 'gallery',
@@ -937,6 +959,28 @@ app.get('/api/gallery/data', isAuthenticated, async (req, res) => {
     }
 
     const videos = await Video.findByUserAndFolder(req.session.userId, currentFolderId);
+    for (const v of (videos || [])) {
+      if (!v.resolution && v.filepath) {
+        const fullP = path.join(__dirname, 'public', v.filepath);
+        if (fs.existsSync(fullP)) {
+          try {
+            await new Promise((resProbe) => {
+              ffmpeg.ffprobe(fullP, (err, meta) => {
+                if (!err && meta && meta.streams && meta.streams[0]) {
+                  const s = meta.streams[0];
+                  if (s.width && s.height) {
+                    v.resolution = `${s.width}x${s.height}`;
+                    db.run('UPDATE videos SET resolution = ? WHERE id = ?', [v.resolution, v.id]);
+                  }
+                }
+                resProbe();
+              });
+            });
+          } catch (e) {}
+        }
+      }
+    }
+
     res.json({
       success: true,
       videos,
@@ -2360,6 +2404,19 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
           try { fs.copyFileSync(fullFilePath, fullThumbPath); } catch (e) {}
         }
 
+        let imageResolution = null;
+        try {
+          await new Promise((resolveProbe) => {
+            ffmpeg.ffprobe(fullFilePath, (err, metadata) => {
+              if (!err && metadata && metadata.streams && metadata.streams[0]) {
+                const s = metadata.streams[0];
+                if (s.width && s.height) imageResolution = `${s.width}x${s.height}`;
+              }
+              resolveProbe();
+            });
+          });
+        } catch (e) {}
+
         const imageRecord = await Video.create({
           title: rawTitle,
           filepath: relativeFilePath,
@@ -2367,7 +2424,7 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
           file_size: file.size,
           duration: 0,
           format: ext.replace('.', '') || 'image',
-          resolution: null,
+          resolution: imageResolution,
           bitrate: null,
           fps: null,
           user_id: req.session.userId,
