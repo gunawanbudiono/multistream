@@ -1866,12 +1866,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function getDynamicChunkSize(fileSize) {
-    if (fileSize <= 300 * 1024 * 1024) {
-      return 10 * 1024 * 1024; // 10MB chunk for files <= 300MB
-    } else if (fileSize <= 2 * 1024 * 1024 * 1024) {
-      return 25 * 1024 * 1024; // 25MB chunk for files 300MB - 2GB
+    if (fileSize <= 500 * 1024 * 1024) {
+      return 10 * 1024 * 1024; // 10MB chunk for files 50MB - 500MB (Maximizes 3-worker concurrency)
+    } else if (fileSize < 1024 * 1024 * 1024) {
+      return 25 * 1024 * 1024; // 25MB chunk for files 500MB - 1GB (Sweet spot)
     } else {
-      return 50 * 1024 * 1024; // 50MB chunk for files > 2GB (Strict Cloudflare 100MB compliance)
+      return 50 * 1024 * 1024; // 50MB chunk for files >= 1GB (Efisien & Cloudflare 100MB Safe)
     }
   }
 
