@@ -29,35 +29,43 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const args = [
-    '-m', 'yt_dlp',
-    '--cookies', '/app/db/cookies.txt',
-    '--remote-components', 'ejs:github',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
-    '--dump-single-json',
-    '--no-warnings',
-    '--skip-download',
-    '--default-search', 'ytsearch',
-    'SING-OFF TIKTOK SONGS 26 Montagem Xonada'
+  const testArgsList = [
+    { name: 'No player_client arg', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'] },
+    { name: 'player_client=android_vr,web', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=android_vr,web'] },
+    { name: 'player_client=web_creator,tv', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=web_creator,tv'] },
+    { name: 'player_client=android,mweb', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=android,mweb'] },
+    { name: 'player_skip=ios', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_skip=ios'] }
   ];
 
-  await new Promise((resolve) => {
-    execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) {
-        console.log('ERROR:', stderr || err.message);
-      } else {
-        const root = JSON.parse(stdout);
-        const info = (root.entries && root.entries[0]) || root;
-        const formats = info.formats || [];
-        const heights = [...new Set(formats.map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
-        console.log('VIDEO URL:', info.webpage_url || info.id);
-        console.log('TITLE:', info.title);
-        console.log('RESOLUTIONS:', heights);
-        console.log('FORMAT COUNT:', formats.length);
-      }
-      resolve();
+  for (const t of testArgsList) {
+    const args = [
+      '-m', 'yt_dlp',
+      '--cookies', '/app/db/cookies.txt',
+      '--remote-components', 'ejs:github',
+      ...t.args,
+      '--dump-single-json',
+      '--no-warnings',
+      '--skip-download',
+      'https://www.youtube.com/watch?v=5oiuYD5lPIA'
+    ];
+
+    await new Promise((resolve) => {
+      execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          console.log(`[${t.name}] ERROR:`, stderr.slice(0, 100) || err.message);
+        } else {
+          try {
+            const info = JSON.parse(stdout);
+            const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
+            console.log(`[${t.name}] RESOLUTIONS:`, heights);
+          } catch (e) {
+            console.log(`[${t.name}] PARSE ERR`);
+          }
+        }
+        resolve();
+      });
     });
-  });
+  }
 }
 
 run();
