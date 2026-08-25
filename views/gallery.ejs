@@ -1483,11 +1483,20 @@ document.addEventListener('DOMContentLoaded', function() {
           badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-gray-700/60 text-gray-300 border border-gray-600/40 px-2 py-0.5 rounded-md font-medium">${meta.sizeFormatted} • ${meta.formatTag} Audio</span>`;
         }
 
+        let thumbBoxClass = 'aspect-video w-24 h-15 rounded-lg overflow-hidden bg-dark-900 flex items-center justify-center shrink-0 border border-gray-700/80 relative shadow-md';
+        if (meta.width && meta.height) {
+          if (meta.height > meta.width) {
+            thumbBoxClass = 'w-14 h-20 rounded-lg overflow-hidden bg-dark-900 flex items-center justify-center shrink-0 border border-gray-700/80 relative shadow-md';
+          } else if (meta.width === meta.height) {
+            thumbBoxClass = 'w-16 h-16 rounded-lg overflow-hidden bg-dark-900 flex items-center justify-center shrink-0 border border-gray-700/80 relative shadow-md';
+          }
+        }
+
         const targetRow = document.getElementById(`selected-file-row-${i}`);
         if (targetRow) {
           targetRow.innerHTML = `
             <div class="flex items-center gap-3.5 min-w-0 flex-1">
-              <div class="aspect-video w-24 h-15 rounded-lg overflow-hidden bg-dark-900 flex items-center justify-center shrink-0 border border-gray-700/80 relative shadow-md">
+              <div class="${thumbBoxClass}">
                 ${thumbContent}
               </div>
               <div class="min-w-0 flex-1">
