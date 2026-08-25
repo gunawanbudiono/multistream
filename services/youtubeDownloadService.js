@@ -307,6 +307,9 @@ async function processJobQueue(jobId, queueItems) {
       cleanedUrl
     ];
 
+    let streamPhase = 0;
+    let lastRawPct = 0;
+
     await new Promise((resolve, reject) => {
       const child = spawn(runner.cmd, args);
       job.childProcess = child;
@@ -321,7 +324,22 @@ async function processJobQueue(jobId, queueItems) {
             const pctStr = parts[0]?.replace('%', '').trim();
             const pct = parseFloat(pctStr);
             if (!isNaN(pct)) {
-              job.currentProgress = Math.min(100, Math.max(0, pct));
+              // Detect transition from Video stream (100%) to Audio stream (0%)
+              if (pct < lastRawPct && lastRawPct > 70 && !isAudio) {
+                streamPhase = 1;
+              }
+              lastRawPct = pct;
+
+              let itemPct = pct;
+              if (!isAudio) {
+                if (streamPhase === 0) {
+                  itemPct = Math.round(pct * 0.85);
+                } else {
+                  itemPct = Math.min(98, Math.round(85 + (pct * 0.13)));
+                }
+              }
+
+              job.currentProgress = Math.max(job.currentProgress || 0, Math.min(99, itemPct));
               if (parts[1] && parts[1].trim() !== 'Unknown B/s') {
                 job.speed = cleanUnits(parts[1].trim());
               }
@@ -350,7 +368,7 @@ async function processJobQueue(jobId, queueItems) {
               }
               
               const overall = Math.round(((i + (job.currentProgress / 100)) / queueItems.length) * 100);
-              job.progress = Math.min(99, Math.max(0, overall));
+              job.progress = Math.max(job.progress || 0, Math.min(99, overall));
             }
           }
         }
