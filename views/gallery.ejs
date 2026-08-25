@@ -997,6 +997,8 @@ function openCloudModal(provider) {
   document.body.classList.add('overflow-hidden');
   
   document.getElementById('cloudImportForm').addEventListener('submit', (e) => handleCloudImport(e, provider));
+}
+
 let activeCloudPollInterval = null;
 
 function closeCloudModal() {
