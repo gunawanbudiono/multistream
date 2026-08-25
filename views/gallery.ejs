@@ -250,6 +250,7 @@ function detectMediaType(item) {
               if (mediaType === 'video') {
                 const parts = [];
                 parts.push(formatVideoResFps(video.resolution, video.fps));
+                parts.push(ext);
                 const br = formatBitrate(video.bitrate);
                 if (br) parts.push(br);
                 parts.push('2s KF');
@@ -335,6 +336,7 @@ function detectMediaType(item) {
               if (mediaType === 'video') {
                 const parts = [];
                 parts.push(formatVideoResFps(video.resolution, video.fps));
+                parts.push(ext);
                 const br = formatBitrate(video.bitrate);
                 if (br) parts.push(br);
                 parts.push('2s KF');
@@ -3501,6 +3503,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (mediaType === 'video') {
       const parts = [];
       parts.push(formatVideoResFps(video.resolution, video.fps));
+      parts.push(ext);
       const br = formatBitrate(video.bitrate);
       if (br) parts.push(br);
       parts.push('2s KF');
@@ -3597,6 +3600,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (mediaType === 'video') {
       const parts = [];
       parts.push(formatVideoResFps(video.resolution, video.fps));
+      parts.push(ext);
       const br = formatBitrate(video.bitrate);
       if (br) parts.push(br);
       parts.push('2s KF');

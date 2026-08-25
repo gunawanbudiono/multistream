@@ -609,6 +609,36 @@ async function buildFFmpegArgs(stream) {
   const loopValue = stream.loop_video ? '-1' : '0';
 
   if (!stream.use_advanced_settings) {
+    const ext = path.extname(videoPath).toLowerCase();
+    const isPureAudio = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'].includes(ext);
+    if (isPureAudio) {
+      return [
+        '-nostdin',
+        '-loglevel', 'warning',
+        '-stats',
+        '-re',
+        '-f', 'lavfi',
+        '-i', 'color=c=black:s=1280x720:r=30',
+        '-stream_loop', loopValue,
+        '-i', videoPath,
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-tune', 'zerolatency',
+        '-pix_fmt', 'yuv420p',
+        '-b:v', '500k',
+        '-g', '60',
+        '-keyint_min', '60',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-ar', '44100',
+        '-ac', '2',
+        '-shortest',
+        '-f', 'flv',
+        '-flvflags', 'no_duration_filesize',
+        rtmpUrl
+      ];
+    }
+
     return [
       '-nostdin',
       '-loglevel', 'warning',
@@ -619,8 +649,10 @@ async function buildFFmpegArgs(stream) {
       '-stream_loop', loopValue,
       '-i', videoPath,
       '-c:v', 'copy',
-      '-c:a', 'copy',
-      '-bsf:a', 'aac_adtstoasc',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-ar', '44100',
+      '-ac', '2',
       '-f', 'flv',
       '-flvflags', 'no_duration_filesize',
       rtmpUrl

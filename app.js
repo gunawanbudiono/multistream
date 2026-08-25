@@ -2350,11 +2350,23 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
         });
 
       } else if (audioExts.includes(ext) || file.mimetype.startsWith('audio/')) {
-        const converted = await audioConverter.processAudioFile(fullFilePath, file.originalname);
-        const finalFilename = path.basename(converted.filepath);
-        const relativeFilePath = `/uploads/audio/${finalFilename}`;
-        const audioInfo = await audioConverter.getAudioInfo(converted.filepath);
-        const stats = fs.statSync(converted.filepath);
+        const audioDir = path.join(__dirname, 'public', 'uploads', 'audio');
+        if (!fs.existsSync(audioDir)) {
+          fs.mkdirSync(audioDir, { recursive: true });
+        }
+        const finalAudioPath = path.join(audioDir, file.filename);
+        if (fullFilePath !== finalAudioPath) {
+          try {
+            fs.renameSync(fullFilePath, finalAudioPath);
+          } catch (mvErr) {
+            fs.copyFileSync(fullFilePath, finalAudioPath);
+            try { fs.unlinkSync(fullFilePath); } catch (e) {}
+          }
+        }
+        const relativeFilePath = `/uploads/audio/${file.filename}`;
+        const audioInfo = await audioConverter.getAudioInfo(finalAudioPath);
+        const stats = fs.statSync(finalAudioPath);
+        const audioFmt = ext.replace('.', '').toLowerCase() || audioInfo.codec || 'mp3';
 
         const audioRecord = await Video.create({
           title: rawTitle,
@@ -2362,7 +2374,7 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
           thumbnail_path: '/images/audio-thumbnail.svg',
           file_size: stats.size,
           duration: audioInfo.duration || 0,
-          format: 'aac',
+          format: audioFmt,
           resolution: null,
           bitrate: audioInfo.bitrate || null,
           fps: null,
@@ -2659,20 +2671,17 @@ app.post('/api/audio/upload', isAuthenticated, (req, res, next) => {
 
     let title = path.parse(req.file.originalname).name;
     const uploadedPath = path.join(__dirname, 'public', 'uploads', 'audio', req.file.filename);
-    const result = await audioConverter.processAudioFile(uploadedPath, req.file.originalname);
-    const finalFilename = path.basename(result.filepath);
-    const filePath = `/uploads/audio/${finalFilename}`;
-    const fullFilePath = result.filepath;
-    const audioInfo = await audioConverter.getAudioInfo(fullFilePath);
-    const stats = fs.statSync(fullFilePath);
-    const thumbnailPath = '/images/audio-thumbnail.png';
+    const audioInfo = await audioConverter.getAudioInfo(uploadedPath);
+    const stats = fs.statSync(uploadedPath);
+    const thumbnailPath = '/images/audio-thumbnail.svg';
+    const ext = path.extname(req.file.originalname).replace('.', '').toLowerCase() || 'mp3';
     const videoData = {
       title,
-      filepath: filePath,
+      filepath: `/uploads/audio/${req.file.filename}`,
       thumbnail_path: thumbnailPath,
       file_size: stats.size,
-      duration: audioInfo.duration,
-      format: 'aac',
+      duration: audioInfo.duration || 0,
+      format: ext,
       resolution: null,
       bitrate: audioInfo.bitrate,
       fps: null,
@@ -2682,9 +2691,8 @@ app.post('/api/audio/upload', isAuthenticated, (req, res, next) => {
     const video = await Video.create(videoData);
     res.json({
       success: true,
-      message: result.converted ? 'Audio converted to AAC and uploaded successfully' : 'Audio uploaded successfully',
-      video,
-      converted: result.converted
+      message: 'Audio uploaded successfully',
+      video
     });
   } catch (error) {
     console.error('Audio upload error:', error);
