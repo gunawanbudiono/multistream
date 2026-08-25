@@ -29,28 +29,11 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const args = [
-    '-m', 'yt_dlp',
-    '--cookies', '/app/db/cookies.txt',
-    '--remote-components', 'ejs:github',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=tv,mweb,web',
-    '--dump-single-json',
-    '--no-warnings',
-    '--skip-download',
-    'https://www.youtube.com/watch?v=5oiuYD5lPIA'
-  ];
-
-  await new Promise((resolve) => {
-    execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) {
-        console.log('ERROR:', stderr || err.message);
-      } else {
-        const info = JSON.parse(stdout);
-        const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
-        console.log('SING-OFF WITH (tv,mweb,web):', heights);
-      }
-      resolve();
-    });
+  const Video = require('../models/Video');
+  const all = await Video.findAll();
+  console.log('VIDEOS IN DB:');
+  all.slice(0, 3).forEach(v => {
+    console.log(`- ${v.title} | Res: ${v.resolution} | Size: ${Math.round(v.file_size/1024/1024)} MB`);
   });
 }
 
