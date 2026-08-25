@@ -3536,6 +3536,64 @@ app.post('/api/videos/import-drive', isAuthenticated, [
     res.status(500).json({ success: false, error: 'Failed to import video' });
   }
 });
+const youtubeDownloadService = require('./services/youtubeDownloadService');
+
+app.post('/api/youtube/inspect', isAuthenticated, async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ success: false, error: 'YouTube URL is required' });
+    }
+    const cleanUrl = url.trim();
+    if (!cleanUrl.includes('youtube.com') && !cleanUrl.includes('youtu.be')) {
+      return res.status(400).json({ success: false, error: 'Invalid YouTube URL' });
+    }
+    const metadata = await youtubeDownloadService.inspectVideo(cleanUrl);
+    res.json({ success: true, metadata });
+  } catch (error) {
+    console.error('YouTube inspect error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to scan YouTube video' });
+  }
+});
+
+app.post('/api/youtube/download', isAuthenticated, async (req, res) => {
+  try {
+    const { items, folderId } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'No video items provided for download' });
+    }
+    const normalizedFolderId = normalizeFolderId(folderId);
+    const jobId = youtubeDownloadService.startDownloadJob(req.session.userId, items, normalizedFolderId);
+    res.json({ success: true, jobId, message: 'Download queued successfully' });
+  } catch (error) {
+    console.error('YouTube download start error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to start YouTube download' });
+  }
+});
+
+app.get('/api/youtube/status/:jobId', isAuthenticated, async (req, res) => {
+  try {
+    const status = youtubeDownloadService.getJobStatus(req.params.jobId);
+    if (!status) {
+      return res.status(404).json({ success: false, error: 'Download job not found' });
+    }
+    res.json({ success: true, status });
+  } catch (error) {
+    console.error('YouTube status error:', error);
+    res.status(500).json({ success: false, error: 'Failed to retrieve job status' });
+  }
+});
+
+app.post('/api/youtube/cancel/:jobId', isAuthenticated, async (req, res) => {
+  try {
+    const success = youtubeDownloadService.cancelJob(req.params.jobId);
+    res.json({ success });
+  } catch (error) {
+    console.error('YouTube cancel error:', error);
+    res.status(500).json({ success: false, error: 'Failed to cancel job' });
+  }
+});
+
 app.get('/api/videos/import-status/:jobId', isAuthenticated, async (req, res) => {
   const jobId = req.params.jobId;
   if (!importJobs[jobId]) {

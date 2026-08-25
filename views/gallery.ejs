@@ -58,22 +58,22 @@ function detectMediaType(item) {
         <span>Import from Cloud</span>
         <i class="ti ti-chevron-down text-sm"></i>
       </button>
-      <div id="cloudDropdown" class="hidden absolute right-0 mt-2 w-48 bg-dark-800 border border-gray-700 rounded-lg shadow-xl z-50">
-        <button onclick="openCloudModal('gdrive')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors rounded-t-lg">
+      <div id="cloudDropdown" class="hidden absolute right-0 mt-2 w-52 bg-dark-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
+        <button onclick="openCloudModal('gdrive')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 text-left transition-colors border-b border-gray-700/50">
           <img src="/images/google drive.png" alt="Google Drive" class="w-5 h-5" loading="lazy" decoding="async">
-          <span>Google Drive</span>
+          <div>
+            <div class="font-medium text-sm text-gray-200">Google Drive</div>
+            <div class="text-[11px] text-gray-400">Import files via link</div>
+          </div>
         </button>
-        <button onclick="openCloudModal('mediafire')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors">
-          <img src="/images/mediafire.png" alt="Mediafire" class="w-5 h-5" loading="lazy" decoding="async">
-          <span>Mediafire</span>
-        </button>
-        <button onclick="openCloudModal('dropbox')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors">
-          <img src="/images/dropbox.png" alt="Dropbox" class="w-5 h-5" loading="lazy" decoding="async">
-          <span>Dropbox</span>
-        </button>
-        <button onclick="openCloudModal('mega')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors rounded-b-lg">
-          <img src="/images/mega.png" alt="MEGA" class="w-5 h-5" loading="lazy" decoding="async">
-          <span>MEGA</span>
+        <button onclick="openYouTubeDownloadModal()" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 text-left transition-colors">
+          <div class="w-5 h-5 rounded flex items-center justify-center bg-red-600/20 text-red-500">
+            <i class="ti ti-brand-youtube text-lg"></i>
+          </div>
+          <div>
+            <div class="font-medium text-sm text-gray-200">YouTube</div>
+            <div class="text-[11px] text-gray-400">Scan & download video/audio</div>
+          </div>
         </button>
       </div>
     </div>
@@ -506,6 +506,108 @@ function detectMediaType(item) {
         </button>
       </div>
       <div id="cloudModalBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- YouTube Downloader Modal with Multi-Resolution & Batch Queue -->
+<div id="youtubeDownloadModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden modal-overlay overflow-y-auto">
+  <div class="flex min-h-screen items-center justify-center p-4">
+    <div class="bg-dark-800 rounded-2xl shadow-2xl w-full max-w-xl border border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-5 border-b border-gray-700 bg-dark-800 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-red-600/20 flex items-center justify-center text-red-500 shrink-0">
+            <i class="ti ti-brand-youtube text-2xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              YouTube Downloader
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-semibold border border-red-500/30">Auto 4K Mux</span>
+            </h3>
+            <p class="text-xs text-gray-400">Download YouTube videos & Shorts in high-fidelity quality</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeYouTubeDownloadModal()" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
+          <i class="ti ti-x text-xl"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+        <!-- Input Box for Link -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-gray-300 flex items-center justify-between">
+            <span>Paste YouTube URL</span>
+            <span class="text-[11px] text-gray-500 font-normal">Supports standard videos & Shorts</span>
+          </label>
+          <div class="flex gap-2">
+            <div class="relative flex-1">
+              <i class="ti ti-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base"></i>
+              <input type="text" id="ytUrlInput" placeholder="https://www.youtube.com/watch?v=... or shorts URL" 
+                class="w-full bg-dark-900 border border-gray-700 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors placeholder-gray-500"
+                autocomplete="off">
+            </div>
+            <button type="button" id="ytScanBtn" onclick="handleScanYouTubeUrl()" class="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-xl transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-red-600/20">
+              <i class="ti ti-search text-base" id="ytScanIcon"></i>
+              <span id="ytScanText">Scan</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Video Queue Container -->
+        <div id="ytQueueContainer" class="space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Queue (<span id="ytQueueCount">0</span>)</span>
+            <button type="button" onclick="focusYtUrlInput()" class="text-xs text-red-400 hover:text-red-300 font-medium flex items-center gap-1">
+              <i class="ti ti-plus text-xs"></i> Add More
+            </button>
+          </div>
+
+          <!-- Empty State -->
+          <div id="ytQueueEmpty" class="border-2 border-dashed border-gray-700/60 rounded-xl p-6 text-center text-gray-500">
+            <i class="ti ti-brand-youtube text-3xl mb-1 text-gray-600 block"></i>
+            <p class="text-xs">Paste a YouTube link above and click <span class="text-gray-300 font-medium">Scan</span> to inspect available resolutions.</p>
+          </div>
+
+          <!-- Card List -->
+          <div id="ytQueueCards" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Real-Time Progress Container -->
+        <div id="ytProgressContainer" class="hidden bg-dark-900 border border-gray-700/80 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2 min-w-0">
+              <i class="ti ti-loader-2 text-base text-red-500 animate-spin shrink-0"></i>
+              <span id="ytProgressItemTitle" class="font-medium text-white truncate">Downloading video...</span>
+            </div>
+            <span id="ytProgressPercentage" class="text-red-400 font-bold shrink-0">0%</span>
+          </div>
+
+          <div class="w-full bg-dark-700 rounded-full h-2 overflow-hidden">
+            <div id="ytProgressBar" class="bg-gradient-to-r from-red-600 to-red-500 h-2 rounded-full transition-all duration-200" style="width: 0%"></div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] text-gray-400">
+            <span id="ytProgressMetrics">Connecting to YouTube stream...</span>
+            <span id="ytProgressEta"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 px-5 border-t border-gray-700 bg-dark-800/80 flex items-center justify-between shrink-0">
+        <div class="text-xs text-gray-400 truncate max-w-[200px]">
+          Target: <span class="text-gray-300 font-medium"><%= currentFolder ? currentFolder.name : 'Root Gallery' %></span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <button type="button" onclick="closeYouTubeDownloadModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 font-medium text-sm rounded-xl transition-colors">Close</button>
+          <button type="button" id="ytDownloadSubmitBtn" onclick="startYtDownloadQueue()" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-xl transition-all shadow-lg shadow-red-600/25 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i class="ti ti-download"></i>
+            <span id="ytDownloadSubmitText">Start Download (0)</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1082,6 +1184,289 @@ async function handleCloudImport(e, provider) {
     }, 2000);
   } catch (err) {
     showToast('error', err.message);
+    submitBtn.disabled = false;
+  }
+}
+
+// ==================== YOUTUBE DOWNLOADER CLIENT LOGIC ====================
+let ytDownloadQueue = [];
+let ytActiveJobId = null;
+let ytPollInterval = null;
+
+function openYouTubeDownloadModal() {
+  document.getElementById('cloudDropdown')?.classList.add('hidden');
+  const modal = document.getElementById('youtubeDownloadModal');
+  if (!modal) return;
+
+  if (!ytActiveJobId) {
+    ytDownloadQueue = [];
+    const input = document.getElementById('ytUrlInput');
+    if (input) input.value = '';
+    renderYtQueue();
+    document.getElementById('ytProgressContainer')?.classList.add('hidden');
+  }
+
+  modal.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
+
+  setTimeout(() => {
+    document.getElementById('ytUrlInput')?.focus();
+  }, 100);
+}
+
+function closeYouTubeDownloadModal() {
+  const modal = document.getElementById('youtubeDownloadModal');
+  if (modal) modal.classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+}
+
+const ytModalEl = document.getElementById('youtubeDownloadModal');
+if (ytModalEl) makeModalDismissible(ytModalEl, closeYouTubeDownloadModal);
+
+function focusYtUrlInput() {
+  const input = document.getElementById('ytUrlInput');
+  if (input) {
+    input.focus();
+    input.scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+document.getElementById('ytUrlInput')?.addEventListener('paste', () => {
+  setTimeout(() => {
+    handleScanYouTubeUrl();
+  }, 50);
+});
+
+document.getElementById('ytUrlInput')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleScanYouTubeUrl();
+  }
+});
+
+async function handleScanYouTubeUrl() {
+  const input = document.getElementById('ytUrlInput');
+  const url = input?.value.trim();
+  if (!url) {
+    showToast('error', 'Please enter a valid YouTube URL');
+    return;
+  }
+
+  if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+    showToast('error', 'Please enter a valid YouTube or Shorts link');
+    return;
+  }
+
+  if (ytDownloadQueue.some(item => item.url === url)) {
+    showToast('error', 'This video is already in the queue');
+    input.value = '';
+    return;
+  }
+
+  const scanBtn = document.getElementById('ytScanBtn');
+  const scanIcon = document.getElementById('ytScanIcon');
+  const scanText = document.getElementById('ytScanText');
+
+  scanBtn.disabled = true;
+  scanIcon.className = 'ti ti-loader-2 text-base animate-spin';
+  scanText.textContent = 'Scanning...';
+
+  try {
+    const res = await fetch('/api/youtube/inspect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+
+    if (!data.success || !data.metadata) {
+      throw new Error(data.error || 'Failed to scan YouTube video');
+    }
+
+    const meta = data.metadata;
+    ytDownloadQueue.push({
+      id: meta.id,
+      title: meta.title,
+      channel: meta.channel,
+      duration: meta.duration,
+      durationFormatted: meta.durationFormatted,
+      thumbnail: meta.thumbnail,
+      url: meta.url || url,
+      resolutions: meta.resolutions || [],
+      selectedResolution: meta.defaultResolution || (meta.resolutions[0]?.height || '1080')
+    });
+
+    input.value = '';
+    renderYtQueue();
+    showToast('success', `Added "${meta.title.slice(0, 30)}..." to queue`);
+  } catch (error) {
+    console.error('YouTube scan error:', error);
+    showToast('error', error.message || 'Failed to scan video');
+  } finally {
+    scanBtn.disabled = false;
+    scanIcon.className = 'ti ti-search text-base';
+    scanText.textContent = 'Scan';
+  }
+}
+
+function renderYtQueue() {
+  const queueCount = document.getElementById('ytQueueCount');
+  const emptyState = document.getElementById('ytQueueEmpty');
+  const cardsContainer = document.getElementById('ytQueueCards');
+  const submitBtn = document.getElementById('ytDownloadSubmitBtn');
+  const submitText = document.getElementById('ytDownloadSubmitText');
+
+  if (queueCount) queueCount.textContent = ytDownloadQueue.length;
+
+  if (ytDownloadQueue.length === 0) {
+    emptyState?.classList.remove('hidden');
+    if (cardsContainer) cardsContainer.innerHTML = '';
+    if (submitBtn) submitBtn.disabled = true;
+    if (submitText) submitText.textContent = 'Start Download (0)';
+    return;
+  }
+
+  emptyState?.classList.add('hidden');
+  if (submitBtn) submitBtn.disabled = (ytActiveJobId !== null);
+  if (submitText) submitText.textContent = `Start Download (${ytDownloadQueue.length})`;
+
+  if (cardsContainer) {
+    cardsContainer.innerHTML = ytDownloadQueue.map((item, idx) => {
+      const resOptionsHtml = item.resolutions.map(r => {
+        const val = r.height === 'audio' || r.height === 0 ? 'audio' : r.height;
+        const isSelected = String(item.selectedResolution) === String(val) ? 'selected' : '';
+        return `<option value="${val}" ${isSelected}>${r.label}</option>`;
+      }).join('');
+
+      return `
+        <div class="bg-dark-900 border border-gray-700/70 hover:border-gray-600 rounded-xl p-3 flex items-center gap-3 transition-all">
+          <div class="relative w-24 h-14 rounded-lg overflow-hidden bg-black shrink-0 border border-gray-800">
+            ${item.thumbnail ? `<img src="${item.thumbnail}" alt="" class="w-full h-full object-cover" loading="lazy">` : `<div class="w-full h-full flex items-center justify-center text-gray-600"><i class="ti ti-video text-xl"></i></div>`}
+            <span class="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1 py-0.5 rounded font-mono font-medium">${item.durationFormatted}</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h4 class="text-xs font-semibold text-white truncate mb-0.5" title="${item.title}">${item.title}</h4>
+            <div class="text-[11px] text-gray-400 truncate mb-1.5 flex items-center gap-1.5">
+              <span>${item.channel}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Quality:</label>
+              <select onchange="updateYtQueueResolution(${idx}, this.value)" class="bg-dark-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-red-500 transition-colors">
+                ${resOptionsHtml}
+              </select>
+            </div>
+          </div>
+          <button type="button" onclick="removeYtQueueItem(${idx})" class="text-gray-500 hover:text-red-400 p-2 rounded-lg hover:bg-dark-800 transition-colors shrink-0" title="Remove from queue" ${ytActiveJobId ? 'disabled' : ''}>
+            <i class="ti ti-trash text-base"></i>
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+function updateYtQueueResolution(index, value) {
+  if (ytDownloadQueue[index]) {
+    ytDownloadQueue[index].selectedResolution = value;
+  }
+}
+
+function removeYtQueueItem(index) {
+  if (ytActiveJobId) return;
+  ytDownloadQueue.splice(index, 1);
+  renderYtQueue();
+}
+
+async function startYtDownloadQueue() {
+  if (ytDownloadQueue.length === 0 || ytActiveJobId) return;
+
+  const submitBtn = document.getElementById('ytDownloadSubmitBtn');
+  const progressContainer = document.getElementById('ytProgressContainer');
+  const progressItemTitle = document.getElementById('ytProgressItemTitle');
+  const progressBar = document.getElementById('ytProgressBar');
+  const progressPercentage = document.getElementById('ytProgressPercentage');
+  const progressMetrics = document.getElementById('ytProgressMetrics');
+  const progressEta = document.getElementById('ytProgressEta');
+
+  submitBtn.disabled = true;
+  progressContainer.classList.remove('hidden');
+
+  const items = ytDownloadQueue.map(item => ({
+    url: item.url,
+    title: item.title,
+    duration: item.duration,
+    resolution: item.selectedResolution
+  }));
+
+  try {
+    const res = await fetch('/api/youtube/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items,
+        folderId: currentFolderId || ''
+      })
+    });
+    const data = await res.json();
+
+    if (!data.success || !data.jobId) {
+      throw new Error(data.error || 'Failed to start download');
+    }
+
+    ytActiveJobId = data.jobId;
+    renderYtQueue();
+
+    if (ytPollInterval) clearInterval(ytPollInterval);
+    ytPollInterval = setInterval(async () => {
+      if (!ytActiveJobId) {
+        clearInterval(ytPollInterval);
+        return;
+      }
+
+      try {
+        const sRes = await fetch(`/api/youtube/status/${ytActiveJobId}`);
+        const sData = await sRes.json();
+
+        if (!sData.success || !sData.status) return;
+        const job = sData.status;
+
+        if (progressItemTitle) {
+          progressItemTitle.textContent = `(${job.currentIndex + 1}/${job.totalItems}) ${job.currentItemTitle}`;
+        }
+        if (progressBar) progressBar.style.width = `${job.progress}%`;
+        if (progressPercentage) progressPercentage.textContent = `${job.progress}%`;
+        if (progressMetrics) {
+          progressMetrics.textContent = job.speed ? `Speed: ${job.speed}` : 'Downloading stream chunks...';
+        }
+        if (progressEta) {
+          progressEta.textContent = job.eta ? `ETA: ${job.eta}` : '';
+        }
+
+        if (job.status === 'completed') {
+          clearInterval(ytPollInterval);
+          ytActiveJobId = null;
+          showToast('success', `Successfully downloaded ${job.filesCount} YouTube video(s) to Gallery!`);
+          ytDownloadQueue = [];
+          renderYtQueue();
+          progressContainer.classList.add('hidden');
+          closeYouTubeDownloadModal();
+          if (typeof loadDiskUsage === 'function') loadDiskUsage();
+          if (typeof window.refreshGalleryData === 'function') await window.refreshGalleryData();
+          else window.location.reload();
+        } else if (job.status === 'failed') {
+          clearInterval(ytPollInterval);
+          ytActiveJobId = null;
+          renderYtQueue();
+          showToast('error', `Download failed: ${job.error || 'Unknown error'}`);
+          submitBtn.disabled = false;
+        }
+      } catch (err) {
+        console.error('YouTube poll error:', err);
+      }
+    }, 800);
+  } catch (error) {
+    console.error('YouTube download start error:', error);
+    showToast('error', error.message || 'Failed to start download');
     submitBtn.disabled = false;
   }
 }

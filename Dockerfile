@@ -5,13 +5,16 @@ FROM node:20-bookworm
 ENV TZ=Asia/Jakarta
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Install dependency sistem yang dibutuhkan (ffmpeg untuk video, build tools untuk native module seperti sqlite3, tzdata)
+# Install dependency sistem yang dibutuhkan (ffmpeg untuk video, yt-dlp untuk YouTube downloader, build tools untuk native module seperti sqlite3, tzdata)
 RUN apt-get update && apt-get install -y \
     tzdata \
     ffmpeg \
     python3 \
+    curl \
     make \
     g++ \
+    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory di dalam container
