@@ -25,6 +25,22 @@ function formatBitrate(bitrate) {
   if (num >= 1000) return `${(num / 1000).toFixed(1)} Mbps`;
   return `${Math.round(num)} kbps`;
 }
+function formatVideoResFps(resolution, fps) {
+  const fpsStr = fps ? `${fps}` : '30';
+  if (!resolution) return `${fpsStr} FPS`;
+  const parts = resolution.split('x');
+  if (parts.length === 2) {
+    const w = parseInt(parts[0]);
+    const h = parseInt(parts[1]);
+    if (h === 2160 || w === 3840) return `4K${fpsStr}`;
+    if (h === 1440 || w === 2560) return `1440p${fpsStr}`;
+    if (h === 1080 || w === 1920) return `1080p${fpsStr}`;
+    if (h === 720 || w === 1280) return `720p${fpsStr}`;
+    if (h === 480 || w === 854) return `480p${fpsStr}`;
+    return `${resolution} (${fpsStr} FPS)`;
+  }
+  return `${resolution} (${fpsStr} FPS)`;
+}
 function detectMediaType(item) {
   const fp = (item.filepath || '').toLowerCase();
   const fmt = (item.format || '').toLowerCase();
@@ -233,10 +249,11 @@ function detectMediaType(item) {
               let metaLine = '';
               if (mediaType === 'video') {
                 const parts = [];
-                if (video.resolution) parts.push(video.resolution);
-                parts.push((video.fps || 30) + ' FPS');
+                parts.push(formatVideoResFps(video.resolution, video.fps));
+                const br = formatBitrate(video.bitrate);
+                if (br) parts.push(br);
+                parts.push('2s KF');
                 parts.push('H.264');
-                parts.push(ext);
                 metaLine = parts.join(' • ');
               } else if (mediaType === 'audio') {
                 const br = formatBitrate(video.bitrate);
@@ -314,6 +331,21 @@ function detectMediaType(item) {
             <% videos.forEach(function(video) { 
               const mediaType = detectMediaType(video);
               const ext = (video.format || (video.filepath ? video.filepath.split('.').pop() : (mediaType === 'audio' ? 'mp3' : 'mp4'))).toUpperCase();
+              let metaLine = '';
+              if (mediaType === 'video') {
+                const parts = [];
+                parts.push(formatVideoResFps(video.resolution, video.fps));
+                const br = formatBitrate(video.bitrate);
+                if (br) parts.push(br);
+                parts.push('2s KF');
+                parts.push('H.264');
+                metaLine = parts.join(' • ');
+              } else if (mediaType === 'audio') {
+                const br = formatBitrate(video.bitrate);
+                metaLine = 'Audio • ' + ext + (br ? ' • ' + br : '');
+              } else if (mediaType === 'image') {
+                metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext + ' Image';
+              }
             %>
             <tr class="gallery-list-item file-item-row group hover:bg-dark-700 transition-colors cursor-pointer"
               data-id="<%= video.id %>" data-kind="file" data-title="<%= video.title %>" data-date="<%= video.upload_date %>" data-size="<%= video.file_size %>" data-type="<%= mediaType %>"
@@ -333,15 +365,13 @@ function detectMediaType(item) {
                   <div class="flex items-center gap-2 min-w-0">
                     <span class="font-medium text-sm truncate max-w-xs text-white"><%= video.title %></span>
                     <% if (mediaType === 'video') { %>
-                    <span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-medium capitalize">Video</span>
-                    <span class="text-[11px] text-gray-400 ml-2 font-mono"><%= ext %> • H.264 • <%= video.resolution || '' %> • <%= video.fps || 30 %> FPS • 2s KF</span>
+                    <span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-medium capitalize shrink-0">Video</span>
                     <% } else if (mediaType === 'audio') { %>
-                    <span class="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded font-medium capitalize">Audio</span>
-                    <span class="text-[11px] text-gray-400 ml-2 font-mono"><%= ext %> • <%= formatBitrate(video.bitrate) || '128 kbps' %></span>
+                    <span class="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded font-medium capitalize shrink-0">Audio</span>
                     <% } else if (mediaType === 'image') { %>
-                    <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-medium capitalize">Image</span>
-                    <span class="text-[11px] text-gray-400 ml-2 font-mono"><%= ext %> <%= video.resolution ? '• ' + video.resolution : '' %></span>
+                    <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-medium capitalize shrink-0">Image</span>
                     <% } %>
+                    <span class="text-[11px] text-gray-400 ml-2 font-mono truncate"><%= metaLine %></span>
                   </div>
                 </div>
               </td>
@@ -3410,6 +3440,23 @@ document.addEventListener('DOMContentLoaded', function() {
     return `${Math.round(num)} kbps`;
   }
 
+  function formatVideoResFps(resolution, fps) {
+    const fpsStr = fps ? `${fps}` : '30';
+    if (!resolution) return `${fpsStr} FPS`;
+    const parts = resolution.split('x');
+    if (parts.length === 2) {
+      const w = parseInt(parts[0]);
+      const h = parseInt(parts[1]);
+      if (h === 2160 || w === 3840) return `4K${fpsStr}`;
+      if (h === 1440 || w === 2560) return `1440p${fpsStr}`;
+      if (h === 1080 || w === 1920) return `1080p${fpsStr}`;
+      if (h === 720 || w === 1280) return `720p${fpsStr}`;
+      if (h === 480 || w === 854) return `480p${fpsStr}`;
+      return `${resolution} (${fpsStr} FPS)`;
+    }
+    return `${resolution} (${fpsStr} FPS)`;
+  }
+
   function buildVideoGridMarkup(video) {
     const mediaType = detectItemCategory(video);
     const thumbnail = escapeHtml(video.thumbnail_path || video.filepath || '/images/default-video-thumbnail.svg');
@@ -3453,10 +3500,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (mediaType === 'video') {
       const parts = [];
-      if (video.resolution) parts.push(video.resolution);
-      parts.push((video.fps || 30) + ' FPS');
+      parts.push(formatVideoResFps(video.resolution, video.fps));
+      const br = formatBitrate(video.bitrate);
+      if (br) parts.push(br);
+      parts.push('2s KF');
       parts.push('H.264');
-      parts.push(ext);
       metaLine = parts.join(' • ');
     } else if (mediaType === 'audio') {
       const br = formatBitrate(video.bitrate);
@@ -3548,10 +3596,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let metaLine = '';
     if (mediaType === 'video') {
       const parts = [];
-      if (video.resolution) parts.push(video.resolution);
-      parts.push((video.fps || 30) + ' FPS');
+      parts.push(formatVideoResFps(video.resolution, video.fps));
+      const br = formatBitrate(video.bitrate);
+      if (br) parts.push(br);
+      parts.push('2s KF');
       parts.push('H.264');
-      parts.push(ext);
       metaLine = parts.join(' • ');
     } else if (mediaType === 'audio') {
       const br = formatBitrate(video.bitrate);
