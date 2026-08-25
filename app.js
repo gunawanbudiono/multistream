@@ -1169,6 +1169,28 @@ app.get('/users', isAdmin, async (req, res) => {
        };
     }));
     
+    // Compute granular statistics for the 3 top cards
+    let totalAllocatedGB = 0;
+    let activeUsersCount = 0;
+    let suspendedUsersCount = 0;
+    let adminUsersCount = 0;
+    let memberUsersCount = 0;
+    let totalStreamsAll = 0;
+
+    users.forEach(u => {
+      if (u.status === 'active') activeUsersCount++;
+      else suspendedUsersCount++;
+
+      if (u.user_role === 'admin') adminUsersCount++;
+      else memberUsersCount++;
+
+      totalAllocatedGB += (Number(u.disk_quota_gb) || 0);
+    });
+
+    usersWithStats.forEach(u => {
+      totalStreamsAll += (u.streamCount || 0);
+    });
+
     // System disk space from systemMonitor
     let systemDiskStats = { total: '489.61 GB', free: '469.00 GB', used: '20.79 GB' };
     try {
@@ -1176,16 +1198,30 @@ app.get('/users', isAdmin, async (req, res) => {
       if (diskInfo) systemDiskStats = diskInfo;
     } catch (e) {}
 
+    const totalServerCapacityGB = 489.61;
+    const unallocatedPoolGB = Math.max(0, (totalServerCapacityGB - totalAllocatedGB)).toFixed(2);
+    const allocatedPercent = Math.min(100, Math.max(2, Math.round((totalAllocatedGB / totalServerCapacityGB) * 100)));
+    const offlineStreamsAll = Math.max(0, totalStreamsAll - totalActiveStreamsAll);
+
     const formatStorageGB = (bytes) => {
       return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
     };
 
     const globalStats = {
       totalUsers: users.length,
+      activeCount: activeUsersCount,
+      suspendedCount: suspendedUsersCount,
+      adminCount: adminUsersCount,
+      memberCount: memberUsersCount,
+      totalAllocatedGB: totalAllocatedGB,
+      unallocatedPoolGB: unallocatedPoolGB,
+      allocatedPercent: allocatedPercent,
       totalVideos: totalVideosAll,
+      totalStreams: totalStreamsAll,
+      activeStreams: totalActiveStreamsAll,
+      offlineStreams: offlineStreamsAll,
       totalStorageUsed: formatStorageGB(totalStorageBytes),
-      totalActiveStreams: totalActiveStreamsAll,
-      diskFree: systemDiskStats.free || '469 GB'
+      diskFree: systemDiskStats.free || '469.00 GB'
     };
 
     res.render('users', {
