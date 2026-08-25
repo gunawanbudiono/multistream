@@ -806,6 +806,30 @@ function revokeAllTrackedObjectURLs() {
   activeObjectUrls.clear();
 }
 
+function setUploadButtonState(enabled) {
+  const btn = document.getElementById('uploadButton');
+  if (btn) {
+    btn.disabled = !enabled;
+    if (enabled) {
+      btn.removeAttribute('disabled');
+      btn.classList.remove('disabled:bg-gray-600', 'disabled:cursor-not-allowed', 'cursor-not-allowed');
+    } else {
+      btn.setAttribute('disabled', 'disabled');
+      btn.classList.add('disabled:bg-gray-600', 'disabled:cursor-not-allowed');
+    }
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const uploadBtn = e.target.closest('#uploadButton');
+  if (uploadBtn && !uploadBtn.disabled) {
+    e.preventDefault();
+    if (typeof window._triggerUploadProcess === 'function') {
+      window._triggerUploadProcess();
+    }
+  }
+});
+
 function resetUploadForm() {
   revokeAllTrackedObjectURLs();
   selectedFiles = [];
@@ -827,15 +851,11 @@ function resetUploadForm() {
   if (modalFooterAction) {
     modalFooterAction.innerHTML = `
       <button type="button" onclick="closeUploadModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors text-sm font-medium">Cancel</button>
-      <button type="button" id="uploadButton" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm font-medium shadow-md flex items-center gap-2" disabled>
+      <button type="button" id="uploadButton" onclick="window._triggerUploadProcess && window._triggerUploadProcess()" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm font-medium shadow-md flex items-center gap-2" disabled>
         <i class="ti ti-upload text-base"></i>
         <span>Upload</span>
       </button>
     `;
-    const newBtn = document.getElementById('uploadButton');
-    if (newBtn && window._bindUploadButtonHandler) {
-      window._bindUploadButtonHandler(newBtn);
-    }
   }
 }
 
@@ -1535,7 +1555,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       uploadDropzone.classList.add('hidden');
       selectedFileInfo.classList.remove('hidden');
-      uploadButton.disabled = false;
+      setUploadButtonState(true);
       await updateFilesList();
     }
   }
@@ -1551,6 +1571,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
     selectedFileCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} selected (${formatFileSize(totalSize)})`;
     selectedFilesList.innerHTML = '';
+    setUploadButtonState(selectedFiles.length > 0);
 
     for (let i = 0; i < selectedFiles.length; i++) {
       const file = selectedFiles[i];
@@ -1850,10 +1871,15 @@ document.addEventListener('DOMContentLoaded', function() {
       await renderCompletionState();
     };
 
+    window._triggerUploadProcess = triggerUploadProcess;
     window._bindUploadButtonHandler = (btn) => {
       if (btn) btn.onclick = triggerUploadProcess;
     };
-    if (uploadButton) window._bindUploadButtonHandler(uploadButton);
+    const currentUploadBtn = document.getElementById('uploadButton');
+    if (currentUploadBtn) {
+      currentUploadBtn.onclick = triggerUploadProcess;
+    }
+    setUploadButtonState(selectedFiles.length > 0);
 
   function updateFileProgress(index, status, percent, loadedBytes, totalBytes) {
     const item = document.getElementById(`upload-queue-item-${index}`);
