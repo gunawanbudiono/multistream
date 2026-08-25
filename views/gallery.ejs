@@ -454,7 +454,7 @@ function detectMediaType(item) {
         <div class="text-xs text-gray-400" id="modalQuotaSummary">
           Storage ready
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3" id="modalFooterAction">
           <button onclick="closeUploadModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors text-sm font-medium">Cancel</button>
           <button id="uploadButton" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm font-medium shadow-md flex items-center gap-2" disabled>
             <i class="ti ti-upload text-base"></i>
@@ -795,16 +795,34 @@ function closeUploadModal() {
 
 function resetUploadForm() {
   selectedFiles = [];
-  document.getElementById('videoUploadForm').reset();
-  document.getElementById('uploadDropzone').classList.remove('hidden');
-  document.getElementById('selectedFileInfo').classList.add('hidden');
-  document.getElementById('uploadProgress').classList.add('hidden');
-  document.getElementById('uploadButton').disabled = true;
-  document.getElementById('selectedFilesList').innerHTML = '';
-  document.getElementById('uploadProgressBar').style.width = '0%';
-  document.getElementById('uploadProgressPercent').textContent = '0%';
+  const form = document.getElementById('videoUploadForm');
+  if (form) form.reset();
+  document.getElementById('uploadDropzone')?.classList.remove('hidden');
+  document.getElementById('selectedFileInfo')?.classList.add('hidden');
+  document.getElementById('uploadProgress')?.classList.add('hidden');
+  const selList = document.getElementById('selectedFilesList');
+  if (selList) selList.innerHTML = '';
+  const upBar = document.getElementById('uploadProgressBar');
+  if (upBar) upBar.style.width = '0%';
+  const upPct = document.getElementById('uploadProgressPercent');
+  if (upPct) upPct.textContent = '0%';
   const metrics = document.getElementById('uploadProgressMetrics');
   if (metrics) metrics.textContent = 'Storage ready';
+  
+  const modalFooterAction = document.getElementById('modalFooterAction');
+  if (modalFooterAction) {
+    modalFooterAction.innerHTML = `
+      <button type="button" onclick="closeUploadModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors text-sm font-medium">Cancel</button>
+      <button type="button" id="uploadButton" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm font-medium shadow-md flex items-center gap-2" disabled>
+        <i class="ti ti-upload text-base"></i>
+        <span>Upload</span>
+      </button>
+    `;
+    const newBtn = document.getElementById('uploadButton');
+    if (newBtn && window._bindUploadButtonHandler) {
+      window._bindUploadButtonHandler(newBtn);
+    }
+  }
 }
 
 function toggleCloudDropdown() {
@@ -1612,20 +1630,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  if (uploadButton) {
-    uploadButton.addEventListener('click', async function() {
-      if (selectedFiles.length === 0) return;
-      uploadDropzone.classList.add('hidden');
-      selectedFileInfo.classList.add('hidden');
-      uploadProgress.classList.remove('hidden');
-      uploadButton.disabled = true;
+  const triggerUploadProcess = async function() {
+    if (selectedFiles.length === 0) return;
+    uploadDropzone.classList.add('hidden');
+    selectedFileInfo.classList.add('hidden');
+    uploadProgress.classList.remove('hidden');
+    if (uploadButton) uploadButton.disabled = true;
 
-      uploadStartTime = Date.now();
-      batchTotalBytes = selectedFiles.reduce((acc, f) => acc + (f.size || 0), 0);
-      fileLoadedBytesMap.clear();
-      selectedFiles.forEach((_, idx) => fileLoadedBytesMap.set(idx, 0));
+    uploadStartTime = Date.now();
+    batchTotalBytes = selectedFiles.reduce((acc, f) => acc + (f.size || 0), 0);
+    fileLoadedBytesMap.clear();
+    selectedFiles.forEach((_, idx) => fileLoadedBytesMap.set(idx, 0));
       
-      let success = 0, failed = [];
+      const fileSuccessSet = new Set();
       const cancelledIndexes = new Set();
       uploadFilesList.innerHTML = '';
       selectedFiles.forEach((f, idx) => {
@@ -1647,7 +1664,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <p class="text-[10px] text-gray-500 file-substatus">Waiting in queue (${formatFileSize(f.size)})</p>
             </div>
           </div>
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="flex items-center gap-2 shrink-0 file-action-area">
             <span class="file-status text-xs text-gray-400 font-semibold">Waiting</span>
             <button type="button" class="file-cancel-btn text-gray-500 hover:text-red-400 p-1 rounded hover:bg-dark-600 transition-colors" data-idx="${idx}" title="Cancel item">
               <i class="ti ti-x text-sm"></i>
@@ -1670,8 +1687,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       updateBatchMetrics(0, selectedFiles[0].name);
 
-      for (let i = 0; i < selectedFiles.length; i++) {
-        if (cancelledIndexes.has(i)) continue;
+      const runUploadSingle = async (i) => {
         const file = selectedFiles[i];
         const category = getFileCategory(file);
         
@@ -1688,47 +1704,124 @@ document.addEventListener('DOMContentLoaded', function() {
           result = await uploadUniversalSingle(file, i, selectedFiles.length);
         }
         
-        if (result.success) {
-          success++;
+        if (result && result.success) {
+          fileSuccessSet.add(i);
           fileLoadedBytesMap.set(i, file.size);
           updateFileProgress(i, 'success', 100, file.size, file.size);
         } else {
-          failed.push(file.name);
+          fileSuccessSet.delete(i);
           updateFileProgress(i, 'error', 0, 0, file.size);
         }
         updateBatchMetrics(i, file.name);
+        return result && result.success;
+      };
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        if (cancelledIndexes.has(i)) continue;
+        await runUploadSingle(i);
       }
 
-      if (failed.length === 0) {
-        showToast('success', `${success} file${success > 1 ? 's' : ''} uploaded successfully`);
-      } else {
-        showToast('warning', `${success} uploaded, ${failed.length} failed`);
-      }
-      await window.refreshGalleryData?.();
-      closeUploadModal();
-      loadDiskUsage();
-    });
-  }
+      const renderCompletionState = async () => {
+        await window.refreshGalleryData?.();
+        loadDiskUsage();
+
+        const failedIndices = [];
+        selectedFiles.forEach((_, idx) => {
+          if (!fileSuccessSet.has(idx) && !cancelledIndexes.has(idx)) {
+            failedIndices.push(idx);
+          }
+        });
+
+        const successCount = fileSuccessSet.size;
+
+        if (failedIndices.length === 0) {
+          uploadProgressStatus.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="ti ti-circle-check text-base"></i> All files uploaded successfully (${successCount}/${selectedFiles.length})</span>`;
+          showToast('success', `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`);
+        } else {
+          uploadProgressStatus.innerHTML = `<span class="text-amber-400 font-bold flex items-center gap-1.5"><i class="ti ti-alert-triangle text-base"></i> Finished with issues (${successCount} succeeded, ${failedIndices.length} failed)</span>`;
+          showToast('warning', `${successCount} uploaded, ${failedIndices.length} failed`);
+        }
+
+        const modalFooterAction = document.getElementById('modalFooterAction');
+        if (modalFooterAction) {
+          let retryAllBtn = '';
+          if (failedIndices.length > 0) {
+            retryAllBtn = `
+              <button type="button" id="retryAllFailedBtn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors text-sm font-medium shadow-md flex items-center gap-2">
+                <i class="ti ti-reload text-base"></i>
+                <span>Retry Failed (${failedIndices.length})</span>
+              </button>
+            `;
+          }
+          modalFooterAction.innerHTML = `
+            ${retryAllBtn}
+            <button type="button" onclick="closeUploadModal()" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium shadow-md flex items-center gap-2">
+              <i class="ti ti-check text-base"></i>
+              <span>Done</span>
+            </button>
+          `;
+
+          const retryAll = document.getElementById('retryAllFailedBtn');
+          if (retryAll) {
+            retryAll.onclick = async () => {
+              retryAll.disabled = true;
+              retryAll.innerHTML = '<i class="ti ti-loader animate-spin text-base"></i> <span>Retrying...</span>';
+              for (const idx of failedIndices) {
+                await runUploadSingle(idx);
+              }
+              await renderCompletionState();
+            };
+          }
+        }
+      };
+
+      window._retryUploadSingle = async (idx) => {
+        await runUploadSingle(idx);
+        await renderCompletionState();
+      };
+
+      await renderCompletionState();
+    };
+
+    window._bindUploadButtonHandler = (btn) => {
+      if (btn) btn.onclick = triggerUploadProcess;
+    };
+    if (uploadButton) window._bindUploadButtonHandler(uploadButton);
 
   function updateFileProgress(index, status, percent, loadedBytes, totalBytes) {
     const item = document.getElementById(`upload-queue-item-${index}`);
     if (item) {
       const el = item.querySelector('.file-status');
       const sub = item.querySelector('.file-substatus');
+      const actionArea = item.querySelector('.file-action-area');
       if (status === 'uploading') {
         el.textContent = `${percent}%`;
         el.className = 'file-status text-xs text-primary font-bold';
         if (sub && loadedBytes !== undefined && totalBytes !== undefined) {
           sub.textContent = `${formatFileSize(loadedBytes)} / ${formatFileSize(totalBytes)} (${percent}%)`;
         }
+        if (actionArea) {
+          actionArea.innerHTML = `<span class="file-status text-xs text-primary font-bold">${percent}%</span>`;
+        }
       } else if (status === 'success') {
         el.textContent = '✓ Done';
         el.className = 'file-status text-xs text-green-400 font-bold';
         if (sub && totalBytes) sub.textContent = `Completed (${formatFileSize(totalBytes)})`;
+        if (actionArea) {
+          actionArea.innerHTML = `<span class="file-status text-xs text-green-400 font-bold">✓ Done</span>`;
+        }
       } else if (status === 'error') {
         el.textContent = '✗ Failed';
         el.className = 'file-status text-xs text-red-400 font-bold';
-        if (sub) sub.textContent = 'Upload error';
+        if (sub) sub.textContent = 'Upload failed';
+        if (actionArea) {
+          actionArea.innerHTML = `
+            <span class="file-status text-xs text-red-400 font-bold mr-1">✗ Failed</span>
+            <button type="button" class="retry-single-btn text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded transition-colors flex items-center gap-1 font-semibold" onclick="window._retryUploadSingle(${index})" title="Retry upload">
+              <i class="ti ti-reload text-xs"></i> Retry
+            </button>
+          `;
+        }
       }
     }
   }

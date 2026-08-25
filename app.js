@@ -2938,8 +2938,8 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
       
-      // High-Bitrate 4K Resilient Segment Chunk Window (25MB for Video, 2MB for Audio)
-      const chunkWindow = isAudio ? (2 * 1024 * 1024) : (25 * 1024 * 1024);
+      // High-Bitrate 4K Ultra-Resilient Segment Chunk Window (30MB for Video, 2MB for Audio)
+      const chunkWindow = isAudio ? (2 * 1024 * 1024) : (30 * 1024 * 1024);
       let end = parts[1] ? parseInt(parts[1], 10) : (start + chunkWindow - 1);
       if (end >= fileSize) end = fileSize - 1;
       
