@@ -1828,6 +1828,72 @@ function renderYtQueue() {
   }
 }
 
+const ytNumberAnimators = {};
+
+function animateNumberText(elementId, targetNumber, formatFn, duration = 750) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+
+  if (!ytNumberAnimators[elementId]) {
+    ytNumberAnimators[elementId] = { currentVal: targetNumber, targetVal: targetNumber, animId: null };
+    el.textContent = formatFn ? formatFn(targetNumber) : targetNumber;
+    return;
+  }
+
+  const state = ytNumberAnimators[elementId];
+  const startVal = state.currentVal;
+  state.targetVal = targetNumber;
+
+  if (state.animId) cancelAnimationFrame(state.animId);
+
+  const startTime = performance.now();
+  function step(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(1, elapsed / duration);
+    const val = startVal + (targetNumber - startVal) * progress;
+    state.currentVal = val;
+    const targetEl = document.getElementById(elementId);
+    if (targetEl) {
+      targetEl.textContent = formatFn ? formatFn(val) : Math.round(val);
+    }
+    if (progress < 1) {
+      state.animId = requestAnimationFrame(step);
+    } else {
+      state.animId = null;
+      state.currentVal = targetNumber;
+    }
+  }
+  state.animId = requestAnimationFrame(step);
+}
+
+function animateSizeProgressText(elementId, sizeProgressStr, duration = 750) {
+  if (!sizeProgressStr) return;
+  const el = document.getElementById(elementId);
+  if (!el) return;
+
+  const match = sizeProgressStr.match(/^([\d.]+)\s*([A-Za-z]+)(\s*\/\s*.*)?$/);
+  if (!match) {
+    el.textContent = sizeProgressStr;
+    return;
+  }
+
+  const targetNum = parseFloat(match[1]);
+  const unit = match[2];
+  const suffix = match[3] || '';
+
+  if (isNaN(targetNum)) {
+    el.textContent = sizeProgressStr;
+    return;
+  }
+
+  animateNumberText(
+    elementId,
+    targetNum,
+    (val) => `${val.toFixed(2)} ${unit}${suffix}`,
+    duration
+  );
+}
+
 function updateYtQueueResolution(index, value) {
   if (ytDownloadQueue[index]) {
     ytDownloadQueue[index].selectedResolution = value;
@@ -1901,7 +1967,7 @@ async function startYtDownloadQueue() {
 
         ytLatestJobStatus = job;
 
-        // Targeted In-Place DOM Mutation for silky smooth transitions
+        // Targeted In-Place DOM Mutation + Speedometer Odometer Rolling Animation
         if (job.itemsStatus && Array.isArray(job.itemsStatus)) {
           job.itemsStatus.forEach((s, idx) => {
             const area = document.getElementById(`ytItemProgressArea-${idx}`);
@@ -1913,8 +1979,8 @@ async function startYtDownloadQueue() {
             if (area) {
               if (s.status === 'downloading' && bar && pct) {
                 bar.style.width = `${s.progress}%`;
-                pct.textContent = `${s.progress}%`;
-                if (size) size.textContent = s.sizeProgress || '';
+                animateNumberText(`ytItemPct-${idx}`, s.progress, (v) => `${Math.round(v)}%`, 750);
+                if (size) animateSizeProgressText(`ytItemSize-${idx}`, s.sizeProgress || '', 750);
                 if (speed) speed.textContent = s.speed ? `⚡ ${s.speed}` : '';
               } else {
                 const currentStatusAttr = area.getAttribute('data-status');
@@ -1935,7 +2001,9 @@ async function startYtDownloadQueue() {
           progressBar.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
           progressBar.style.width = `${job.progress}%`;
         }
-        if (progressPercentage) progressPercentage.textContent = `${job.progress}%`;
+        if (progressPercentage) {
+          animateNumberText('ytProgressPercentage', job.progress, (v) => `${Math.round(v)}%`, 750);
+        }
         if (progressMetrics) {
           let metricsHtml = '';
           if (job.progress >= 99 && completedCount === job.totalItems) {
