@@ -190,9 +190,6 @@ function detectMediaType(item) {
           <% } else if (isPortrait) { %>
           <img src="<%= video.thumbnail_path || video.filepath %>" alt="" class="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-125" loading="lazy" decoding="async">
           <img src="<%= video.thumbnail_path || video.filepath %>" alt="<%= video.title %>" class="h-full w-auto max-w-full object-contain relative z-10 mx-auto drop-shadow-md" loading="lazy" decoding="async">
-          <span class="absolute top-2 left-2 bg-indigo-600/90 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm">
-            <i class="ti ti-device-mobile text-xs"></i>Shorts
-          </span>
           <% } else if (mediaType === 'image') { %>
           <img src="<%= video.thumbnail_path || video.filepath %>" alt="<%= video.title %>" class="w-full h-full object-contain p-0.5" loading="lazy" decoding="async">
           <% } else { %>
@@ -208,12 +205,16 @@ function detectMediaType(item) {
             <%= formatDuration(video.duration) %>
           </span>
           <% } %>
-          <% if (mediaType === 'audio') { %>
-          <span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20">
+          <% if (mediaType === 'video') { %>
+          <span class="absolute top-2 left-2 bg-blue-600/90 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm">
+            <i class="ti ti-video text-xs"></i>Video
+          </span>
+          <% } else if (mediaType === 'audio') { %>
+          <span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm">
             <i class="ti ti-music text-xs"></i>Audio
           </span>
           <% } else if (mediaType === 'image') { %>
-          <span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20">
+          <span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm">
             <i class="ti ti-photo text-xs"></i>Image
           </span>
           <% } %>
@@ -1962,14 +1963,20 @@ document.addEventListener('DOMContentLoaded', function() {
       mediaContent = `
         <img src="${thumbnail}" alt="" class="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-125" loading="lazy" decoding="async">
         <img src="${thumbnail}" alt="${title}" class="h-full w-auto max-w-full object-contain relative z-10 mx-auto drop-shadow-md" loading="lazy" decoding="async">
-        <span class="absolute top-2 left-2 bg-indigo-600/90 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm">
-          <i class="ti ti-device-mobile text-xs"></i>Shorts
-        </span>
       `;
     } else if (mediaType === 'image') {
       mediaContent = `<img src="${thumbnail}" alt="${title}" class="w-full h-full object-contain p-0.5" loading="lazy" decoding="async">`;
     } else {
       mediaContent = `<img src="${thumbnail}" alt="${title}" class="w-full h-full object-cover" loading="lazy" decoding="async">`;
+    }
+
+    let topBadge = '';
+    if (mediaType === 'video') {
+      topBadge = `<span class="absolute top-2 left-2 bg-blue-600/90 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm"><i class="ti ti-video text-xs"></i>Video</span>`;
+    } else if (mediaType === 'audio') {
+      topBadge = `<span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm"><i class="ti ti-music text-xs"></i>Audio</span>`;
+    } else if (mediaType === 'image') {
+      topBadge = `<span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm"><i class="ti ti-photo text-xs"></i>Image</span>`;
     }
 
     return `
@@ -1984,8 +1991,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           </div>
           ${mediaType !== 'image' ? `<span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono z-20">${formatDuration(video.duration)}</span>` : ''}
-          ${mediaType === 'audio' ? `<span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20"><i class="ti ti-music text-xs"></i>Audio</span>` : ''}
-          ${mediaType === 'image' ? `<span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20"><i class="ti ti-photo text-xs"></i>Image</span>` : ''}
+          ${topBadge}
         </div>
         <div class="p-3">
           <h3 class="font-medium text-sm truncate mb-1 text-white">${title}</h3>
@@ -2051,8 +2057,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="flex items-center gap-2">
               <span class="font-medium text-sm truncate max-w-xs text-white">${title}</span>
-              ${mediaType === 'audio' ? `<span class="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">Audio</span>` : ''}
-              ${mediaType === 'image' ? `<span class="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">Image</span>` : ''}
+              <span class="text-[10px] ${mediaType === 'video' ? 'bg-blue-500/20 text-blue-400' : (mediaType === 'audio' ? 'bg-primary/20 text-primary' : 'bg-green-500/20 text-green-400')} px-1.5 py-0.5 rounded capitalize">${mediaType}</span>
             </div>
           </div>
         </td>
