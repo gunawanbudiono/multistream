@@ -1869,6 +1869,13 @@ document.addEventListener('DOMContentLoaded', function() {
       return { success: completeData.success };
     } catch (e) {
       console.error(e);
+      if (typeof uploadId !== 'undefined' && uploadId) {
+        fetch('/api/videos/chunk/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uploadId })
+        }).catch(() => {});
+      }
       showToast('error', e.message || 'Chunk upload failed');
       return { success: false };
     }

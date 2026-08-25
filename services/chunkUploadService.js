@@ -171,7 +171,7 @@ async function cleanupUpload(uploadId) {
   }
 }
 
-async function cleanupOldUploads(maxAgeMs = 24 * 60 * 60 * 1000) {
+async function cleanupOldUploads(maxAgeMs = 2 * 60 * 60 * 1000) {
   try {
     const files = await fs.readdir(INFO_DIR);
     const now = Date.now();
@@ -180,8 +180,9 @@ async function cleanupOldUploads(maxAgeMs = 24 * 60 * 60 * 1000) {
         const infoPath = path.join(INFO_DIR, file);
         try {
           const info = await fs.readJson(infoPath);
-          const lastActivity = info.lastActivity || info.createdAt;
+          const lastActivity = info.lastActivity || info.createdAt || 0;
           if (info.status !== 'completed' && (now - lastActivity) > maxAgeMs) {
+            console.log(`[ChunkUploadService] Cleaning up stale upload session: ${info.uploadId} (Inactive for > 2h)`);
             await cleanupUpload(info.uploadId);
           }
         } catch (e) {
@@ -194,9 +195,14 @@ async function cleanupOldUploads(maxAgeMs = 24 * 60 * 60 * 1000) {
   }
 }
 
+// Run garbage collection on startup and every 15 minutes
+setTimeout(() => {
+  cleanupOldUploads(2 * 60 * 60 * 1000);
+}, 5000);
+
 setInterval(() => {
-  cleanupOldUploads(24 * 60 * 60 * 1000);
-}, 60 * 60 * 1000);
+  cleanupOldUploads(2 * 60 * 60 * 1000);
+}, 15 * 60 * 1000);
 
 module.exports = {
   CHUNK_SIZE,

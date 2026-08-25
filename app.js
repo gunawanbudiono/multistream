@@ -2709,6 +2709,25 @@ app.get('/api/videos/chunk/status/:uploadId', isAuthenticated, async (req, res) 
   }
 });
 
+app.post('/api/videos/chunk/cancel', isAuthenticated, async (req, res) => {
+  try {
+    const { uploadId } = req.body;
+    if (!uploadId) {
+      return res.status(400).json({ success: false, error: 'Missing upload ID' });
+    }
+    const info = await chunkUploadService.getUploadInfo(uploadId);
+    if (info) {
+      if (info.userId === req.session.userId || req.session.role === 'admin') {
+        await chunkUploadService.cleanupUpload(uploadId);
+      }
+    }
+    res.json({ success: true, message: 'Upload session cancelled and cleaned up successfully' });
+  } catch (error) {
+    console.error('Cancel upload error:', error);
+    res.status(500).json({ success: false, error: 'Failed to cancel upload session' });
+  }
+});
+
 app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
   try {
     const { uploadId } = req.body;
