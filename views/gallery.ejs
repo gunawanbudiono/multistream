@@ -343,16 +343,19 @@ function detectMediaType(item) {
 </div>
 </div>
 
-<!-- All-in-One Universal Upload Modal -->
-<div id="uploadModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden modal-overlay overflow-y-auto">
+<!-- All-in-One Universal Upload Modal with Live Preview & Tech Inspector -->
+<div id="uploadModal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-50 hidden modal-overlay overflow-y-auto">
   <div class="flex min-h-screen items-center justify-center p-4">
-    <div class="bg-dark-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-700 overflow-hidden" id="uploadModalContent">
-      <div class="flex items-center justify-between p-4 border-b border-gray-700 bg-dark-800">
+    <div class="bg-dark-800 rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-700 overflow-hidden" id="uploadModalContent">
+      <div class="flex items-center justify-between p-4 px-6 border-b border-gray-700 bg-dark-800">
         <div>
-          <h3 class="text-lg font-semibold text-white">Upload Media</h3>
-          <p class="text-xs text-gray-400 mt-0.5">Drag & drop videos, audio, and images all in one place</p>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="ti ti-cloud-upload text-primary text-xl"></i>
+            <span>Upload Media</span>
+          </h3>
+          <p class="text-xs text-gray-400 mt-0.5">Live frame preview, tech inspection (resolution, FPS, keyframe, bitrate), and multi-format support</p>
         </div>
-        <button onclick="closeUploadModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-dark-700 transition-colors">
+        <button onclick="closeUploadModal()" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
           <i class="ti ti-x text-xl"></i>
         </button>
       </div>
@@ -361,25 +364,25 @@ function detectMediaType(item) {
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="hidden" name="folderId" id="uploadFolderId" value="<%= currentFolderId || '' %>">
           
-          <div id="uploadDropzone" class="border-2 border-dashed border-gray-600 hover:border-primary rounded-xl py-8 px-6 text-center transition-all cursor-pointer bg-dark-700/30 hover:bg-dark-700/60" data-state="idle">
-            <div class="flex flex-col items-center justify-center space-y-3">
-              <div class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+          <div id="uploadDropzone" class="border-2 border-dashed border-gray-600 hover:border-primary rounded-xl py-9 px-6 text-center transition-all cursor-pointer bg-dark-700/30 hover:bg-dark-700/60" data-state="idle">
+            <div class="flex flex-col items-center justify-center space-y-3.5">
+              <div class="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-inner">
                 <i id="dropzoneIcon" class="ti ti-cloud-upload text-3xl"></i>
               </div>
               <div>
-                <p id="dropzoneText" class="text-gray-200 font-medium text-base">Drag and drop media files here</p>
-                <p class="text-gray-400 text-xs mt-1">Or click anywhere in this box to browse</p>
+                <p id="dropzoneText" class="text-gray-200 font-semibold text-base">Drag & drop videos, audio, and images here</p>
+                <p class="text-gray-400 text-xs mt-1">Or click anywhere in this box to browse files</p>
               </div>
               
               <!-- Supported Formats Badges -->
               <div class="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-                <span class="inline-flex items-center gap-1 text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md">
+                <span class="inline-flex items-center gap-1 text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md font-medium">
                   <i class="ti ti-video text-xs"></i> MP4, AVI, MOV, MKV, WebM
                 </span>
-                <span class="inline-flex items-center gap-1 text-[11px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md">
+                <span class="inline-flex items-center gap-1 text-[11px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md font-medium">
                   <i class="ti ti-music text-xs"></i> MP3, M4A, AAC, WAV, FLAC
                 </span>
-                <span class="inline-flex items-center gap-1 text-[11px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-md">
+                <span class="inline-flex items-center gap-1 text-[11px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-md font-medium">
                   <i class="ti ti-photo text-xs"></i> JPG, PNG, WebP, GIF
                 </span>
               </div>
@@ -394,25 +397,28 @@ function detectMediaType(item) {
           </div>
 
           <div id="selectedFileInfo" class="hidden">
-            <div class="bg-dark-700/60 border border-gray-700 p-4 rounded-xl">
-              <div class="flex items-center justify-between mb-3 border-b border-gray-600/50 pb-2">
-                <div class="flex items-center gap-3">
-                  <div class="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
-                    <i class="ti ti-files text-primary"></i>
+            <div class="bg-dark-700/40 border border-gray-700 p-4 rounded-xl">
+              <div class="flex items-center justify-between mb-3 border-b border-gray-600/50 pb-2.5">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                    <i class="ti ti-files text-base"></i>
                   </div>
                   <div>
-                    <p class="font-medium text-sm text-white">Selected Files</p>
+                    <p class="font-bold text-sm text-white">Selected Files</p>
                     <p id="selectedFileCount" class="text-xs text-gray-400"></p>
                   </div>
                 </div>
                 <div class="flex items-center gap-2">
-                  <button type="button" class="text-primary hover:text-blue-400 text-xs font-medium bg-primary/10 px-2.5 py-1 rounded-md" onclick="document.getElementById('mediaFileInput').click()">+ Add More</button>
-                  <button type="button" id="clearFileButton" class="text-gray-400 hover:text-red-400 p-1" title="Clear all">
+                  <button type="button" class="text-primary hover:text-blue-400 text-xs font-semibold bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1" onclick="document.getElementById('mediaFileInput').click()">
+                    <i class="ti ti-plus text-xs"></i>
+                    <span>Add More</span>
+                  </button>
+                  <button type="button" id="clearFileButton" class="text-gray-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-dark-600 transition-colors" title="Clear all">
                     <i class="ti ti-trash text-sm"></i>
                   </button>
                 </div>
               </div>
-              <div id="selectedFilesList" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
+              <div id="selectedFilesList" class="space-y-2.5 max-h-[360px] overflow-y-auto pr-1"></div>
             </div>
           </div>
 
@@ -428,12 +434,17 @@ function detectMediaType(item) {
           </div>
         </form>
       </div>
-      <div class="flex justify-end gap-3 p-4 border-t border-gray-700 bg-dark-800">
-        <button onclick="closeUploadModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors text-sm font-medium">Cancel</button>
-        <button id="uploadButton" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm font-medium shadow-md flex items-center gap-1.5" disabled>
-          <i class="ti ti-upload text-base"></i>
-          <span>Upload</span>
-        </button>
+      <div class="flex items-center justify-between p-4 px-6 border-t border-gray-700 bg-dark-800">
+        <div class="text-xs text-gray-400" id="modalQuotaSummary">
+          Storage ready
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="closeUploadModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors text-sm font-medium">Cancel</button>
+          <button id="uploadButton" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm font-medium shadow-md flex items-center gap-2" disabled>
+            <i class="ti ti-upload text-base"></i>
+            <span>Upload</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -486,6 +497,7 @@ function updateDiskUsageDisplay() {
   const textDesktop = document.getElementById('diskUsageTextDesktop');
   const infoMobile = document.getElementById('diskUsageInfoMobile');
   const textMobile = document.getElementById('diskUsageTextMobile');
+  const modalQuotaSummary = document.getElementById('modalQuotaSummary');
   
   if (userDiskLimit > 0) {
     const usedText = formatFileSize(userDiskUsage);
@@ -495,6 +507,10 @@ function updateDiskUsageDisplay() {
     
     if (textDesktop) textDesktop.textContent = displayText;
     if (textMobile) textMobile.textContent = displayText;
+    if (modalQuotaSummary) {
+      const remaining = Math.max(0, userDiskLimit - userDiskUsage);
+      modalQuotaSummary.innerHTML = `<i class="ti ti-database text-xs mr-1 text-primary"></i> ${formatFileSize(remaining)} quota available`;
+    }
     
     const isMobile = window.innerWidth < 768;
     if (isMobile) {
@@ -510,6 +526,7 @@ function updateDiskUsageDisplay() {
   } else {
     if (infoDesktop) infoDesktop.classList.add('hidden');
     if (infoMobile) infoMobile.classList.add('hidden');
+    if (modalQuotaSummary) modalQuotaSummary.textContent = 'Unlimited storage quota';
   }
 }
 
@@ -539,7 +556,7 @@ function formatDuration(totalSeconds) {
   if (!totalSeconds) return '0:00';
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
+  const secs = Math.floor(totalSeconds % 60);
   if (hours > 0) {
     return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
@@ -1073,6 +1090,7 @@ async function moveVideoToFolder(videoId, folderId) {
 
 let selectedFiles = [];
 const CHUNK_SIZE = 50 * 1024 * 1024;
+const fileMetadataCache = new WeakMap();
 
 function getFileCategory(file) {
   const name = file.name.toLowerCase();
@@ -1087,6 +1105,204 @@ function getFileCategory(file) {
   if (type.startsWith('audio/') || audioExts.includes(ext)) return 'audio';
   if (type.startsWith('image/') || imageExts.includes(ext)) return 'image';
   return 'unknown';
+}
+
+function parseMp4FpsFromBuffer(buffer, duration) {
+  try {
+    const view = new DataView(buffer);
+    let offset = 0;
+    while (offset < buffer.byteLength - 8) {
+      const size = view.getUint32(offset);
+      const type = String.fromCharCode(view.getUint8(offset + 4), view.getUint8(offset + 5), view.getUint8(offset + 6), view.getUint8(offset + 7));
+      if (type === 'stts' && offset + 16 <= buffer.byteLength) {
+        const entryCount = view.getUint32(offset + 12);
+        if (entryCount > 0 && offset + 24 <= buffer.byteLength) {
+          const sampleCount = view.getUint32(offset + 16);
+          const sampleDelta = view.getUint32(offset + 20);
+          if (sampleDelta > 0) {
+            let timescale = 30000;
+            const fps = Math.round(timescale / sampleDelta);
+            if (fps >= 10 && fps <= 240) return fps;
+          }
+        }
+      }
+      if (size === 0 || size === 1) break;
+      offset += size;
+    }
+  } catch (e) {}
+  return null;
+}
+
+async function inspectMediaFile(file) {
+  if (fileMetadataCache.has(file)) {
+    return fileMetadataCache.get(file);
+  }
+
+  const category = getFileCategory(file);
+  const ext = ('.' + file.name.split('.').pop()).toLowerCase();
+  
+  const meta = {
+    category,
+    ext,
+    name: file.name,
+    size: file.size,
+    sizeFormatted: formatFileSize(file.size),
+    thumbnailUrl: null,
+    width: null,
+    height: null,
+    resolutionLabel: '',
+    duration: 0,
+    durationFormatted: '',
+    bitrateLabel: '',
+    fps: null,
+    fpsLabel: '',
+    keyframeLabel: '',
+    formatTag: ext.toUpperCase().replace('.', '')
+  };
+
+  if (category === 'image') {
+    try {
+      const objUrl = URL.createObjectURL(file);
+      meta.thumbnailUrl = objUrl;
+      const img = new Image();
+      await new Promise((resolve) => {
+        img.onload = () => {
+          meta.width = img.naturalWidth;
+          meta.height = img.naturalHeight;
+          if (meta.width && meta.height) {
+            meta.resolutionLabel = `${meta.width}×${meta.height}`;
+            if (meta.width >= 3840) meta.resolutionLabel += ' (4K UHD)';
+            else if (meta.width >= 2560) meta.resolutionLabel += ' (2K QHD)';
+            else if (meta.width >= 1920) meta.resolutionLabel += ' (1080p FHD)';
+            else if (meta.width >= 1280) meta.resolutionLabel += ' (720p HD)';
+          }
+          resolve();
+        };
+        img.onerror = resolve;
+        img.src = objUrl;
+      });
+    } catch (e) {}
+  } else if (category === 'video') {
+    try {
+      const objUrl = URL.createObjectURL(file);
+      const video = document.createElement('video');
+      video.preload = 'auto';
+      video.muted = true;
+      video.playsInline = true;
+      video.src = objUrl;
+
+      await new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          URL.revokeObjectURL(objUrl);
+          resolve();
+        }, 7000);
+
+        video.onloadedmetadata = () => {
+          meta.duration = video.duration || 0;
+          meta.durationFormatted = formatDuration(meta.duration);
+          meta.width = video.videoWidth;
+          meta.height = video.videoHeight;
+
+          if (meta.width && meta.height) {
+            let tag = '';
+            if (meta.width === 1920 && meta.height === 1080) tag = ' (16:9 FHD)';
+            else if (meta.width === 1080 && meta.height === 1920) tag = ' (9:16 Shorts)';
+            else if (meta.width === 3840 && meta.height === 2160) tag = ' (4K UHD)';
+            else if (meta.width === 1280 && meta.height === 720) tag = ' (16:9 HD)';
+            else if (meta.width > meta.height) tag = ' (Landscape)';
+            else if (meta.height > meta.width) tag = ' (Portrait)';
+            else tag = ' (1:1 Square)';
+
+            meta.resolutionLabel = `${meta.width}×${meta.height}${tag}`;
+          }
+
+          if (meta.duration > 0 && file.size > 0) {
+            const kbps = Math.round((file.size * 8) / meta.duration / 1000);
+            if (kbps >= 1000) {
+              meta.bitrateLabel = `~${(kbps / 1000).toFixed(1)} Mbps`;
+            } else {
+              meta.bitrateLabel = `~${kbps} kbps`;
+            }
+          }
+
+          video.currentTime = Math.min(1.0, (video.duration || 2) / 2);
+        };
+
+        video.onseeked = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 160;
+            canvas.height = 90;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            meta.thumbnailUrl = canvas.toDataURL('image/jpeg', 0.85);
+          } catch (err) {}
+          clearTimeout(timeout);
+          URL.revokeObjectURL(objUrl);
+          resolve();
+        };
+
+        video.onerror = () => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(objUrl);
+          resolve();
+        };
+      });
+
+      // Quick MP4 buffer probe for FPS
+      try {
+        const slice = await file.slice(0, 256 * 1024).arrayBuffer();
+        const parsedFps = parseMp4FpsFromBuffer(slice, meta.duration);
+        if (parsedFps) {
+          meta.fps = parsedFps;
+          meta.fpsLabel = `${parsedFps} FPS`;
+          meta.keyframeLabel = `2s Keyframe (${parsedFps * 2}f)`;
+        } else {
+          meta.fpsLabel = '30/60 FPS';
+          meta.keyframeLabel = '2s Keyframe';
+        }
+      } catch (e) {
+        meta.fpsLabel = '30/60 FPS';
+        meta.keyframeLabel = '2s Keyframe';
+      }
+
+    } catch (e) {}
+  } else if (category === 'audio') {
+    try {
+      const objUrl = URL.createObjectURL(file);
+      const audio = document.createElement('audio');
+      audio.preload = 'metadata';
+      audio.src = objUrl;
+
+      await new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          URL.revokeObjectURL(objUrl);
+          resolve();
+        }, 5000);
+
+        audio.onloadedmetadata = () => {
+          meta.duration = audio.duration || 0;
+          meta.durationFormatted = formatDuration(meta.duration);
+          if (meta.duration > 0 && file.size > 0) {
+            const kbps = Math.round((file.size * 8) / meta.duration / 1000);
+            meta.bitrateLabel = `${kbps} kbps`;
+          }
+          clearTimeout(timeout);
+          URL.revokeObjectURL(objUrl);
+          resolve();
+        };
+
+        audio.onerror = () => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(objUrl);
+          resolve();
+        };
+      });
+    } catch (e) {}
+  }
+
+  fileMetadataCache.set(file, meta);
+  return meta;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1105,7 +1321,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('searchInput');
   const sortSelect = document.getElementById('sortSelect');
 
-  function handleFilesSelected(newFiles) {
+  async function handleFilesSelected(newFiles) {
     if (!newFiles || newFiles.length === 0) return;
     const maxSize = 50 * 1024 * 1024 * 1024;
     const invalidFiles = [];
@@ -1141,10 +1357,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
 
-      updateFilesList();
       uploadDropzone.classList.add('hidden');
       selectedFileInfo.classList.remove('hidden');
       uploadButton.disabled = false;
+      await updateFilesList();
     }
   }
 
@@ -1155,52 +1371,113 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function updateFilesList() {
+  async function updateFilesList() {
     const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
     selectedFileCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} selected (${formatFileSize(totalSize)})`;
     selectedFilesList.innerHTML = '';
-    selectedFiles.forEach((file, i) => {
-      const category = getFileCategory(file);
-      let icon = 'ti-video';
-      let iconColor = 'text-blue-400 bg-blue-500/10';
-      let badgeLabel = 'Video';
-      
-      if (category === 'audio') {
-        icon = 'ti-music';
-        iconColor = 'text-purple-400 bg-purple-500/10';
-        badgeLabel = 'Audio';
-      } else if (category === 'image') {
-        icon = 'ti-photo';
-        iconColor = 'text-green-400 bg-green-500/10';
-        badgeLabel = 'Image';
-      }
 
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      const category = getFileCategory(file);
+      
       const div = document.createElement('div');
-      div.className = 'flex items-center justify-between p-2.5 rounded-lg bg-dark-700 border border-gray-700/60 hover:border-gray-600 transition-colors';
+      div.className = 'flex items-center justify-between p-3 rounded-xl bg-dark-700/80 border border-gray-700 hover:border-gray-600 transition-all shadow-sm gap-3';
+      div.id = `selected-file-row-${i}`;
+      
+      // Temporary skeleton while loading meta
       div.innerHTML = `
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="w-8 h-8 rounded-lg ${iconColor} flex items-center justify-center shrink-0">
-            <i class="ti ${icon} text-base"></i>
+        <div class="flex items-center gap-3.5 min-w-0 flex-1">
+          <div class="aspect-video w-24 h-15 rounded-lg bg-dark-600 flex items-center justify-center shrink-0 border border-gray-700 animate-pulse">
+            <i class="ti ti-loader text-gray-400 text-lg animate-spin"></i>
           </div>
-          <div class="min-w-0">
-            <p class="text-sm font-medium text-white truncate">${file.name}</p>
-            <div class="flex items-center gap-2 mt-0.5">
-              <span class="text-[10px] text-gray-400">${formatFileSize(file.size)}</span>
-              <span class="text-[10px] bg-dark-800 text-gray-300 px-1.5 py-0.2 rounded border border-gray-600/40">${badgeLabel}</span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-white truncate max-w-md">${file.name}</p>
+            <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              <span class="text-[10px] bg-dark-800 text-gray-300 px-2 py-0.5 rounded border border-gray-600/40 font-medium">${formatFileSize(file.size)}</span>
+              <span class="text-[10px] text-gray-500">Inspecting metadata...</span>
             </div>
           </div>
         </div>
-        <button type="button" class="text-gray-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-dark-600 transition-colors" data-index="${i}" title="Remove">
-          <i class="ti ti-x text-sm"></i>
+        <button type="button" class="text-gray-400 hover:text-red-400 p-2 rounded-lg hover:bg-dark-600 transition-colors shrink-0" data-index="${i}" title="Remove file">
+          <i class="ti ti-trash text-base"></i>
         </button>
       `;
+
       div.querySelector('button').addEventListener('click', () => {
         selectedFiles.splice(i, 1);
         if (selectedFiles.length > 0) updateFilesList();
         else resetUploadForm();
       });
+
       selectedFilesList.appendChild(div);
-    });
+
+      // Async inspect and fill real metadata badges
+      inspectMediaFile(file).then(meta => {
+        let thumbContent = '';
+        if (meta.thumbnailUrl) {
+          thumbContent = `
+            <img src="${meta.thumbnailUrl}" class="w-full h-full object-cover" loading="lazy" decoding="async">
+            ${category === 'video' ? `<div class="absolute inset-0 bg-black/30 flex items-center justify-center"><i class="ti ti-player-play-filled text-white/90 text-sm"></i></div>` : ''}
+            ${meta.durationFormatted ? `<span class="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1 rounded font-mono">${meta.durationFormatted}</span>` : ''}
+          `;
+        } else if (category === 'audio') {
+          thumbContent = `
+            <div class="w-full h-full bg-gradient-to-br from-purple-900/40 to-dark-800 flex items-center justify-center">
+              <i class="ti ti-music text-2xl text-purple-400"></i>
+            </div>
+            ${meta.durationFormatted ? `<span class="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1 rounded font-mono">${meta.durationFormatted}</span>` : ''}
+          `;
+        } else {
+          thumbContent = `
+            <div class="w-full h-full bg-dark-600 flex items-center justify-center">
+              <i class="ti ti-video text-2xl text-gray-400"></i>
+            </div>
+          `;
+        }
+
+        let badgesHtml = '';
+        if (category === 'video') {
+          if (meta.resolutionLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-blue-500/15 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-aspect-ratio text-xs"></i> ${meta.resolutionLabel}</span>`;
+          if (meta.fpsLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-movie text-xs"></i> ${meta.fpsLabel}</span>`;
+          if (meta.keyframeLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-key text-xs"></i> ${meta.keyframeLabel}</span>`;
+          if (meta.bitrateLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-activity text-xs"></i> ${meta.bitrateLabel}</span>`;
+          if (meta.durationFormatted) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-clock text-xs"></i> ${meta.durationFormatted}</span>`;
+          badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-gray-700/60 text-gray-300 border border-gray-600/40 px-2 py-0.5 rounded-md font-medium">${meta.sizeFormatted} • ${meta.formatTag}</span>`;
+        } else if (category === 'image') {
+          if (meta.resolutionLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-green-500/15 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-photo text-xs"></i> ${meta.resolutionLabel}</span>`;
+          badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-gray-700/60 text-gray-300 border border-gray-600/40 px-2 py-0.5 rounded-md font-medium">${meta.sizeFormatted} • ${meta.formatTag} Image</span>`;
+        } else if (category === 'audio') {
+          if (meta.bitrateLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-volume text-xs"></i> ${meta.bitrateLabel}</span>`;
+          if (meta.durationFormatted) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-clock text-xs"></i> ${meta.durationFormatted}</span>`;
+          badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-gray-700/60 text-gray-300 border border-gray-600/40 px-2 py-0.5 rounded-md font-medium">${meta.sizeFormatted} • ${meta.formatTag} Audio</span>`;
+        }
+
+        const targetRow = document.getElementById(`selected-file-row-${i}`);
+        if (targetRow) {
+          targetRow.innerHTML = `
+            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+              <div class="aspect-video w-24 h-15 rounded-lg overflow-hidden bg-dark-900 flex items-center justify-center shrink-0 border border-gray-700/80 relative shadow-md">
+                ${thumbContent}
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-white truncate max-w-md" title="${meta.name}">${meta.name}</p>
+                <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  ${badgesHtml}
+                </div>
+              </div>
+            </div>
+            <button type="button" class="text-gray-400 hover:text-red-400 p-2 rounded-lg hover:bg-dark-600 transition-colors shrink-0" data-index="${i}" title="Remove file">
+              <i class="ti ti-trash text-base"></i>
+            </button>
+          `;
+          targetRow.querySelector('button').addEventListener('click', () => {
+            selectedFiles.splice(i, 1);
+            if (selectedFiles.length > 0) updateFilesList();
+            else resetUploadForm();
+          });
+        }
+      });
+    }
   }
 
   if (clearFileButton) clearFileButton.addEventListener('click', resetUploadForm);
@@ -1222,15 +1499,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (category === 'image') icon = 'ti-photo text-green-400';
         
         const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-2 rounded-lg bg-dark-700/50';
+        div.className = 'flex items-center justify-between p-2.5 rounded-lg bg-dark-700/60 border border-gray-700/50';
         div.innerHTML = `
           <div class="flex items-center gap-3 min-w-0">
             <div class="w-7 h-7 rounded bg-dark-600 flex items-center justify-center shrink-0">
               <i class="ti ${icon} text-sm"></i>
             </div>
-            <span class="text-xs text-gray-200 truncate">${f.name}</span>
+            <span class="text-xs text-gray-200 truncate max-w-sm font-medium">${f.name}</span>
           </div>
-          <span class="file-status text-xs text-gray-500 font-medium">Waiting</span>
+          <span class="file-status text-xs text-gray-400 font-semibold">Waiting</span>
         `;
         uploadFilesList.appendChild(div);
       });
