@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between gap-2 overflow-x-auto scrollbar-hide">
       <div class="flex items-center gap-1.5 flex-shrink-0">
         <i class="ti ti-broadcast text-primary text-sm font-loaded"></i>
-        <span class="text-xs font-bold text-white">0</span>
+        <span id="active-streams-mobile" class="text-xs font-bold text-white"><%= (typeof streams !== 'undefined' && streams) ? streams.filter(s => s.status === 'live' || s.status === 'starting').length : 0 %></span>
         <span class="text-[10px] text-gray-400">live</span>
       </div>
       <div class="w-px h-4 bg-gray-700 flex-shrink-0"></div>
@@ -15,118 +15,121 @@
       </div>
       <div class="w-px h-4 bg-gray-700 flex-shrink-0"></div>
       <div class="flex items-center gap-1.5 flex-shrink-0">
-        <i class="ti ti-device-sd-card text-green-400 text-sm font-loaded"></i>
-        <span id="memory-usage-mobile" class="text-xs font-bold text-white">0</span>
-        <span id="memory-total-mobile" class="text-[10px] text-gray-400">/ 0</span>
+        <i class="ti ti-device-desktop-analytics text-emerald-400 text-sm font-loaded"></i>
+        <span id="gpu-usage-mobile" class="text-xs font-bold text-white">0</span>
+        <span class="text-[10px] text-gray-400">%</span>
       </div>
       <div class="w-px h-4 bg-gray-700 flex-shrink-0"></div>
-      <div class="flex items-center gap-1.5 flex-shrink-0 cursor-pointer" onclick="toggleNetworkDiskDisplay('mobile')">
-        <i class="ti ti-wifi text-yellow-400 text-sm font-loaded" id="toggle-icon-mobile"></i>
-        <div id="network-content-mobile" class="flex items-center gap-1">
-          <span class="text-[10px] text-blue-400">↑<span id="upload-speed-mobile" class="font-bold">0</span></span>
-          <span class="text-[10px] text-green-400">↓<span id="download-speed-mobile" class="font-bold">0</span></span>
-        </div>
-        <div id="disk-content-mobile" class="items-center gap-1" style="display: none;">
-          <span id="disk-used-mobile" class="text-xs font-bold text-white">0</span>
-          <span id="disk-total-mobile" class="text-[10px] text-gray-400">/ 0</span>
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <i class="ti ti-device-sd-card text-purple-400 text-sm font-loaded"></i>
+        <span id="memory-usage-mobile" class="text-xs font-bold text-white">0</span>
+      </div>
+      <div class="w-px h-4 bg-gray-700 flex-shrink-0"></div>
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <i class="ti ti-wifi text-cyan-400 text-sm font-loaded"></i>
+        <div class="flex items-center gap-1">
+          <span class="text-[10px] text-blue-400">↑<span id="upload-speed-mobile" class="font-bold">0K</span></span>
+          <span class="text-[10px] text-emerald-400">↓<span id="download-speed-mobile" class="font-bold">0K</span></span>
         </div>
       </div>
     </div>
   </div>
 </div>
-  <div class="hidden md:grid md:grid-cols-2 lg:grid-cols-4 3xl:grid-cols-5 gap-6 mb-6">
-    <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+
+  <div class="hidden md:grid md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
+    <!-- Card 1: Active Streams -->
+    <div class="bg-gray-800 rounded-lg p-5 shadow-md flex flex-col justify-between">
       <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold">Active Streams</h3>
-        <div class="w-10 h-10 bg-dark-700 rounded-lg flex items-center justify-center">
-          <i class="ti ti-broadcast text-xl text-white font-loaded"></i>
+        <h3 class="text-base font-semibold text-gray-200">Active Streams</h3>
+        <div class="w-9 h-9 bg-dark-700 rounded-lg flex items-center justify-center text-primary">
+          <i class="ti ti-broadcast text-lg"></i>
         </div>
-      </div>      
-      <p class="text-3xl font-bold mt-2">0</p>
+      </div>
+      <p id="active-streams-count" class="text-3xl font-bold text-white mt-3"><%= (typeof streams !== 'undefined' && streams) ? streams.filter(s => s.status === 'live' || s.status === 'starting').length : 0 %></p>
     </div>
-    <div class="bg-gray-800 rounded-lg p-6 shadow-md">
-      <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold">CPU Usage</h3>
-        <div class="w-10 h-10 bg-dark-700 rounded-lg flex items-center justify-center">
-          <i class="ti ti-cpu text-xl text-white font-loaded"></i>
+
+    <!-- Card 2: CPU & GPU Usage -->
+    <div class="bg-gray-800 rounded-lg p-5 shadow-md flex flex-col justify-between">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-base font-semibold text-gray-200">CPU & GPU Usage</h3>
+        <div class="flex items-center gap-1.5 text-gray-400">
+          <i class="ti ti-cpu text-base text-blue-400"></i>
+          <i class="ti ti-device-desktop-analytics text-base text-emerald-400"></i>
         </div>
       </div>
-      <p class="text-3xl font-bold mt-2"><span id="cpu-usage">0</span>%</p>
-      <div class="w-full bg-gray-700 rounded-full h-2.5 mt-2">
-        <div id="cpu-bar" class="bg-primary h-2.5 rounded-full" style="width: 0%"></div>
-      </div>
-    </div>    
-    <div class="bg-gray-800 rounded-lg p-6 shadow-md">
-      <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold">Memory</h3>
-        <div class="w-10 h-10 bg-dark-700 rounded-lg flex items-center justify-center">
-          <i class="ti ti-device-sd-card text-xl text-white font-loaded"></i>
+      <div class="space-y-2.5">
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="text-gray-400 font-medium">CPU</span>
+            <span class="text-gray-200 font-mono font-bold"><span id="cpu-usage">0</span>%</span>
+          </div>
+          <div class="w-full bg-dark-950 rounded-full h-1.5 overflow-hidden">
+            <div id="cpu-bar" class="bg-primary h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
         </div>
-      </div>
-      <p class="text-3xl font-bold mt-2">
-        <span id="memory-usage">0 MB</span><span id="memory-total" class="text-sm text-gray-400"> / 0 MB</span>
-      </p>
-      <div class="w-full bg-gray-700 rounded-full h-2.5 mt-2">
-        <div id="memory-bar" class="bg-primary h-2.5 rounded-full" style="width: 0%"></div>
-      </div>
-    </div>
-    <div class="bg-gray-800 rounded-lg p-6 shadow-md hidden 3xl:block">      
-      <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold">Disk Usage</h3>
-        <div class="w-10 h-10 bg-dark-700 rounded-lg flex items-center justify-center">
-          <i class="ti ti-database text-xl text-white font-loaded"></i>
-        </div>
-      </div>
-      <div class="mt-2">
-        <p class="text-3xl font-bold">
-          <span id="disk-used-wide">0 GB</span><span id="disk-total-wide" class="text-sm text-gray-400"> / 0 GB</span>
-        </p>        
-        <div class="w-full bg-gray-700 rounded-full h-2.5 mt-2">
-          <div id="disk-bar-wide" class="bg-primary h-2.5 rounded-full transition-colors duration-300" style="width: 0%"></div>
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="text-gray-400 font-medium">GPU</span>
+            <span class="text-gray-200 font-mono font-bold"><span id="gpu-usage">0</span>%</span>
+          </div>
+          <div class="w-full bg-dark-950 rounded-full h-1.5 overflow-hidden">
+            <div id="gpu-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="bg-gray-800 rounded-lg p-6 shadow-md 3xl:hidden">      
-      <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold" id="network-disk-title">Internet Speed</h3>
-        <div class="w-10 h-10 bg-dark-700 hover:bg-dark-600 rounded-lg flex items-center justify-center cursor-pointer transition-colors duration-200" onclick="toggleNetworkDiskDisplay('desktop')" title="Click to switch between Internet Speed and Disk Usage">
-          <i class="ti ti-wifi text-xl text-white font-loaded" id="toggle-icon-desktop"></i>
+
+    <!-- Card 3: Memory & Storage -->
+    <div class="bg-gray-800 rounded-lg p-5 shadow-md flex flex-col justify-between">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-base font-semibold text-gray-200">Memory & Storage</h3>
+        <div class="flex items-center gap-1.5 text-gray-400">
+          <i class="ti ti-device-sd-card text-base text-purple-400"></i>
+          <i class="ti ti-database text-base text-amber-400"></i>
         </div>
       </div>
-      <div id="network-content-desktop" class="mt-2 space-y-2">
-        <div class="flex justify-between items-center">
-          <span class="text-sm text-gray-400">↑ Upload</span>
-          <span id="upload-speed" class="text-lg font-bold text-blue-400">0 Mbps</span>
+      <div class="space-y-2.5">
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="text-gray-400 font-medium">RAM</span>
+            <span class="text-gray-200 font-mono text-xs"><span id="memory-usage">0 GB</span><span id="memory-total" class="text-gray-500"> / 0 GB</span></span>
+          </div>
+          <div class="w-full bg-dark-950 rounded-full h-1.5 overflow-hidden">
+            <div id="memory-bar" class="bg-purple-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
         </div>
-        <div class="flex justify-between items-center">
-          <span class="text-sm text-gray-400">↓ Download</span>
-          <span id="download-speed" class="text-lg font-bold text-green-400">0 Mbps</span>
-        </div>
-      </div>
-      <div id="disk-content-desktop" class="mt-2" style="display: none;">
-        <p class="text-3xl font-bold">
-          <span id="disk-used">0 GB</span><span id="disk-total" class="text-sm text-gray-400"> / 0 GB</span>
-        </p>        
-        <div class="w-full bg-gray-700 rounded-full h-2.5 mt-2">
-          <div id="disk-bar" class="bg-primary h-2.5 rounded-full transition-colors duration-300" style="width: 0%"></div>
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="text-gray-400 font-medium">Storage</span>
+            <span class="text-gray-200 font-mono text-xs"><span id="disk-used">0 GB</span><span id="disk-total" class="text-gray-500"> / 0 GB</span></span>
+          </div>
+          <div class="w-full bg-dark-950 rounded-full h-1.5 overflow-hidden">
+            <div id="disk-bar" class="bg-amber-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="bg-gray-800 rounded-lg p-6 shadow-md hidden 3xl:block">      
-      <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold">Internet Speed</h3>
-        <div class="w-10 h-10 bg-dark-700 rounded-lg flex items-center justify-center">
-          <i class="ti ti-wifi text-xl text-white font-loaded"></i>
+
+    <!-- Card 4: Internet Speed -->
+    <div class="bg-gray-800 rounded-lg p-5 shadow-md flex flex-col justify-between">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-base font-semibold text-gray-200">Internet Speed</h3>
+        <div class="w-9 h-9 bg-dark-700 rounded-lg flex items-center justify-center text-cyan-400">
+          <i class="ti ti-wifi text-lg"></i>
         </div>
       </div>
-      <div id="network-content-desktop-wide" class="mt-2 space-y-2">
-        <div class="flex justify-between items-center">
-          <span class="text-sm text-gray-400">↑ Upload</span>
-          <span id="upload-speed-wide" class="text-lg font-bold text-blue-400">0 Mbps</span>
+      <div class="space-y-2 mt-0.5">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-gray-400 flex items-center gap-1 font-medium">
+            <i class="ti ti-arrow-up text-blue-400"></i> Upload
+          </span>
+          <span id="upload-speed" class="text-blue-400 font-mono font-bold text-sm">0 Kbps</span>
         </div>
-        <div class="flex justify-between items-center">
-          <span class="text-sm text-gray-400">↓ Download</span>
-          <span id="download-speed-wide" class="text-lg font-bold text-green-400">0 Mbps</span>
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-gray-400 flex items-center gap-1 font-medium">
+            <i class="ti ti-arrow-down text-emerald-400"></i> Download
+          </span>
+          <span id="download-speed" class="text-emerald-400 font-mono font-bold text-sm">0 Kbps</span>
         </div>
       </div>
     </div>
@@ -1497,117 +1500,61 @@
         });
     }
 
-    let showingNetwork = true;
-    function toggleNetworkDiskDisplay(device) {
-      const currentPreference = localStorage.getItem('networkDiskToggle') || 'network';
-      const newPreference = currentPreference === 'network' ? 'disk' : 'network';
-      localStorage.setItem('networkDiskToggle', newPreference);
-      showingNetwork = newPreference === 'network';
-      updateToggleDisplay('both');
-    }
-    function updateToggleDisplay(device = 'both') {
-      const preference = localStorage.getItem('networkDiskToggle') || 'network';
-      showingNetwork = preference === 'network';
-      const devices = device === 'both' ? ['mobile', 'desktop'] : [device];
-      devices.forEach(dev => {
-        const networkContent = document.getElementById(`network-content-${dev}`);
-        const diskContent = document.getElementById(`disk-content-${dev}`);
-        const toggleIcon = document.getElementById(`toggle-icon-${dev}`);
-        if (networkContent && diskContent && toggleIcon) {
-          if (showingNetwork) {
-            networkContent.classList.remove('hidden');
-            networkContent.style.display = dev === 'mobile' ? 'flex' : 'block';
-            diskContent.classList.add('hidden');
-            diskContent.style.display = 'none';
-            toggleIcon.className = dev === 'mobile' ? 'ti ti-wifi text-yellow-400 text-sm font-loaded' : 'ti ti-wifi text-xl text-white font-loaded';
-          } else {
-            networkContent.classList.add('hidden');
-            networkContent.style.display = 'none';
-            diskContent.classList.remove('hidden');
-            diskContent.style.display = dev === 'mobile' ? 'flex' : 'block';
-            toggleIcon.className = dev === 'mobile' ? 'ti ti-database text-yellow-400 text-sm font-loaded' : 'ti ti-database text-xl text-white font-loaded';
-          }
-        }
-      });
-      const titleElement = document.getElementById('network-disk-title');
-      const newTitle = showingNetwork ? 'Internet Speed' : 'Disk Usage';
-      if (titleElement) {
-        titleElement.textContent = newTitle;
-      }
-    }
-    
     function updateSystemStats() {
       fetch('/api/system-stats')
         .then(response => response.json())
         .then(data => {
-          document.getElementById('cpu-usage').textContent = data.cpu.usage;
-          document.getElementById('cpu-bar').style.width = data.cpu.usage + '%';
-          document.getElementById('memory-usage').textContent = formatMemory(data.memory.used);
-          document.getElementById('memory-total').textContent = ' / ' + formatMemory(data.memory.total);
-          document.getElementById('memory-bar').style.width = data.memory.usagePercent + '%';
+          if (data.cpu) {
+            const cpuEl = document.getElementById('cpu-usage');
+            const cpuBar = document.getElementById('cpu-bar');
+            if (cpuEl) cpuEl.textContent = data.cpu.usage;
+            if (cpuBar) cpuBar.style.width = data.cpu.usage + '%';
+            const cpuMobile = document.getElementById('cpu-usage-mobile');
+            if (cpuMobile) cpuMobile.textContent = data.cpu.usage;
+          }
+
+          if (data.gpu) {
+            const gpuEl = document.getElementById('gpu-usage');
+            const gpuBar = document.getElementById('gpu-bar');
+            if (gpuEl) gpuEl.textContent = data.gpu.usage || 0;
+            if (gpuBar) gpuBar.style.width = (data.gpu.usage || 0) + '%';
+            const gpuMobile = document.getElementById('gpu-usage-mobile');
+            if (gpuMobile) gpuMobile.textContent = data.gpu.usage || 0;
+          }
+
+          if (data.memory) {
+            const memEl = document.getElementById('memory-usage');
+            const memTotalEl = document.getElementById('memory-total');
+            const memBar = document.getElementById('memory-bar');
+            if (memEl) memEl.textContent = data.memory.used;
+            if (memTotalEl) memTotalEl.textContent = ' / ' + data.memory.total;
+            if (memBar) memBar.style.width = (data.memory.usagePercent || 0) + '%';
+            const memMobile = document.getElementById('memory-usage-mobile');
+            if (memMobile) memMobile.textContent = data.memory.used ? data.memory.used.replace(' ', '') : '0';
+          }
           
-          const cpuMobile = document.getElementById('cpu-usage-mobile');
-          if (cpuMobile) cpuMobile.textContent = data.cpu.usage;
-          const memMobile = document.getElementById('memory-usage-mobile');
-          if (memMobile) memMobile.textContent = formatMemory(data.memory.used).replace(' ', '');
-          const memTotalMobile = document.getElementById('memory-total-mobile');
-          if (memTotalMobile) memTotalMobile.textContent = '/ ' + formatMemory(data.memory.total).replace(' ', '');
-          
+          if (data.disk) {
+            const diskUsedEl = document.getElementById('disk-used');
+            const diskTotalEl = document.getElementById('disk-total');
+            const diskBar = document.getElementById('disk-bar');
+            if (diskUsedEl) diskUsedEl.textContent = data.disk.used;
+            if (diskTotalEl) diskTotalEl.textContent = ' / ' + data.disk.total;
+            if (diskBar) diskBar.style.width = (data.disk.usagePercent || 0) + '%';
+          }
+
           if (data.network) {
-            document.getElementById('upload-speed').textContent = data.network.uploadFormatted;
-            document.getElementById('download-speed').textContent = data.network.downloadFormatted;
+            const upEl = document.getElementById('upload-speed');
+            const downEl = document.getElementById('download-speed');
+            if (upEl) upEl.textContent = data.network.uploadFormatted;
+            if (downEl) downEl.textContent = data.network.downloadFormatted;
             const uploadMobile = document.getElementById('upload-speed-mobile');
             const downloadMobile = document.getElementById('download-speed-mobile');
-            if (uploadMobile) uploadMobile.textContent = data.network.uploadFormatted.replace(' Mbps', '');
-            if (downloadMobile) downloadMobile.textContent = data.network.downloadFormatted.replace(' Mbps', '');
-            const uploadWide = document.getElementById('upload-speed-wide');
-            const downloadWide = document.getElementById('download-speed-wide');
-            if (uploadWide) uploadWide.textContent = data.network.uploadFormatted;
-            if (downloadWide) downloadWide.textContent = data.network.downloadFormatted;
-          }         
-          if (data.disk) {
-            const diskUsagePercent = data.disk.usagePercent;
-            
-            document.getElementById('disk-used').textContent = data.disk.used;
-            document.getElementById('disk-total').textContent = ' / ' + data.disk.total;
-            const diskUsedMobile = document.getElementById('disk-used-mobile');
-            const diskTotalMobile = document.getElementById('disk-total-mobile');
-            if (diskUsedMobile) diskUsedMobile.textContent = data.disk.used;
-            if (diskTotalMobile) diskTotalMobile.textContent = '/ ' + data.disk.total;
-            
-            const diskUsedWide = document.getElementById('disk-used-wide');
-            const diskTotalWide = document.getElementById('disk-total-wide');
-            if (diskUsedWide) diskUsedWide.textContent = data.disk.used;
-            if (diskTotalWide) diskTotalWide.textContent = ' / ' + data.disk.total;
-            
-            const diskBar = document.getElementById('disk-bar');
-            const diskBarWide = document.getElementById('disk-bar-wide');
-            
-            let barColor;
-            if (diskUsagePercent >= 80) {
-              barColor = 'bg-green-400'; 
-            } else {
-              barColor = 'bg-primary'; 
-            }
-            const colorClasses = ['bg-primary', 'bg-green-400'];
-            colorClasses.forEach(cls => {
-              diskBar.classList.remove(cls);
-              if (diskBarWide) diskBarWide.classList.remove(cls);
-            });
-            
-            diskBar.classList.add(barColor);
-            if (diskBarWide) diskBarWide.classList.add(barColor);
-            
-            diskBar.style.width = diskUsagePercent + '%';
-            if (diskBarWide) diskBarWide.style.width = diskUsagePercent + '%';
+            if (uploadMobile) uploadMobile.textContent = data.network.uploadFormatted;
+            if (downloadMobile) downloadMobile.textContent = data.network.downloadFormatted;
           }
         })
         .catch(error => console.error('Error fetching system stats:', error));
     }
-    
-    document.addEventListener('DOMContentLoaded', function() {
-      updateToggleDisplay('both');
-    });
     
     updateSystemStats();
     setInterval(updateSystemStats, 5000);

@@ -1,12 +1,47 @@
 const si = require('systeminformation');
+const { exec } = require('child_process');
 
 let previousNetworkData = null;
 let previousTimestamp = null;
 
+async function getGpuUsage() {
+  return new Promise((resolve) => {
+    exec('nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits', { timeout: 1500 }, (err, stdout) => {
+      if (!err && stdout) {
+        const parts = stdout.trim().split(',').map(s => s.trim());
+        if (parts.length >= 1) {
+          const usage = parseInt(parts[0]) || 0;
+          const memUsed = parseInt(parts[1]) || 0;
+          const memTotal = parseInt(parts[2]) || 0;
+          return resolve({
+            usage: usage,
+            memUsed: memUsed,
+            memTotal: memTotal
+          });
+        }
+      }
+      si.graphics().then((g) => {
+        if (g && g.controllers && g.controllers.length > 0) {
+          const c = g.controllers.find(ctrl => ctrl.utilizationGpu !== undefined) || g.controllers[0];
+          return resolve({
+            usage: Math.round(c.utilizationGpu || (c.memoryUsed && c.memoryTotal ? (c.memoryUsed / c.memoryTotal) * 100 : 0)),
+            memUsed: c.memoryUsed || 0,
+            memTotal: c.memoryTotal || 0
+          });
+        }
+        resolve({ usage: 0, memUsed: 0, memTotal: 0 });
+      }).catch(() => {
+        resolve({ usage: 0, memUsed: 0, memTotal: 0 });
+      });
+    });
+  });
+}
+
 async function getSystemStats() {
   try {
-    const [cpuData, memData, networkData, diskData] = await Promise.all([
+    const [cpuData, gpuData, memData, networkData, diskData] = await Promise.all([
       si.currentLoad(),
+      getGpuUsage(),
       si.mem(),
       si.networkStats(),
       getDiskUsage()
@@ -29,6 +64,7 @@ async function getSystemStats() {
         usage: Math.round(cpuUsage),
         cores: cpuData.cpus ? cpuData.cpus.length : 0
       },
+      gpu: gpuData,
       memory: {
         total: formatMemory(memData.total),
         used: formatMemory(memData.active),
@@ -44,8 +80,9 @@ async function getSystemStats() {
     console.error('Error getting system stats:', error);
     return {
       cpu: { usage: 0, cores: 0 },
+      gpu: { usage: 0, memUsed: 0, memTotal: 0 },
       memory: { total: "0 GB", used: "0 GB", free: "0 GB", usagePercent: 0 },
-      network: { download: 0, upload: 0, downloadFormatted: '0 Mbps', uploadFormatted: '0 Mbps' },
+      network: { download: 0, upload: 0, downloadFormatted: '0 Kbps', uploadFormatted: '0 Kbps' },
       disk: { total: "0 GB", used: "0 GB", free: "0 GB", usagePercent: 0, drive: "N/A" },
       platform: process.platform,
       timestamp: Date.now()
