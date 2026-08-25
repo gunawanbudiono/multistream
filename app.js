@@ -1889,6 +1889,14 @@ app.post('/settings/password', isAuthenticated, [
     }
     const hashedPassword = await bcrypt.hash(req.body.newPassword, 10);
     await User.update(req.session.userId, { password: hashedPassword });
+    logActivity({
+      userId: req.session.userId,
+      performedBy: req.session.username,
+      actionType: 'AUTH_PASSWORD_CHANGE',
+      category: 'auth',
+      description: `User '${req.session.username}' updated account password`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
     return res.render('settings', {
       title: 'Settings',
       active: 'settings',
@@ -2029,6 +2037,14 @@ app.post('/upload/video', isAuthenticated, uploadVideo.single('video'), async (r
       user_id: req.session.userId
     };
     const video = await Video.create(videoData);
+    logActivity({
+      userId: req.session.userId,
+      performedBy: req.session.username,
+      actionType: 'MEDIA_UPLOAD',
+      category: 'media',
+      description: `Uploaded video '${video.title}' (${(video.file_size / (1024 * 1024)).toFixed(1)} MB)`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
     res.json({
       success: true,
       video: {
@@ -2157,6 +2173,14 @@ app.post('/api/videos/upload', isAuthenticated, (req, res, next) => {
               folder_id: folderId
             };
               const video = await Video.create(videoData);
+              logActivity({
+                userId: req.session.userId,
+                performedBy: req.session.username,
+                actionType: 'MEDIA_UPLOAD',
+                category: 'media',
+                description: `Uploaded video '${video.title}' (${(video.file_size / (1024 * 1024)).toFixed(1)} MB)`,
+                ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+              });
               res.json({
                 success: true,
                 message: 'Video uploaded successfully',
@@ -2503,6 +2527,14 @@ app.delete('/api/videos/:id', isAuthenticated, async (req, res) => {
     }
 
     await Video.delete(videoId);
+    logActivity({
+      userId: req.session.userId,
+      performedBy: req.session.username,
+      actionType: 'MEDIA_DELETE',
+      category: 'media',
+      description: `Deleted video '${video.title}'`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
     res.json({ success: true, message: 'Video deleted successfully' });
   } catch (error) {
     console.error('Error deleting video:', error);
@@ -4279,6 +4311,14 @@ app.post('/api/streams/:id/status', isAuthenticated, [
       const result = await streamingService.startStream(streamId, false, baseUrl);
       if (result.success) {
         const updatedStream = await Stream.getStreamWithVideo(streamId);
+        logActivity({
+          userId: req.session.userId,
+          performedBy: req.session.username,
+          actionType: 'STREAM_START',
+          category: 'stream',
+          description: `Started live broadcast '${stream.title}' (${stream.platform || 'Custom RTMP'})`,
+          ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+        });
         return res.json({
           success: true,
           stream: updatedStream,
@@ -4310,6 +4350,14 @@ app.post('/api/streams/:id/status', isAuthenticated, [
           error: 'Stream not found or not updated'
         });
       }
+      logActivity({
+        userId: req.session.userId,
+        performedBy: req.session.username,
+        actionType: 'STREAM_STOP',
+        category: 'stream',
+        description: `Stopped live broadcast '${stream.title}'`,
+        ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      });
       return res.json({ success: true, stream: result });
     } else {
       const result = await Stream.updateStatus(streamId, newStatus, req.session.userId);
@@ -4895,6 +4943,16 @@ app.post('/api/rotations/:id/activate', isAuthenticated, async (req, res) => {
     }
     
     const result = await rotationService.activateRotation(req.params.id);
+    if (result.success) {
+      logActivity({
+        userId: req.session.userId,
+        performedBy: req.session.username,
+        actionType: 'ROTATION_ACTIVATE',
+        category: 'rotation',
+        description: `Activated stream rotation '${rotation.name}'`,
+        ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      });
+    }
     res.json(result);
   } catch (error) {
     console.error('Error activating rotation:', error);
@@ -4931,6 +4989,16 @@ app.post('/api/rotations/:id/stop', isAuthenticated, async (req, res) => {
     }
     
     const result = await rotationService.stopRotation(req.params.id);
+    if (result.success) {
+      logActivity({
+        userId: req.session.userId,
+        performedBy: req.session.username,
+        actionType: 'ROTATION_STOP',
+        category: 'rotation',
+        description: `Stopped stream rotation '${rotation.name}'`,
+        ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      });
+    }
     res.json(result);
   } catch (error) {
     console.error('Error stopping rotation:', error);
