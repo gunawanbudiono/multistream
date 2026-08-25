@@ -75,7 +75,9 @@ async function getUploadInfo(uploadId) {
   const infoPath = getInfoPath(uploadId);
   if (await fs.pathExists(infoPath)) {
     try {
-      const info = await fs.readJson(infoPath);
+      const content = await fs.readFile(infoPath, 'utf8');
+      if (!content || !content.trim()) return null;
+      const info = JSON.parse(content);
       info.uploadedChunks = await getUploadedChunksList(uploadId, info.totalChunks);
       return info;
     } catch (e) {

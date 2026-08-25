@@ -2113,19 +2113,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function getDynamicChunkSize(fileSize) {
-    if (fileSize <= 500 * 1024 * 1024) {
-      return 10 * 1024 * 1024; // 10MB chunk for files 50MB - 500MB (Maximizes 3-worker concurrency)
-    } else if (fileSize < 1024 * 1024 * 1024) {
-      return 25 * 1024 * 1024; // 25MB chunk for files 500MB - 1GB (Sweet spot)
-    } else {
-      return 50 * 1024 * 1024; // 50MB chunk for files >= 1GB (Efisien & Cloudflare 100MB Safe)
-    }
-  }
-
   async function uploadChunked(file, index, totalFiles) {
     if (uploadAborted) return { success: false };
-    const chunkSize = getDynamicChunkSize(file.size);
+    const chunkSize = 50 * 1024 * 1024;
     const totalChunks = Math.ceil(file.size / chunkSize);
     try {
       const init = await fetch('/api/videos/chunk/init', {
@@ -2139,7 +2129,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
       });
       const initData = await init.json();
-      if (!initData.success) throw new Error(initData.error);
+      if (!initData.success) throw new Error(initData.error || 'Failed to initialize chunk upload');
       const uploadId = initData.uploadId;
       currentActiveUploadId = uploadId;
       let uploaded = new Set(initData.uploadedChunks || []);
@@ -2177,6 +2167,7 @@ document.addEventListener('DOMContentLoaded', function() {
               xhr.addEventListener('load', () => {
                 currentActiveXhr = null;
                 if (xhr.status === 200) {
+                  chunkProgress.set(chunkIndex, chunk.size);
                   uploaded.add(chunkIndex);
                   resolve();
                 } else {
@@ -2187,12 +2178,11 @@ document.addEventListener('DOMContentLoaded', function() {
               xhr.addEventListener('abort', () => { currentActiveXhr = null; reject(new Error('Aborted')); });
               xhr.addEventListener('timeout', () => { currentActiveXhr = null; reject(new Error('Timeout')); });
 
-              const formData = new FormData();
-              formData.append('uploadId', uploadId);
-              formData.append('chunkIndex', chunkIndex);
-              formData.append('chunk', chunk);
               xhr.open('POST', '/api/videos/chunk/upload', true);
-              xhr.send(formData);
+              xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+              xhr.setRequestHeader('X-Upload-Id', uploadId);
+              xhr.setRequestHeader('X-Chunk-Index', chunkIndex.toString());
+              xhr.send(chunk);
             });
             break;
           } catch (err) {
