@@ -5,19 +5,30 @@ login_res = s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin'
 print('1. LOGIN ADMIN:', login_res.status_code == 200)
 
 r_users = s.get('http://192.168.18.2:7575/users')
-print('2. GET /users STATUS CODE:', r_users.status_code == 200)
+print('2. GET /users STATUS CODE 200:', r_users.status_code == 200)
 
-# Check for category filter buttons
-has_filters = all(k in r_users.text for k in ['logFilterAll', 'logFilterAuth', 'logFilterStream', 'logFilterMedia', 'logFilterAdmin'])
-print('3. LOG CATEGORY FILTER PILLS PRESENT:', has_filters)
+# Test creating suspended user and verifying instant block
+create_res = s.post('http://192.168.18.2:7575/api/users/create', data={
+    'username': 'suspended_test_user',
+    'password': 'testpassword123',
+    'role': 'member',
+    'status': 'inactive',
+    'disk_quota_gb': '10'
+})
+create_data = create_res.json()
+test_user_id = create_data.get('userId')
+print('3. CREATED SUSPENDED USER:', create_data.get('success') == True)
 
-# Check for parseDbDate helper in users page
-print('4. PARSE_DB_DATE HELPER PRESENT:', 'parseDbDate' in r_users.text)
-
-# Check inspector endpoint
-admin_id = 'bdb0aa84-e0ce-4c04-a0d0-7e44bc6eef35'
-insp_res = s.get(f'http://192.168.18.2:7575/api/users/{admin_id}/inspector')
-insp_data = insp_res.json()
-print('5. INSPECTOR LOGS LOADED:', len(insp_data.get('logs', [])) > 0)
-if len(insp_data.get('logs', [])) > 0:
-    print(f"   -> Top log: {insp_data['logs'][0].get('description')}")
+if test_user_id:
+    # Try logging in as suspended user
+    s_member = requests.Session()
+    mem_login = s_member.post('http://192.168.18.2:7575/login', data={'username':'suspended_test_user', 'password':'testpassword123'}, allow_redirects=False)
+    # Trying to access /dashboard
+    mem_dash = s_member.get('http://192.168.18.2:7575/dashboard', allow_redirects=False)
+    print('4. SUSPENDED USER BLOCKED ON /dashboard (Status 302/403):', mem_dash.status_code in [302, 401, 403])
+    if mem_dash.status_code == 302:
+        print(f"   -> Redirected to: {mem_dash.headers.get('Location')}")
+    
+    # Cleanup
+    del_res = s.post('http://192.168.18.2:7575/api/users/delete', json={'userId': test_user_id})
+    print('5. CLEANUP TEST USER:', del_res.json().get('success') == True)

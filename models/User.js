@@ -1,6 +1,7 @@
 const { db, checkIfUsersExist } = require('../db/database');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
+
 class User {
   static findByEmail(email) {
     return new Promise((resolve, reject) => {
@@ -12,9 +13,10 @@ class User {
       });
     });
   }
+
   static findByUsername(username) {
     return new Promise((resolve, reject) => {
-      db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+      db.get('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', [username], (err, row) => {
         if (err) {
           return reject(err);
         }
@@ -22,6 +24,7 @@ class User {
       });
     });
   }
+
   static findById(id) {
     return new Promise((resolve, reject) => {
       db.get('SELECT * FROM users WHERE id = ?', [id], (err, row) => {
@@ -33,6 +36,7 @@ class User {
       });
     });
   }
+
   static async create(userData) {
     try {
       const hashedPassword = await bcrypt.hash(userData.password, 10);
@@ -72,6 +76,7 @@ class User {
       throw error;
     }
   }
+
   static update(userId, userData) {
     const fields = [];
     const values = [];
@@ -91,6 +96,7 @@ class User {
       });
     });
   }
+
   static async verifyPassword(plainPassword, hashedPassword) {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
@@ -144,10 +150,49 @@ class User {
       try {
         const Video = require('./Video');
         const Stream = require('./Stream');
+        const Rotation = require('./Rotation');
+        const Playlist = require('./Playlist');
+        const streamingService = require('../services/streamingService');
+        const rotationService = require('../services/rotationService');
         
-        const userVideos = await Video.findAll(userId);
+        // 1. Stop and delete user live streams
         const userStreams = await Stream.findAll(userId);
-        
+        for (const stream of userStreams) {
+          try {
+            if (stream.status === 'live') {
+              await streamingService.stopStream(stream.id);
+            }
+            await Stream.delete(stream.id, userId);
+          } catch (streamDeleteError) {
+            console.error(`Error deleting stream ${stream.id}:`, streamDeleteError);
+          }
+        }
+
+        // 2. Stop and delete user rotations
+        try {
+          const userRotations = await Rotation.findAll(userId);
+          for (const rotation of userRotations) {
+            if (rotation.status === 'active') {
+              await rotationService.stopRotation(rotation.id);
+            }
+            await Rotation.delete(rotation.id, userId);
+          }
+        } catch (rotError) {
+          console.error('Error cleaning up rotations:', rotError);
+        }
+
+        // 3. Delete user playlists
+        try {
+          const userPlaylists = await Playlist.findAll(userId);
+          for (const playlist of userPlaylists) {
+            await Playlist.delete(playlist.id, userId);
+          }
+        } catch (plError) {
+          console.error('Error cleaning up playlists:', plError);
+        }
+
+        // 4. Delete user media video files & physical assets
+        const userVideos = await Video.findAll(userId);
         for (const video of userVideos) {
           try {
             await Video.delete(video.id);
@@ -155,15 +200,13 @@ class User {
             console.error(`Error deleting video ${video.id}:`, videoDeleteError);
           }
         }
+
+        // 5. Delete user activity logs
+        db.run('DELETE FROM user_activity_logs WHERE user_id = ?', [userId], (err) => {
+          if (err) console.error('Error deleting user activity logs:', err);
+        });
         
-        for (const stream of userStreams) {
-          try {
-            await Stream.delete(stream.id, userId);
-          } catch (streamDeleteError) {
-            console.error(`Error deleting stream ${stream.id}:`, streamDeleteError);
-          }
-        }
-        
+        // 6. Delete the user row
         db.run('DELETE FROM users WHERE id = ?', [userId], function (err) {
           if (err) {
             console.error('Database error in delete:', err);
@@ -258,4 +301,5 @@ class User {
     });
   }
 }
+
 module.exports = User;

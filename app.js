@@ -328,6 +328,33 @@ const loginDelayMiddleware = async (req, res, next) => {
   await new Promise(resolve => setTimeout(resolve, 1000));
   next();
 };
+
+async function checkUserDiskQuota(userId, incomingBytes = 0) {
+  try {
+    const user = await User.findById(userId);
+    if (!user) return { allowed: false, error: 'User not found' };
+    
+    const quotaGb = Number(user.disk_quota_gb) || 0;
+    const legacyLimit = Number(user.disk_limit) || 0;
+    const quotaBytes = quotaGb > 0 ? (quotaGb * 1024 * 1024 * 1024) : legacyLimit;
+
+    if (quotaBytes > 0) {
+      const currentUsage = await User.getDiskUsage(userId);
+      const newTotal = currentUsage + incomingBytes;
+      if (newTotal > quotaBytes) {
+        const quotaLabel = quotaGb > 0 ? `${quotaGb} GB` : `${(legacyLimit / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        return {
+          allowed: false,
+          error: `Disk quota limit of ${quotaLabel} exceeded. Please delete existing files or contact administrator.`
+        };
+      }
+    }
+    return { allowed: true };
+  } catch (e) {
+    console.error('Error checking user disk quota:', e);
+    return { allowed: true };
+  }
+}
 app.get('/login', async (req, res) => {
   if (req.session.userId) {
     return res.redirect('/dashboard');
@@ -2072,6 +2099,14 @@ app.post('/upload/video', isAuthenticated, uploadVideo.single('video'), async (r
       return res.status(400).json({ error: 'No video file provided' });
     }
     const { filename, originalname, path: videoPath, mimetype, size } = req.file;
+
+    const quotaCheck = await checkUserDiskQuota(req.session.userId, size);
+    if (!quotaCheck.allowed) {
+      const fs = require('fs');
+      if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
+      return res.status(400).json({ success: false, error: quotaCheck.error });
+    }
+
     const thumbnailName = path.basename(filename, path.extname(filename)) + '.jpg';
     const videoInfo = await getVideoInfo(videoPath);
     const thumbnailRelativePath = await generateThumbnail(videoPath, thumbnailName)
@@ -2159,21 +2194,17 @@ app.post('/api/videos/upload', isAuthenticated, (req, res, next) => {
       }
     }
 
-    const user = await User.findById(req.session.userId);
-    if (user.disk_limit > 0) {
-      const currentUsage = await User.getDiskUsage(req.session.userId);
-      const newTotal = currentUsage + req.file.size;
-      if (newTotal > user.disk_limit) {
-        const fs = require('fs');
-        const fullFilePath = path.join(__dirname, 'public', 'uploads', 'videos', req.file.filename);
-        if (fs.existsSync(fullFilePath)) {
-          fs.unlinkSync(fullFilePath);
-        }
-        return res.status(400).json({
-          success: false,
-          error: 'Disk limit exceeded. Please delete some files or contact admin.'
-        });
+    const quotaCheck = await checkUserDiskQuota(req.session.userId, req.file.size);
+    if (!quotaCheck.allowed) {
+      const fs = require('fs');
+      const fullFilePath = path.join(__dirname, 'public', 'uploads', 'videos', req.file.filename);
+      if (fs.existsSync(fullFilePath)) {
+        fs.unlinkSync(fullFilePath);
       }
+      return res.status(400).json({
+        success: false,
+        error: quotaCheck.error
+      });
     }
 
     let title = path.parse(req.file.originalname).name;
@@ -2311,20 +2342,16 @@ app.post('/api/audio/upload', isAuthenticated, (req, res, next) => {
       }
     }
 
-    const user = await User.findById(req.session.userId);
-    if (user.disk_limit > 0) {
-      const currentUsage = await User.getDiskUsage(req.session.userId);
-      const newTotal = currentUsage + req.file.size;
-      if (newTotal > user.disk_limit) {
-        const uploadedPath = path.join(__dirname, 'public', 'uploads', 'audio', req.file.filename);
-        if (fs.existsSync(uploadedPath)) {
-          fs.unlinkSync(uploadedPath);
-        }
-        return res.status(400).json({
-          success: false,
-          error: 'Disk limit exceeded. Please delete some files or contact admin.'
-        });
+    const quotaCheck = await checkUserDiskQuota(req.session.userId, req.file.size);
+    if (!quotaCheck.allowed) {
+      const uploadedPath = path.join(__dirname, 'public', 'uploads', 'audio', req.file.filename);
+      if (fs.existsSync(uploadedPath)) {
+        fs.unlinkSync(uploadedPath);
       }
+      return res.status(400).json({
+        success: false,
+        error: quotaCheck.error
+      });
     }
 
     let title = path.parse(req.file.originalname).name;
@@ -2384,16 +2411,12 @@ app.post('/api/videos/chunk/init', isAuthenticated, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Only .mp4, .avi, and .mov formats are allowed' });
     }
 
-    const user = await User.findById(req.session.userId);
-    if (user.disk_limit > 0) {
-      const currentUsage = await User.getDiskUsage(req.session.userId);
-      const newTotal = currentUsage + parseInt(fileSize);
-      if (newTotal > user.disk_limit) {
-        return res.status(400).json({
-          success: false,
-          error: 'Disk limit exceeded. Please delete some files or contact admin.'
-        });
-      }
+    const quotaCheck = await checkUserDiskQuota(req.session.userId, parseInt(fileSize, 10));
+    if (!quotaCheck.allowed) {
+      return res.status(400).json({
+        success: false,
+        error: quotaCheck.error
+      });
     }
 
     const info = await chunkUploadService.initUpload(filename, fileSize, totalChunks, req.session.userId, { folderId });
@@ -3168,6 +3191,19 @@ async function processGoogleDriveImport(jobId, fileId, userId, folderId = null) 
       setTimeout(() => { delete importJobs[jobId]; }, 5 * 60 * 1000);
       return;
     }
+
+    const stats = fs.statSync(result.localFilePath);
+    const quotaCheck = await checkUserDiskQuota(userId, stats.size);
+    if (!quotaCheck.allowed) {
+      if (fs.existsSync(result.localFilePath)) fs.unlinkSync(result.localFilePath);
+      importJobs[jobId] = {
+        status: 'failed',
+        progress: 0,
+        message: quotaCheck.error
+      };
+      setTimeout(() => { delete importJobs[jobId]; }, 5 * 60 * 1000);
+      return;
+    }
     
     importJobs[jobId] = {
       status: 'processing',
@@ -3318,6 +3354,19 @@ async function processMediafireImport(jobId, fileKey, userId, folderId = null) {
       };
     });
     
+    const stats = fs.statSync(result.localFilePath);
+    const quotaCheck = await checkUserDiskQuota(userId, stats.size);
+    if (!quotaCheck.allowed) {
+      if (fs.existsSync(result.localFilePath)) fs.unlinkSync(result.localFilePath);
+      importJobs[jobId] = {
+        status: 'failed',
+        progress: 0,
+        message: quotaCheck.error
+      };
+      setTimeout(() => { delete importJobs[jobId]; }, 5 * 60 * 1000);
+      return;
+    }
+    
     importJobs[jobId] = {
       status: 'processing',
       progress: 100,
@@ -3447,6 +3496,19 @@ async function processDropboxImport(jobId, dropboxUrl, userId, folderId = null) 
       };
     });
     
+    const stats = fs.statSync(result.localFilePath);
+    const quotaCheck = await checkUserDiskQuota(userId, stats.size);
+    if (!quotaCheck.allowed) {
+      if (fs.existsSync(result.localFilePath)) fs.unlinkSync(result.localFilePath);
+      importJobs[jobId] = {
+        status: 'failed',
+        progress: 0,
+        message: quotaCheck.error
+      };
+      setTimeout(() => { delete importJobs[jobId]; }, 5 * 60 * 1000);
+      return;
+    }
+    
     importJobs[jobId] = {
       status: 'processing',
       progress: 100,
@@ -3575,6 +3637,19 @@ async function processMegaImport(jobId, megaUrl, userId, folderId = null) {
         message: `Downloading ${progress.filename}: ${progress.progress}%`
       };
     });
+    
+    const stats = fs.statSync(result.localFilePath);
+    const quotaCheck = await checkUserDiskQuota(userId, stats.size);
+    if (!quotaCheck.allowed) {
+      if (fs.existsSync(result.localFilePath)) fs.unlinkSync(result.localFilePath);
+      importJobs[jobId] = {
+        status: 'failed',
+        progress: 0,
+        message: quotaCheck.error
+      };
+      setTimeout(() => { delete importJobs[jobId]; }, 5 * 60 * 1000);
+      return;
+    }
     
     importJobs[jobId] = {
       status: 'processing',
