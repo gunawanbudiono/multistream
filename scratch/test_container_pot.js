@@ -29,43 +29,31 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const testArgsList = [
-    { name: 'No player_client arg', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'] },
-    { name: 'player_client=android_vr,web', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=android_vr,web'] },
-    { name: 'player_client=web_creator,tv', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=web_creator,tv'] },
-    { name: 'player_client=android,mweb', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=android,mweb'] },
-    { name: 'player_skip=ios', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_skip=ios'] }
+  const args = [
+    '-m', 'yt_dlp',
+    '--cookies', '/app/db/cookies.txt',
+    '--remote-components', 'ejs:github',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
+    '--dump-single-json',
+    '--no-warnings',
+    '--skip-download',
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
   ];
 
-  for (const t of testArgsList) {
-    const args = [
-      '-m', 'yt_dlp',
-      '--cookies', '/app/db/cookies.txt',
-      '--remote-components', 'ejs:github',
-      ...t.args,
-      '--dump-single-json',
-      '--no-warnings',
-      '--skip-download',
-      'https://www.youtube.com/watch?v=5oiuYD5lPIA'
-    ];
-
-    await new Promise((resolve) => {
-      execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err) {
-          console.log(`[${t.name}] ERROR:`, stderr.slice(0, 100) || err.message);
-        } else {
-          try {
-            const info = JSON.parse(stdout);
-            const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
-            console.log(`[${t.name}] RESOLUTIONS:`, heights);
-          } catch (e) {
-            console.log(`[${t.name}] PARSE ERR`);
-          }
-        }
-        resolve();
-      });
+  await new Promise((resolve) => {
+    execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        console.log('ERROR:', stderr.slice(0, 150) || err.message);
+      } else {
+        const info = JSON.parse(stdout);
+        console.log('RICK ASTLEY FORMATS:');
+        (info.formats || []).forEach(f => {
+          console.log(`ID: ${f.format_id} | ${f.resolution} | ${f.height}p | fps: ${f.fps} | vcodec: ${f.vcodec} | acodec: ${f.acodec}`);
+        });
+      }
+      resolve();
     });
-  }
+  });
 }
 
 run();
