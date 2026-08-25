@@ -17,7 +17,8 @@ async function run() {
 
   const args = [
     '-m', 'yt_dlp',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://172.17.0.1:4416',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;disable_innertube=1',
+    '--extractor-args', 'youtube:player_client=web',
     '--dump-single-json',
     '--no-warnings',
     '--skip-download',
