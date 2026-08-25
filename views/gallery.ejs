@@ -2088,73 +2088,106 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   const uploadModalContent = document.getElementById('uploadModalContent');
-  const dropTargets = [uploadDropzone, selectedFileInfo, uploadModalContent];
 
-  dropTargets.forEach(target => {
-    if (!target) return;
-    target.addEventListener('dragenter', (e) => {
+  if (uploadModalContent) {
+    let dragDepth = 0;
+
+    uploadModalContent.addEventListener('dragenter', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      dragDepth++;
       if (uploadDropzone) uploadDropzone.classList.add('border-primary', 'bg-primary/10');
       if (selectedFileInfo) selectedFileInfo.classList.add('ring-2', 'ring-primary', 'bg-primary/5');
     });
-    target.addEventListener('dragover', (e) => {
+
+    uploadModalContent.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
     });
-    target.addEventListener('dragleave', (e) => {
+
+    uploadModalContent.addEventListener('dragleave', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (uploadDropzone) uploadDropzone.classList.remove('border-primary', 'bg-primary/10');
-      if (selectedFileInfo) selectedFileInfo.classList.remove('ring-2', 'ring-primary', 'bg-primary/5');
+      dragDepth--;
+      if (dragDepth <= 0) {
+        dragDepth = 0;
+        if (uploadDropzone) uploadDropzone.classList.remove('border-primary', 'bg-primary/10');
+        if (selectedFileInfo) selectedFileInfo.classList.remove('ring-2', 'ring-primary', 'bg-primary/5');
+      }
     });
-    target.addEventListener('drop', async (e) => {
+
+    uploadModalContent.addEventListener('drop', async (e) => {
       e.preventDefault();
       e.stopPropagation();
+      dragDepth = 0;
       if (uploadDropzone) uploadDropzone.classList.remove('border-primary', 'bg-primary/10');
       if (selectedFileInfo) selectedFileInfo.classList.remove('ring-2', 'ring-primary', 'bg-primary/5');
       
       const droppedFiles = [];
-      if (e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-        const items = Array.from(e.dataTransfer.items);
-        const readEntryRecursive = async (entry) => {
-          if (!entry) return;
-          if (entry.isFile) {
-            await new Promise(res => {
-              entry.file(f => {
-                if (f) droppedFiles.push(f);
+
+      // 1. Synchronously snapshot all items/entries and files BEFORE any async await tick!
+      const syncEntries = [];
+      const syncFiles = [];
+
+      if (e.dataTransfer) {
+        if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+          for (let i = 0; i < e.dataTransfer.items.length; i++) {
+            const item = e.dataTransfer.items[i];
+            if (item.kind === 'file') {
+              const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+              if (entry) {
+                syncEntries.push(entry);
+              } else {
+                const f = item.getAsFile ? item.getAsFile() : null;
+                if (f) syncFiles.push(f);
+              }
+            }
+          }
+        } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          for (let i = 0; i < e.dataTransfer.files.length; i++) {
+            syncFiles.push(e.dataTransfer.files[i]);
+          }
+        }
+      }
+
+      // 2. Read directory entries recursively from the synchronous snapshot
+      const readEntryRecursive = async (entry) => {
+        if (!entry) return;
+        if (entry.isFile) {
+          await new Promise(res => {
+            entry.file(f => {
+              if (f) droppedFiles.push(f);
+              res();
+            }, () => res());
+          });
+        } else if (entry.isDirectory) {
+          const dirReader = entry.createReader();
+          const readEntries = async () => {
+            return new Promise(res => {
+              dirReader.readEntries(async (entries) => {
+                if (entries && entries.length > 0) {
+                  for (const ent of entries) {
+                    await readEntryRecursive(ent);
+                  }
+                  await readEntries();
+                }
                 res();
               }, () => res());
             });
-          } else if (entry.isDirectory) {
-            const dirReader = entry.createReader();
-            const readEntries = async () => {
-              return new Promise(res => {
-                dirReader.readEntries(async (entries) => {
-                  if (entries && entries.length > 0) {
-                    for (const ent of entries) {
-                      await readEntryRecursive(ent);
-                    }
-                    await readEntries();
-                  }
-                  res();
-                }, () => res());
-              });
-            };
-            await readEntries();
-          }
-        };
-
-        for (const item of items) {
-          const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
-          if (entry) {
-            await readEntryRecursive(entry);
-          } else if (item.getAsFile) {
-            const f = item.getAsFile();
-            if (f) droppedFiles.push(f);
-          }
+          };
+          await readEntries();
         }
-      } else if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      };
+
+      for (const entry of syncEntries) {
+        await readEntryRecursive(entry);
+      }
+      for (const f of syncFiles) {
+        droppedFiles.push(f);
+      }
+
+      // Fallback: If neither entries nor files were captured via items, use dataTransfer.files
+      if (droppedFiles.length === 0 && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         droppedFiles.push(...Array.from(e.dataTransfer.files));
       }
 
@@ -2162,7 +2195,7 @@ document.addEventListener('DOMContentLoaded', function() {
         handleFilesSelected(droppedFiles);
       }
     });
-  });
+  }
 
   function escapeHtml(value) {
     return String(value ?? '')
