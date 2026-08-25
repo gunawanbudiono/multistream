@@ -41,7 +41,37 @@ For EVERY request or task, the AI MUST follow this 4-step execution flow:
 
 ---
 
-## 🐳 4. DOCKER & CONTAINER HYGIENE (ANTI-DUPLICATION)
+## 💾 4. NON-DESTRUCTIVE DATABASE MIGRATIONS
+
+1. 🚫 **NO DESTRUCTIVE QUERIES**: Dilarang menjalankan query destruktif (`DROP TABLE`, `ALTER TABLE DROP COLUMN`, atau `DELETE FROM users`) tanpa script cadangan dan konfirmasi eksplisit dari user.
+2. 🛡️ **SAFE COLUMN ADDITIONS**: Setiap penambahan kolom baru pada tabel SQLite wajib bersifat *non-destructive* (menggunakan pengecekan `IF NOT EXISTS` atau *safe alter table* dengan penanganan `duplicate column name`).
+
+---
+
+## 🧪 5. MANDATORY PRE-FLIGHT VERIFICATION BATTERY
+
+Sebelum AI melaporkan bahwa suatu tugas selesai, AI **WAJIB** menjalankan 3 pengujian otomatis:
+1. ⚙️ **Validasi Sintaks Lokal**: Memastikan `node -c <file.js>` lolos dengan kode exit 0.
+2. 🌐 **Validasi Respon HTTP Endpoint**: Memastikan endpoint utama (`/dashboard`, `/users`, `/gallery`) mengembalikan status `200 OK`.
+3. 📜 **Pemeriksaan Log Container**: Memastikan `docker logs` bersih dari `UnhandledRejection` atau `UncaughtException`.
+
+---
+
+## 🔙 6. INSTANT 1-CLICK ROLLBACK PROTOCOL
+
+1. 🏷️ **ATOMIC COMMIT CHECKPOINTS**: Setiap micro-commit harus memiliki deskripsi yang jelas dan independen (*atomic*).
+2. ⚡ **INSTANT REVERT READY**: Jika setelah deployment user melaporkan kendala, AI wajib siap melakukan rollback 1-klik ke commit sebelumnya (`git revert` / `git reset`) dalam hitungan detik tanpa merusak database atau media.
+
+---
+
+## 📁 7. STRICT MEDIA VALIDATION & ANTI-EXPLOIT
+
+1. 🔒 **ALLOWED EXTENSIONS & MIME TYPES**: Folder upload hanya menerima format media valid (`.mp4`, `.mov`, `.mkv`, `.ts`, `.mp3`, `.aac`) dengan verifikasi MIME type.
+2. 🚫 **ANTI-SCRIPT EXECUTION**: Dilarang mengunggah berkas script berbahaya (`.sh`, `.php`, `.exe`, `.js`) ke direktori media.
+
+---
+
+## 🐳 8. DOCKER & CONTAINER HYGIENE (ANTI-DUPLICATION)
 
 1. 🚫 **SINGLE CONTAINER ENFORCEMENT**: Always target container `multistream-app`. Never create secondary containers (e.g. `streamflow-app`, `multistream-v2`).
 2. 🚫 **VOLUMES & STORAGE PURGING**: Periodically run `docker system prune -f` to clear dangling build caches.
@@ -49,7 +79,7 @@ For EVERY request or task, the AI MUST follow this 4-step execution flow:
 
 ---
 
-## 🔒 5. STORAGE & DISK HYGIENE RULES
+## 🔒 9. STORAGE & DISK HYGIENE RULES
 
 1. 🚫 **AUTOMATIC TEMP CLEANUP**: Video chunk uploads and FFmpeg transcode operations MUST execute automatic `fs.unlink` on `/public/uploads/temp/` upon completion or failure.
 2. 🚫 **NO DUPLICATE FILE UPLOADS**: Video upload endpoints must verify file names & sizes before saving to prevent duplicate giant files.
@@ -57,7 +87,7 @@ For EVERY request or task, the AI MUST follow this 4-step execution flow:
 
 ---
 
-## ⚡ 6. OFFICIAL ONE-LINE VM DEPLOYMENT COMMAND
+## ⚡ 10. OFFICIAL ONE-LINE VM DEPLOYMENT COMMAND
 
 ```powershell
 & 'C:\Program Files\PuTTY\plink.exe' -batch -pw 'kebonsunrise' ngadimin@192.168.18.2 'cd /home/ngadimin/multistream ; git fetch origin main ; git reset --hard origin/main ; docker restart multistream-app'
@@ -65,7 +95,7 @@ For EVERY request or task, the AI MUST follow this 4-step execution flow:
 
 ---
 
-## 🧠 7. COMMUNICATION & BEHAVIORAL STYLE
+## 🧠 11. COMMUNICATION & BEHAVIORAL STYLE
 
 - **Language**: Clear, concise, professional Bahasa Indonesia.
 - **Strict Compliance**: Follow original Streamflow base design 100%. No unauthorized UI modifications.
