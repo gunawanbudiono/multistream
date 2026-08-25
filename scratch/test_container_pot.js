@@ -29,19 +29,12 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const args = [
-    '-m', 'yt_dlp',
-    '-v',
-    '--cookies', '/app/db/cookies.txt',
-    '--remote-components', 'ejs:github',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=ios,mweb,web',
-    '--dump-single-json',
-    '--no-warnings',
-    '--skip-download',
-    'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
-  ];
-
-  await new Promise((resolve) => {
+  const Video = require('../models/Video');
+  const videos = await Video.findAll();
+  console.log('LATEST VIDEOS IN GALLERY:');
+  videos.slice(-4).forEach(v => {
+    console.log(`- ${v.title} | Res: ${v.resolution} | Size: ${Math.round(v.file_size/1024/1024)} MB`);
+  });
     execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         console.log('3. YT-DLP ERROR:', stderr || err.message);
