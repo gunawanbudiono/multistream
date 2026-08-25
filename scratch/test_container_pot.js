@@ -16,8 +16,7 @@ async function run() {
   console.log('2. PING 172.18.0.1:4416:', await checkPing('http://172.18.0.1:4416/ping'));
 
   const args = [
-    '-c', 'import yt_dlp_plugins.extractor.getpot_bgutil_http; import yt_dlp; yt_dlp.main()',
-    '--',
+    '-c', 'import yt_dlp; yt_dlp.main()',
     '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
     '--dump-single-json',
     '--no-warnings',
