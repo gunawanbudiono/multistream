@@ -29,58 +29,38 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const testUrls = [
-    { title: 'Ngamen 5', url: 'https://www.youtube.com/watch?v=n7X2cbKzh-Q' },
-    { title: 'SING-OFF', url: 'https://www.youtube.com/watch?v=5oiuYD5lPIA' }
+  const testClients = [
+    'android',
+    'android_vr',
+    'android_creator',
+    'tv',
+    'tv_embedded',
+    'web',
+    'web_creator',
+    'web_safari',
+    'web_embedded',
+    'mweb',
+    'ios'
   ];
 
-  for (const u of testUrls) {
+  for (const c of testClients) {
     const args = [
       '-m', 'yt_dlp',
-      '--dump-single-json',
-      '--no-warnings',
-      '--skip-download',
-      '--no-playlist',
-      '--geo-bypass',
-      '--remote-components', 'ejs:github',
-      '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=ios,mweb,web',
+      '-F',
       '--cookies', '/app/db/cookies.txt',
-      u.url
+      '--remote-components', 'ejs:github',
+      '--extractor-args', `youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=${c}`,
+      'https://www.youtube.com/watch?v=5oiuYD5lPIA'
     ];
 
     await new Promise((resolve) => {
       execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+        console.log(`=== CLIENT: ${c} ===`);
         if (err) {
-          console.log(`[${u.title}] ERROR:`, stderr || err.message);
+          console.log('ERROR:', stderr.slice(0, 100) || err.message);
         } else {
-          const info = JSON.parse(stdout);
-          const formats = info.formats || [];
-          const labels = {
-            2160: '4K Ultra HD (2160p)',
-            1440: '2K Quad HD (1440p)',
-            1080: 'Full HD (1080p)',
-            720: 'HD (720p)',
-            480: 'SD (480p)',
-            360: 'SD (360p)',
-            240: 'Low (240p)',
-            144: 'Low (144p)'
-          };
-          const resolutionMap = new Map();
-          formats.forEach(f => {
-            if (f.height && f.vcodec && f.vcodec !== 'none') {
-              const h = f.height;
-              const fps = f.fps ? `${f.fps}fps` : '';
-              const label = labels[h] || `${h}p ${fps}`.trim();
-              if (!resolutionMap.has(h)) {
-                resolutionMap.set(h, {
-                  height: h,
-                  label: (f.fps && f.fps > 30) ? `${label} 60fps` : label
-                });
-              }
-            }
-          });
-          const res = Array.from(resolutionMap.values()).sort((a, b) => b.height - a.height);
-          console.log(`[${u.title}] PARSED RESOLUTIONS:`, res.map(r => r.label));
+          const lines = stdout.split('\n').filter(l => l.includes('mp4') || l.includes('webm') || l.includes('m4a'));
+          console.log(lines.slice(0, 15).join('\n'));
         }
         resolve();
       });
