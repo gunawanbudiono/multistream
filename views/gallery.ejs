@@ -1474,14 +1474,12 @@ document.addEventListener('DOMContentLoaded', function() {
           if (meta.fpsLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-movie text-xs"></i> ${meta.fpsLabel}</span>`;
           if (meta.keyframeLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-key text-xs"></i> ${meta.keyframeLabel}</span>`;
           if (meta.bitrateLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-activity text-xs"></i> ${meta.bitrateLabel}</span>`;
-          if (meta.durationFormatted) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-clock text-xs"></i> ${meta.durationFormatted}</span>`;
           badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-gray-700/60 text-gray-300 border border-gray-600/40 px-2 py-0.5 rounded-md font-medium">${meta.sizeFormatted} • ${meta.formatTag}</span>`;
         } else if (category === 'image') {
           if (meta.resolutionLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-green-500/15 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-photo text-xs"></i> ${meta.resolutionLabel}</span>`;
           badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-gray-700/60 text-gray-300 border border-gray-600/40 px-2 py-0.5 rounded-md font-medium">${meta.sizeFormatted} • ${meta.formatTag} Image</span>`;
         } else if (category === 'audio') {
           if (meta.bitrateLabel) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-volume text-xs"></i> ${meta.bitrateLabel}</span>`;
-          if (meta.durationFormatted) badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md font-medium"><i class="ti ti-clock text-xs"></i> ${meta.durationFormatted}</span>`;
           badgesHtml += `<span class="inline-flex items-center gap-1 text-[11px] bg-gray-700/60 text-gray-300 border border-gray-600/40 px-2 py-0.5 rounded-md font-medium">${meta.sizeFormatted} • ${meta.formatTag} Audio</span>`;
         }
 
