@@ -37,7 +37,7 @@ async function run() {
     '--dump-single-json',
     '--no-warnings',
     '--skip-download',
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
   ];
 
   await new Promise((resolve) => {
