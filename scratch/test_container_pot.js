@@ -29,11 +29,20 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const Video = require('../models/Video');
-  const all = await Video.findAll();
-  console.log('VIDEOS IN DB:');
-  all.slice(0, 3).forEach(v => {
-    console.log(`- ${v.title} | Res: ${v.resolution} | Size: ${Math.round(v.file_size/1024/1024)} MB`);
+  const args = [
+    '-m', 'yt_dlp',
+    '-F',
+    '--cookies', '/app/db/cookies.txt',
+    '--remote-components', 'ejs:github',
+    'https://www.youtube.com/watch?v=5oiuYD5lPIA'
+  ];
+
+  await new Promise((resolve) => {
+    execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      console.log('STDOUT:\n', stdout);
+      if (err) console.log('STDERR:\n', stderr);
+      resolve();
+    });
   });
 }
 
