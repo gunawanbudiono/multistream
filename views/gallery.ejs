@@ -1702,22 +1702,46 @@ function renderYtQueue() {
   });
   const batchSizeStr = totalBatchBytes > 0 ? ` • ~${formatClientBytes(totalBatchBytes)}` : '';
   const countLabel = ytDownloadQueue.length === 1 ? '1 item' : `${ytDownloadQueue.length} items`;
-  if (submitText) submitText.textContent = `Start Download (${countLabel}${batchSizeStr})`;
+
+  const hasExactDuplicate = ytDownloadQueue.some(item => 
+    item.alreadyInGallery && item.alreadyInGallery.exists && 
+    String(item.selectedResolution) === String(item.alreadyInGallery.existingHeight)
+  );
+
+  if (hasExactDuplicate) {
+    if (submitBtn) submitBtn.disabled = true;
+    if (submitText) submitText.textContent = 'Change Quality to Download (Duplicate Detected)';
+  } else {
+    if (submitBtn) submitBtn.disabled = (ytActiveJobId !== null);
+    if (submitText) submitText.textContent = `Start Download (${countLabel}${batchSizeStr})`;
+  }
 
   if (cardsContainer) {
     cardsContainer.innerHTML = ytDownloadQueue.map((item, idx) => {
+      const isExactDuplicate = item.alreadyInGallery && item.alreadyInGallery.exists &&
+        String(item.selectedResolution) === String(item.alreadyInGallery.existingHeight);
+
       const resOptionsHtml = item.resolutions.map(r => {
         const val = r.height === 'audio' || r.height === 0 ? 'audio' : r.height;
         const isSelected = String(item.selectedResolution) === String(val) ? 'selected' : '';
-        return `<option value="${val}" ${isSelected}>${r.label}</option>`;
+        const isThisOptionSaved = item.alreadyInGallery && item.alreadyInGallery.exists &&
+          String(val) === String(item.alreadyInGallery.existingHeight);
+        const optLabel = isThisOptionSaved ? `${r.label} (Already Downloaded)` : r.label;
+        return `<option value="${val}" ${isSelected}>${optLabel}</option>`;
       }).join('');
 
-      const duplicateBadgeHtml = item.alreadyInGallery && item.alreadyInGallery.exists
-        ? `<div class="mb-1.5 inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md font-medium">
-             <i class="ti ti-alert-triangle text-xs shrink-0"></i>
-             <span>Already in Gallery (${item.alreadyInGallery.resolution || 'Saved'})</span>
-           </div>`
-        : '';
+      let duplicateBadgeHtml = '';
+      if (isExactDuplicate) {
+        duplicateBadgeHtml = `<div class="mb-1.5 inline-flex items-center gap-1.5 text-[10px] text-red-400 bg-red-500/10 border border-red-500/25 px-2 py-0.5 rounded-md font-medium">
+          <i class="ti ti-ban text-xs shrink-0"></i>
+          <span>Exact Duplicate: Already saved in ${item.alreadyInGallery.resolution}. Please select a different quality.</span>
+        </div>`;
+      } else if (item.alreadyInGallery && item.alreadyInGallery.exists) {
+        duplicateBadgeHtml = `<div class="mb-1.5 inline-flex items-center gap-1.5 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-md font-medium">
+          <i class="ti ti-check text-xs shrink-0"></i>
+          <span>Alternative format selected (Existing in Gallery is ${item.alreadyInGallery.resolution})</span>
+        </div>`;
+      }
 
       return `
         <div class="bg-dark-900 border border-gray-700/70 hover:border-gray-600 rounded-xl p-3 flex items-center gap-3 transition-all">

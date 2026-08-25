@@ -3566,11 +3566,22 @@ app.post('/api/youtube/inspect', isAuthenticated, async (req, res) => {
       });
 
       if (existingVideo) {
+        let existingHeight = null;
+        if (existingVideo.format === 'mp3' || !existingVideo.resolution) {
+          existingHeight = 'audio';
+        } else if (existingVideo.resolution.includes('x')) {
+          const parts = existingVideo.resolution.split('x');
+          existingHeight = parseInt(parts[1] || parts[0], 10);
+        } else {
+          existingHeight = parseInt(existingVideo.resolution, 10);
+        }
+
         metadata.alreadyInGallery = {
           exists: true,
           id: existingVideo.id,
           title: existingVideo.title,
-          resolution: existingVideo.resolution || existingVideo.format || 'Saved'
+          resolution: existingVideo.resolution || existingVideo.format || 'Saved',
+          existingHeight
         };
       } else {
         metadata.alreadyInGallery = null;
