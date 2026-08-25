@@ -14,7 +14,7 @@ fs.ensureDirSync(VIDEOS_DIR);
 fs.ensureDirSync(THUMBNAILS_DIR);
 
 function getYtDlpRunner() {
-  return { cmd: 'python3', prefixArgs: ['-m', 'yt_dlp'] };
+  return { cmd: 'python3', prefixArgs: ['-u', '-m', 'yt_dlp'] };
 }
 
 function formatDuration(sec) {
@@ -249,8 +249,9 @@ async function processJobQueue(jobId, queueItems) {
     const args = [
       ...runner.prefixArgs,
       ...formatArg,
+      '--no-colors',
       '--newline',
-      '--progress-template', '%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
+      '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
       '--geo-bypass',
       ...getPotArgs(),
       ...getCookieArgs(),
@@ -263,7 +264,8 @@ async function processJobQueue(jobId, queueItems) {
       job.childProcess = child;
 
       child.stdout.on('data', (data) => {
-        const lines = data.toString().split('\n');
+        const raw = data.toString();
+        const lines = raw.split(/\r|\n/).filter(Boolean);
         for (const line of lines) {
           const trimmed = line.trim();
           if (trimmed.includes('|')) {
@@ -272,11 +274,15 @@ async function processJobQueue(jobId, queueItems) {
             const pct = parseFloat(pctStr);
             if (!isNaN(pct)) {
               job.currentProgress = Math.min(100, Math.max(0, pct));
-              job.speed = parts[1]?.trim() || '';
-              job.eta = parts[2]?.trim() || '';
+              if (parts[1] && parts[1].trim() !== 'Unknown B/s') {
+                job.speed = parts[1].trim();
+              }
+              if (parts[2] && parts[2].trim() !== 'Unknown' && parts[2].trim() !== 'NA') {
+                job.eta = parts[2].trim();
+              }
               
               const overall = Math.round(((i + (job.currentProgress / 100)) / queueItems.length) * 100);
-              job.progress = overall;
+              job.progress = Math.min(99, Math.max(0, overall));
             }
           }
         }

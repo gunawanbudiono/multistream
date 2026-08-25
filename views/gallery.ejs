@@ -1742,10 +1742,14 @@ async function startYtDownloadQueue() {
         if (progressBar) progressBar.style.width = `${job.progress}%`;
         if (progressPercentage) progressPercentage.textContent = `${job.progress}%`;
         if (progressMetrics) {
-          progressMetrics.textContent = job.speed ? `Speed: ${job.speed}` : 'Downloading stream chunks...';
+          progressMetrics.innerHTML = job.speed 
+            ? `<span class="inline-flex items-center gap-1 text-gray-300"><i class="ti ti-bolt text-red-400"></i> Speed: <strong class="text-white">${job.speed}</strong></span>` 
+            : '<span class="inline-flex items-center gap-1"><i class="ti ti-loader-2 text-xs animate-spin text-red-400"></i> Downloading stream chunks...</span>';
         }
         if (progressEta) {
-          progressEta.textContent = job.eta ? `ETA: ${job.eta}` : '';
+          progressEta.innerHTML = job.eta 
+            ? `<span class="inline-flex items-center gap-1 text-gray-300"><i class="ti ti-clock text-amber-400"></i> ETA: <strong class="text-white">${job.eta}</strong></span>` 
+            : '';
         }
 
         if (job.status === 'completed') {
