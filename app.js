@@ -933,10 +933,16 @@ app.get('/gallery', isAuthenticated, async (req, res) => {
       }
     }
 
+    const currentUser = await User.findById(req.session.userId);
+    const userDiskUsage = await User.getDiskUsage(req.session.userId);
+    const userDiskLimit = currentUser ? (Number(currentUser.disk_quota_gb) > 0 ? Number(currentUser.disk_quota_gb) * 1024 * 1024 * 1024 : Number(currentUser.disk_limit) || 0) : 0;
+
     res.render('gallery', {
       title: 'Video Gallery',
       active: 'gallery',
-      user: await User.findById(req.session.userId),
+      user: currentUser,
+      userDiskUsage,
+      userDiskLimit,
       videos: videos,
       folders: folders,
       currentFolder: currentFolder,

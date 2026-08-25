@@ -58,18 +58,26 @@ function detectMediaType(item) {
 <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
   <div>
     <h2 class="text-2xl font-bold">Media Gallery</h2>
-    <p class="text-gray-400 text-sm mt-1 flex items-center flex-wrap gap-2">
+    <div class="text-gray-400 text-sm mt-1 flex items-center flex-wrap gap-2.5">
       <span>Manage your videos, audio, and images for streaming</span>
-      <span id="diskUsageInfoDesktop" class="hidden items-center">
-        <span class="text-gray-500 mx-1">•</span>
-        <i class="ti ti-database text-xs mr-1 text-primary"></i>
-        <span id="diskUsageTextDesktop" class="text-gray-300 font-medium"></span>
-      </span>
-    </p>
-    <p id="diskUsageInfoMobile" class="hidden text-gray-400 text-sm mt-1">
-      <i class="ti ti-database text-xs mr-1 text-primary"></i>
-      <span id="diskUsageTextMobile" class="text-gray-300 font-medium"></span>
-    </p>
+      <span class="text-gray-600 hidden sm:inline">•</span>
+      <div id="diskUsageWidget" class="inline-flex items-center gap-2 bg-dark-800 border border-gray-700/70 px-2.5 py-1 rounded-md text-xs font-mono text-gray-300 shadow-sm">
+        <i class="ti ti-database text-primary text-sm"></i>
+        <span id="diskUsageText">
+          <% if (typeof userDiskLimit !== 'undefined' && userDiskLimit > 0) { %>
+            <% const pct = Math.min(100, Math.round(((userDiskUsage || 0) / userDiskLimit) * 100)); %>
+            <%= formatFileSize(userDiskUsage || 0) %> / <%= formatFileSize(userDiskLimit) %> (<%= pct %>%)
+          <% } else { %>
+            <%= formatFileSize(typeof userDiskUsage !== 'undefined' ? userDiskUsage : 0) %> Used (Unlimited)
+          <% } %>
+        </span>
+        <div id="diskUsageBarContainer" class="w-16 h-1.5 bg-dark-950 rounded-full overflow-hidden border border-gray-700/50 <%= (typeof userDiskLimit !== 'undefined' && userDiskLimit > 0) ? '' : 'hidden' %>">
+          <% const pct = (typeof userDiskLimit !== 'undefined' && userDiskLimit > 0) ? Math.min(100, Math.round(((userDiskUsage || 0) / userDiskLimit) * 100)) : 0; %>
+          <% const barColor = pct >= 90 ? 'bg-red-500' : (pct >= 75 ? 'bg-amber-500' : 'bg-primary'); %>
+          <div id="diskUsageBar" class="h-full <%= barColor %> rounded-full transition-all duration-300" style="width: <%= pct %>%"></div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="flex gap-3">
     <button onclick="openUploadModal()" class="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
@@ -836,8 +844,8 @@ function detectMediaType(item) {
 
 <script>
 let currentView = 'grid';
-let userDiskUsage = 0;
-let userDiskLimit = 0;
+let userDiskUsage = <%= Number(typeof userDiskUsage !== 'undefined' ? userDiskUsage : 0) %>;
+let userDiskLimit = <%= Number(typeof userDiskLimit !== 'undefined' ? userDiskLimit : 0) %>;
 const currentFolderId = <%- JSON.stringify(currentFolderId || '') %>;
 let galleryVideosState = <%- JSON.stringify(videos || []) %>;
 let galleryFoldersState = <%- JSON.stringify(folders || []) %>;
@@ -858,39 +866,31 @@ async function loadDiskUsage() {
 }
 
 function updateDiskUsageDisplay() {
-  const infoDesktop = document.getElementById('diskUsageInfoDesktop');
-  const textDesktop = document.getElementById('diskUsageTextDesktop');
-  const infoMobile = document.getElementById('diskUsageInfoMobile');
-  const textMobile = document.getElementById('diskUsageTextMobile');
+  const diskText = document.getElementById('diskUsageText');
+  const barContainer = document.getElementById('diskUsageBarContainer');
+  const bar = document.getElementById('diskUsageBar');
   const modalQuotaSummary = document.getElementById('modalQuotaSummary');
   
   if (userDiskLimit > 0) {
     const usedText = formatFileSize(userDiskUsage);
     const limitText = formatFileSize(userDiskLimit);
     const percent = Math.min(100, Math.round((userDiskUsage / userDiskLimit) * 100));
-    const displayText = `${usedText} / ${limitText} Used (${percent}%)`;
+    const displayText = `${usedText} / ${limitText} (${percent}%)`;
     
-    if (textDesktop) textDesktop.textContent = displayText;
-    if (textMobile) textMobile.textContent = displayText;
+    if (diskText) diskText.textContent = displayText;
+    if (barContainer) barContainer.classList.remove('hidden');
+    if (bar) {
+      bar.style.width = `${percent}%`;
+      bar.className = 'h-full rounded-full transition-all duration-300 ' + (percent >= 90 ? 'bg-red-500' : (percent >= 75 ? 'bg-amber-500' : 'bg-primary'));
+    }
     if (modalQuotaSummary) {
       const remaining = Math.max(0, userDiskLimit - userDiskUsage);
       modalQuotaSummary.innerHTML = `<i class="ti ti-database text-xs mr-1 text-primary"></i> ${formatFileSize(remaining)} quota available`;
     }
-    
-    const isMobile = window.innerWidth < 768;
-    if (isMobile) {
-      if (infoDesktop) infoDesktop.classList.add('hidden');
-      if (infoMobile) infoMobile.classList.remove('hidden');
-    } else {
-      if (infoDesktop) {
-        infoDesktop.classList.remove('hidden');
-        infoDesktop.classList.add('inline-flex');
-      }
-      if (infoMobile) infoMobile.classList.add('hidden');
-    }
   } else {
-    if (infoDesktop) infoDesktop.classList.add('hidden');
-    if (infoMobile) infoMobile.classList.add('hidden');
+    const usedText = formatFileSize(userDiskUsage);
+    if (diskText) diskText.textContent = `${usedText} Used (Unlimited)`;
+    if (barContainer) barContainer.classList.add('hidden');
     if (modalQuotaSummary) modalQuotaSummary.textContent = 'Unlimited storage quota';
   }
 }
