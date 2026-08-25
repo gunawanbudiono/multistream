@@ -755,7 +755,7 @@ document.getElementById('searchAudios').addEventListener('input', updateAvailabl
 
 function showToast(message, type = 'info') {
   const toast = document.createElement('div');
-  toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
+  toast.className = `fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl text-white shadow-2xl z-[99999] ${
     type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'
   }`;
   toast.textContent = message;

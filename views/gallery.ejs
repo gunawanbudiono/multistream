@@ -59,20 +59,20 @@ function detectMediaType(item) {
         <i class="ti ti-chevron-down text-sm"></i>
       </button>
       <div id="cloudDropdown" class="hidden absolute right-0 mt-2 w-52 bg-dark-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
-        <button onclick="openCloudModal('gdrive')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 text-left transition-colors border-b border-gray-700/50">
-          <img src="/images/google drive.png" alt="Google Drive" class="w-5 h-5" loading="lazy" decoding="async">
-          <div>
-            <div class="font-medium text-sm text-gray-200">Google Drive</div>
-            <div class="text-[11px] text-gray-400">Import files via link</div>
-          </div>
-        </button>
-        <button onclick="openYouTubeDownloadModal()" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 text-left transition-colors">
+        <button onclick="openYouTubeDownloadModal()" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 text-left transition-colors border-b border-gray-700/50">
           <div class="w-5 h-5 rounded flex items-center justify-center bg-red-600/20 text-red-500">
             <i class="ti ti-brand-youtube text-lg"></i>
           </div>
           <div>
             <div class="font-medium text-sm text-gray-200">YouTube</div>
             <div class="text-[11px] text-gray-400">Scan & download video/audio</div>
+          </div>
+        </button>
+        <button onclick="openCloudModal('gdrive')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 text-left transition-colors">
+          <img src="/images/google drive.png" alt="Google Drive" class="w-5 h-5" loading="lazy" decoding="async">
+          <div>
+            <div class="font-medium text-sm text-gray-200">Google Drive</div>
+            <div class="text-[11px] text-gray-400">Import files via link</div>
           </div>
         </button>
       </div>
@@ -763,7 +763,7 @@ function detectMediaType(item) {
   </div>
 </div>
 
-<div id="toast" class="fixed top-16 right-4 bg-dark-800 text-white px-4 py-3 rounded-lg shadow-lg z-50 hidden flex items-center">
+<div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 bg-dark-800 text-white px-4 py-3 rounded-lg shadow-lg z-[99999] hidden flex items-center">
   <i id="toast-icon" class="mr-2"></i>
   <span id="toast-message"></span>
 </div>
@@ -867,7 +867,7 @@ function showToast(type, message) {
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'toast';
-    toast.className = 'fixed top-5 right-5 z-[99999] max-w-md bg-dark-800 border border-gray-700 shadow-2xl rounded-xl p-4 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100 hidden';
+    toast.className = 'fixed top-6 left-1/2 -translate-x-1/2 z-[99999] max-w-md bg-dark-800 border border-gray-700 shadow-2xl rounded-xl p-4 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100 hidden';
     toast.innerHTML = `
       <i id="toast-icon" class="text-xl shrink-0"></i>
       <span id="toast-message" class="text-sm font-medium text-white flex-1 break-words"></span>
@@ -878,7 +878,7 @@ function showToast(type, message) {
   const toastIcon = document.getElementById('toast-icon');
   const toastMessage = document.getElementById('toast-message');
 
-  toast.className = 'fixed top-5 right-5 z-[99999] max-w-md bg-dark-800 border shadow-2xl rounded-xl p-4 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100';
+  toast.className = 'fixed top-6 left-1/2 -translate-x-1/2 z-[99999] max-w-md bg-dark-800 border shadow-2xl rounded-xl p-4 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100';
   if (type === 'success') {
     toast.classList.add('border-green-500/50');
     if (toastIcon) toastIcon.className = 'ti ti-check text-green-400 text-xl shrink-0';
@@ -3367,6 +3367,15 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
   }
 
+  function formatBitrate(bitrate) {
+    if (!bitrate) return '';
+    const num = Number(bitrate);
+    if (isNaN(num) || num <= 0) return '';
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)} Mbps`;
+    if (num >= 1000) return `${Math.round(num / 1000)} kbps`;
+    return `${num} bps`;
+  }
+
   function buildVideoGridMarkup(video) {
     const mediaType = detectItemCategory(video);
     const thumbnail = escapeHtml(video.thumbnail_path || video.filepath || '/images/default-video-thumbnail.svg');
@@ -3379,9 +3388,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let mediaContent = '';
     if (mediaType === 'audio') {
       mediaContent = `
-        <div class="w-full h-full flex items-center justify-center bg-[#181818]">
-          <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center audio-visualizer">
-            <i class="ti ti-music text-3xl text-primary"></i>
+        <div class="w-full h-full flex items-center justify-center bg-[#15121e]">
+          <div class="w-14 h-14 rounded-full bg-purple-600/20 flex items-center justify-center audio-visualizer border border-purple-500/30">
+            <i class="ti ti-music text-2xl text-purple-400"></i>
           </div>
         </div>
       `;
@@ -3398,31 +3407,71 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let topBadge = '';
     if (mediaType === 'video') {
-      topBadge = `<span class="absolute top-2 left-2 bg-blue-600/90 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm"><i class="ti ti-video text-xs"></i>Video</span>`;
+      topBadge = `<span class="absolute top-2 left-2 bg-blue-600/90 text-white text-xs px-2 py-0.5 rounded-md flex items-center gap-1 z-20 font-medium shadow-md backdrop-blur-sm"><i class="ti ti-video text-xs"></i>Video</span>`;
     } else if (mediaType === 'audio') {
-      topBadge = `<span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm"><i class="ti ti-music text-xs"></i>Audio</span>`;
+      topBadge = `<span class="absolute top-2 left-2 bg-purple-600/90 text-white text-xs px-2 py-0.5 rounded-md flex items-center gap-1 z-20 font-medium shadow-md backdrop-blur-sm"><i class="ti ti-music text-xs"></i>Audio</span>`;
     } else if (mediaType === 'image') {
-      topBadge = `<span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm"><i class="ti ti-photo text-xs"></i>Image</span>`;
+      topBadge = `<span class="absolute top-2 left-2 bg-emerald-600/90 text-white text-xs px-2 py-0.5 rounded-md flex items-center gap-1 z-20 font-medium shadow-md backdrop-blur-sm"><i class="ti ti-photo text-xs"></i>Image</span>`;
+    }
+
+    const ext = (video.format || (video.filepath ? video.filepath.split('.').pop() : (mediaType === 'audio' ? 'mp3' : 'mp4'))).toUpperCase();
+    let metaBadgesHtml = '';
+
+    if (mediaType === 'video') {
+      const resBadge = video.resolution ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20">${video.resolution}</span>` : '';
+      const fpsBadge = `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">${video.fps || 30} FPS</span>`;
+      const kfBadge = `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">2s Keyframe</span>`;
+      const bitrateStr = formatBitrate(video.bitrate);
+      const brBadge = bitrateStr ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">${bitrateStr}</span>` : '';
+
+      metaBadgesHtml = `
+        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-dark-800 text-gray-300 border border-gray-700 font-mono">${ext}</span>
+        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 font-mono">H.264</span>
+        ${resBadge}
+        ${fpsBadge}
+        ${kfBadge}
+        ${brBadge}
+      `;
+    } else if (mediaType === 'audio') {
+      const bitrateStr = formatBitrate(video.bitrate) || '128 kbps';
+      metaBadgesHtml = `
+        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-dark-800 text-gray-300 border border-gray-700 font-mono">${ext}</span>
+        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-mono">${ext === 'AAC' ? 'AAC' : 'MP3'}</span>
+        <span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20">${bitrateStr}</span>
+      `;
+    } else if (mediaType === 'image') {
+      const resBadge = video.resolution ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">${video.resolution}</span>` : '';
+      metaBadgesHtml = `
+        <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-dark-800 text-gray-300 border border-gray-700 font-mono">${ext}</span>
+        ${resBadge}
+      `;
     }
 
     return `
-      <div class="gallery-grid-item file-item gallery-playable group bg-dark-700 rounded-lg overflow-hidden border border-transparent hover:border-gray-600 hover:bg-dark-600 transition-all cursor-pointer"
+      <div class="gallery-grid-item file-item gallery-playable group bg-dark-700 rounded-lg overflow-hidden border border-transparent hover:border-gray-600 hover:bg-dark-600 transition-all cursor-pointer flex flex-col justify-between"
         data-id="${escapeHtml(video.id)}" data-kind="file" data-title="${title}" data-date="${escapeHtml(video.upload_date || video.created_at || '')}" data-size="${Number(video.file_size || 0)}" data-type="${mediaType}"
         data-media-type="${mediaType}" data-media-title="${title}" draggable="true">
-        <div class="aspect-video relative overflow-hidden bg-dark-950 flex items-center justify-center">
-          ${mediaContent}
-          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-            <div class="bg-primary/90 w-10 h-10 rounded-full flex items-center justify-center shadow-lg">
-              <i class="ti ${mediaType === 'image' ? 'ti-eye' : 'ti-player-play-filled'} text-white"></i>
+        <div>
+          <div class="aspect-video relative overflow-hidden bg-dark-950 flex items-center justify-center">
+            ${mediaContent}
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
+              <div class="bg-primary/90 w-10 h-10 rounded-full flex items-center justify-center shadow-lg">
+                <i class="ti ${mediaType === 'image' ? 'ti-eye' : 'ti-player-play-filled'} text-white"></i>
+              </div>
+            </div>
+            ${mediaType !== 'image' ? `<span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono z-20">${formatDuration(video.duration)}</span>` : ''}
+            ${topBadge}
+          </div>
+          <div class="p-3 pb-2">
+            <h3 class="font-medium text-sm truncate mb-1.5 text-white" title="${title}">${title}</h3>
+            <div class="flex items-center gap-1 flex-wrap">
+              ${metaBadgesHtml}
             </div>
           </div>
-          ${mediaType !== 'image' ? `<span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono z-20">${formatDuration(video.duration)}</span>` : ''}
-          ${topBadge}
         </div>
-        <div class="p-3">
-          <h3 class="font-medium text-sm truncate mb-1 text-white">${title}</h3>
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-400">${formatFileSize(video.file_size || 0)}</span>
+        <div class="p-3 pt-0">
+          <div class="flex items-center justify-between pt-2 border-t border-gray-700/50">
+            <span class="text-xs text-gray-400 font-mono">${formatFileSize(video.file_size || 0)}</span>
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button class="file-rename-btn text-gray-400 hover:text-white p-1" data-video-id="${escapeHtml(video.id)}" data-video-title="${title}">
                 <i class="ti ti-pencil text-sm"></i>
@@ -3472,6 +3521,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const mediaType = detectItemCategory(video);
     const title = escapeHtml(video.title || '');
     const thumbnail = escapeHtml(video.thumbnail_path || video.filepath || '/images/default-video-thumbnail.svg');
+    const ext = (video.format || (video.filepath ? video.filepath.split('.').pop() : (mediaType === 'audio' ? 'mp3' : 'mp4'))).toUpperCase();
+    
+    const typeBadge = mediaType === 'video'
+      ? `<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-medium capitalize">Video</span>`
+      : (mediaType === 'audio'
+        ? `<span class="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded font-medium capitalize">Audio</span>`
+        : `<span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-medium capitalize">Image</span>`);
+
+    let metaSummary = '';
+    if (mediaType === 'video') {
+      metaSummary = `<span class="text-[11px] text-gray-400 ml-2 font-mono">${ext} • H.264 • ${video.resolution || ''} • ${video.fps || 30} FPS • 2s KF</span>`;
+    } else if (mediaType === 'audio') {
+      metaSummary = `<span class="text-[11px] text-gray-400 ml-2 font-mono">${ext} • ${formatBitrate(video.bitrate) || '128 kbps'}</span>`;
+    } else {
+      metaSummary = `<span class="text-[11px] text-gray-400 ml-2 font-mono">${ext} ${video.resolution ? '• ' + video.resolution : ''}</span>`;
+    }
+
     return `
       <tr class="gallery-list-item file-item-row gallery-playable group hover:bg-dark-700 transition-colors cursor-pointer"
         data-id="${escapeHtml(video.id)}" data-kind="file" data-title="${title}" data-date="${escapeHtml(video.upload_date || video.created_at || '')}" data-size="${Number(video.file_size || 0)}" data-type="${mediaType}"
@@ -3479,11 +3545,12 @@ document.addEventListener('DOMContentLoaded', function() {
         <td class="px-4 py-3">
           <div class="flex items-center gap-3">
             <div class="w-12 h-8 rounded overflow-hidden bg-dark-950 flex-shrink-0 relative flex items-center justify-center">
-              ${mediaType === 'audio' ? `<i class="ti ti-music text-primary"></i>` : `<img src="${thumbnail}" alt="" class="w-full h-full object-contain ${mediaType === 'image' ? 'p-0.5' : ''}" loading="lazy" decoding="async">`}
+              ${mediaType === 'audio' ? `<i class="ti ti-music text-purple-400"></i>` : `<img src="${thumbnail}" alt="" class="w-full h-full object-contain ${mediaType === 'image' ? 'p-0.5' : ''}" loading="lazy" decoding="async">`}
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 min-w-0">
               <span class="font-medium text-sm truncate max-w-xs text-white">${title}</span>
-              <span class="text-[10px] ${mediaType === 'video' ? 'bg-blue-500/20 text-blue-400' : (mediaType === 'audio' ? 'bg-primary/20 text-primary' : 'bg-green-500/20 text-green-400')} px-1.5 py-0.5 rounded capitalize">${mediaType}</span>
+              ${typeBadge}
+              ${metaSummary}
             </div>
           </div>
         </td>
