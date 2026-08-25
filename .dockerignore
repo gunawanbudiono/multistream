@@ -1,5 +1,8 @@
 node_modules
 npm-debug.log
+.git
+.env
 db/*.db
 logs/*
-.env 
+public/uploads/*
+!public/uploads/.gitkeep 
