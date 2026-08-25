@@ -2210,7 +2210,7 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
     }
 
     const results = [];
-    const videoExts = ['.mp4', '.avi', '.mov', '.mkv', '.webm'];
+    const videoExts = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.wmv', '.ts', '.m4v'];
     const audioExts = ['.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac'];
     const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
@@ -2638,10 +2638,13 @@ app.post('/api/videos/chunk/init', isAuthenticated, async (req, res) => {
         return res.status(404).json({ success: false, error: 'Folder not found' });
       }
     }
-    const allowedExts = ['.mp4', '.avi', '.mov'];
+    const allowedExts = [
+      '.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.wmv', '.ts', '.m4v',
+      '.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac'
+    ];
     const ext = path.extname(filename).toLowerCase();
     if (!allowedExts.includes(ext)) {
-      return res.status(400).json({ success: false, error: 'Only .mp4, .avi, and .mov formats are allowed' });
+      return res.status(400).json({ success: false, error: 'Unsupported media format for chunked upload' });
     }
 
     const quotaCheck = await checkUserDiskQuota(req.session.userId, parseInt(fileSize, 10));
@@ -2936,12 +2939,25 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
 
     if (range && !isImage) {
       const parts = range.replace(/bytes=/, '').split('-');
-      const start = parseInt(parts[0], 10);
+      let start = 0;
+      let end = fileSize - 1;
       
       // High-Bitrate 4K Ultra-Resilient Segment Chunk Window (30MB for Video, 2MB for Audio)
       const chunkWindow = isAudio ? (2 * 1024 * 1024) : (30 * 1024 * 1024);
-      let end = parts[1] ? parseInt(parts[1], 10) : (start + chunkWindow - 1);
-      if (end >= fileSize) end = fileSize - 1;
+
+      if (parts[0] === '' && parts[1]) {
+        // Suffix byte range request (e.g. bytes=-500000)
+        const suffixLength = parseInt(parts[1], 10);
+        start = Math.max(0, fileSize - suffixLength);
+        end = fileSize - 1;
+      } else {
+        start = parseInt(parts[0], 10) || 0;
+        end = parts[1] ? parseInt(parts[1], 10) : (start + chunkWindow - 1);
+      }
+
+      if (isNaN(start) || start < 0) start = 0;
+      if (isNaN(end) || end >= fileSize) end = fileSize - 1;
+      if (start > end) start = 0;
       
       const chunkSize = (end - start) + 1;
       const fileStream = fs.createReadStream(videoPath, { start, end, highWaterMark: 256 * 1024 });
