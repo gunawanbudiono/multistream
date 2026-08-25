@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs-extra');
 const ffmpeg = require('fluent-ffmpeg');
-const { Video } = require('../models');
+const Video = require('../models/Video');
 
 async function fixAllThumbnails() {
   const videos = await Video.findAll();
