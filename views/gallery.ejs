@@ -705,6 +705,12 @@ function detectMediaType(item) {
             <input type="file" id="ytCookieFileInput" accept=".txt" class="hidden" onchange="handleCookieFileSelect(event)">
           </div>
         </div>
+
+        <!-- Inline Alert Box inside Cookie Modal -->
+        <div id="ytCookieModalAlert" class="hidden p-3 rounded-xl text-xs font-medium flex items-start gap-2.5">
+          <i class="ti ti-alert-circle text-base shrink-0 mt-0.5" id="ytCookieModalAlertIcon"></i>
+          <span id="ytCookieModalAlertText" class="flex-1"></span>
+        </div>
       </div>
 
       <!-- Footer -->
@@ -860,25 +866,40 @@ function formatDuration(totalSeconds) {
 }
 
 function showToast(type, message) {
-  const toast = document.getElementById('toast');
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'fixed top-5 right-5 z-[99999] max-w-md bg-dark-800 border border-gray-700 shadow-2xl rounded-xl p-4 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100 hidden';
+    toast.innerHTML = `
+      <i id="toast-icon" class="text-xl shrink-0"></i>
+      <span id="toast-message" class="text-sm font-medium text-white flex-1 break-words"></span>
+    `;
+    document.body.appendChild(toast);
+  }
+
   const toastIcon = document.getElementById('toast-icon');
   const toastMessage = document.getElementById('toast-message');
+
+  toast.className = 'fixed top-5 right-5 z-[99999] max-w-md bg-dark-800 border shadow-2xl rounded-xl p-4 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100';
   if (type === 'success') {
-    toastIcon.className = 'ti ti-check text-green-400 text-xl mr-2 font-loaded';
-    toast.classList.add('border-l-4', 'border-green-400');
-    toast.classList.remove('border-l-4', 'border-red-400', 'border-yellow-400');
+    toast.classList.add('border-green-500/50');
+    if (toastIcon) toastIcon.className = 'ti ti-check text-green-400 text-xl shrink-0';
   } else if (type === 'error') {
-    toastIcon.className = 'ti ti-x text-red-400 text-xl mr-2 font-loaded';
-    toast.classList.add('border-l-4', 'border-red-400');
-    toast.classList.remove('border-l-4', 'border-green-400', 'border-yellow-400');
-  } else if (type === 'warning') {
-    toastIcon.className = 'ti ti-alert-triangle text-yellow-400 text-xl mr-2 font-loaded';
-    toast.classList.add('border-l-4', 'border-yellow-400');
-    toast.classList.remove('border-l-4', 'border-green-400', 'border-red-400');
+    toast.classList.add('border-red-500/50');
+    if (toastIcon) toastIcon.className = 'ti ti-alert-circle text-red-400 text-xl shrink-0';
+  } else {
+    toast.classList.add('border-amber-500/50');
+    if (toastIcon) toastIcon.className = 'ti ti-alert-triangle text-amber-400 text-xl shrink-0';
   }
-  toastMessage.textContent = message;
+
+  if (toastMessage) toastMessage.textContent = message;
   toast.classList.remove('hidden');
-  setTimeout(() => toast.classList.add('hidden'), 3000);
+
+  if (window._toastTimeout) clearTimeout(window._toastTimeout);
+  window._toastTimeout = setTimeout(() => {
+    toast.classList.add('hidden');
+  }, 4000);
 }
 
 function applyGalleryViewMode() {
@@ -1417,10 +1438,34 @@ function handleCookieFileSelect(e) {
   reader.readAsText(file);
 }
 
+function showCookieModalAlert(type, message) {
+  const alert = document.getElementById('ytCookieModalAlert');
+  const text = document.getElementById('ytCookieModalAlertText');
+  const icon = document.getElementById('ytCookieModalAlertIcon');
+  if (!alert || !text || !icon) return;
+
+  alert.className = 'p-3 rounded-xl text-xs font-medium flex items-start gap-2.5';
+  if (type === 'error') {
+    alert.classList.add('bg-red-500/15', 'border', 'border-red-500/30', 'text-red-300');
+    icon.className = 'ti ti-alert-circle text-base text-red-400 shrink-0 mt-0.5';
+  } else {
+    alert.classList.add('bg-green-500/15', 'border', 'border-green-500/30', 'text-green-300');
+    icon.className = 'ti ti-check text-base text-green-400 shrink-0 mt-0.5';
+  }
+  text.textContent = message;
+  alert.classList.remove('hidden');
+}
+
+function hideCookieModalAlert() {
+  document.getElementById('ytCookieModalAlert')?.classList.add('hidden');
+}
+
 async function saveYouTubeCookie() {
+  hideCookieModalAlert();
   const textarea = document.getElementById('ytCookieTextInput');
   const content = textarea?.value.trim();
   if (!content) {
+    showCookieModalAlert('error', 'Please paste or upload your cookies.txt content');
     showToast('error', 'Please paste or upload your cookies.txt content');
     return;
   }
@@ -1449,6 +1494,7 @@ async function saveYouTubeCookie() {
     }
   } catch (err) {
     console.error('Save cookie error:', err);
+    showCookieModalAlert('error', err.message || 'Failed to verify cookie with YouTube');
     showToast('error', err.message || 'Failed to save cookies');
   } finally {
     btn.disabled = false;
