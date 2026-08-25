@@ -31,8 +31,8 @@ async function run() {
 
   const args = [
     '-m', 'yt_dlp',
-    '-F',
-    '--allow-unplayable-formats',
+    '-v',
+    '--cookies', '/app/db/cookies.txt',
     '--remote-components', 'ejs:github',
     '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
     'https://www.youtube.com/watch?v=5oiuYD5lPIA'
