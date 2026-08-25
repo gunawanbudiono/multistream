@@ -40,6 +40,18 @@ function sanitizeFilename(title) {
     .slice(0, 80);
 }
 
+function getCookieArgs() {
+  const cookiePaths = [
+    path.join(__dirname, '..', 'cookies.txt'),
+    path.join(__dirname, '..', 'youtube_cookies.txt'),
+    path.join(__dirname, '..', 'db', 'cookies.txt')
+  ];
+  for (const cp of cookiePaths) {
+    if (fs.existsSync(cp)) return ['--cookies', cp];
+  }
+  return [];
+}
+
 /**
  * Inspects a YouTube URL and extracts rich metadata and available resolutions.
  */
@@ -51,6 +63,8 @@ async function inspectVideo(url) {
       '--no-warnings',
       '--skip-download',
       '--no-playlist',
+      '--geo-bypass',
+      ...getCookieArgs(),
       url
     ];
 
@@ -200,6 +214,8 @@ async function processJobQueue(jobId, queueItems) {
       ...formatArg,
       '--newline',
       '--progress-template', '%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
+      '--geo-bypass',
+      ...getCookieArgs(),
       '-o', finalFilePath,
       item.url
     ];
