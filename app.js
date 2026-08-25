@@ -1143,12 +1143,9 @@ app.get('/users', isAdmin, async (req, res) => {
          );
        });
       
-      const formatFileSize = (bytes) => {
-        if (!bytes || bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      const formatFileSizeGB = (bytes) => {
+        if (!bytes || bytes === 0) return '0 GB';
+        return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
       };
       
       const bytes = videoStats.totalSize || 0;
@@ -1164,7 +1161,7 @@ app.get('/users', isAdmin, async (req, res) => {
          ...user,
          videoCount: videoStats.count || 0,
          totalVideoSizeBytes: bytes,
-         totalVideoSize: bytes > 0 ? formatFileSize(bytes) : '0 B',
+         totalVideoSize: formatFileSizeGB(bytes),
          quotaGb: quotaGb,
          quotaPercent: quotaPercent,
          streamCount: streamStats.count || 0,
@@ -1420,7 +1417,9 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
     }
 
     let avatarPath = user.avatar_path;
-    if (req.file) {
+    if (req.body.reset_avatar === 'true' || req.body.reset_avatar === '1') {
+      avatarPath = '/images/default-avatar.jpg';
+    } else if (req.file) {
       avatarPath = `/uploads/avatars/${req.file.filename}`;
     }
 
