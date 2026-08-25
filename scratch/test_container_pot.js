@@ -29,11 +29,9 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const Video = require('../models/Video');
-  const videos = await Video.findAll();
-  console.log('LATEST VIDEOS IN GALLERY:');
-  videos.slice(-5).forEach(v => {
-    console.log(`- ${v.title} | Res: ${v.resolution} | Size: ${Math.round(v.file_size/1024/1024)} MB | File: ${v.filepath}`);
+  const { db } = require('../db/database');
+  db.all('PRAGMA table_info(videos)', [], (err, rows) => {
+    console.log('VIDEOS TABLE COLUMNS:', rows.map(r => r.name));
   });
 }
 
