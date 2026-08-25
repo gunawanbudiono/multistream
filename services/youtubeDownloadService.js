@@ -13,10 +13,8 @@ const THUMBNAILS_DIR = path.join(__dirname, '..', 'public', 'uploads', 'thumbnai
 fs.ensureDirSync(VIDEOS_DIR);
 fs.ensureDirSync(THUMBNAILS_DIR);
 
-function getYtDlpPath() {
-  if (fs.existsSync('/usr/local/bin/yt-dlp')) return '/usr/local/bin/yt-dlp';
-  if (fs.existsSync('/usr/bin/yt-dlp')) return '/usr/bin/yt-dlp';
-  return 'yt-dlp';
+function getYtDlpRunner() {
+  return { cmd: 'python3', prefixArgs: ['-m', 'yt_dlp'] };
 }
 
 function formatDuration(sec) {
@@ -65,8 +63,7 @@ function cleanYoutubeUrl(url) {
 
 function getPotArgs() {
   return [
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://172.17.0.1:4416',
-    '--extractor-args', 'youtube:player_client=android,web,tv'
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'
   ];
 }
 
@@ -87,9 +84,10 @@ function getCookieArgs() {
  */
 async function inspectVideo(rawUrl) {
   const url = cleanYoutubeUrl(rawUrl);
-  const ytDlp = getYtDlpPath();
+  const runner = getYtDlpRunner();
   return new Promise((resolve, reject) => {
     const args = [
+      ...runner.prefixArgs,
       '--dump-single-json',
       '--no-warnings',
       '--skip-download',
@@ -100,7 +98,7 @@ async function inspectVideo(rawUrl) {
       url
     ];
 
-    execFile(ytDlp, args, { maxBuffer: 10 * 1024 * 1024, timeout: 25000 }, (error, stdout, stderr) => {
+    execFile(runner.cmd, args, { maxBuffer: 10 * 1024 * 1024, timeout: 35000 }, (error, stdout, stderr) => {
       if (error) {
         return reject(new Error(stderr || error.message || 'Failed to inspect YouTube URL'));
       }
@@ -243,7 +241,9 @@ async function processJobQueue(jobId, queueItems) {
     }
 
     const cleanedUrl = cleanYoutubeUrl(item.url);
+    const runner = getYtDlpRunner();
     const args = [
+      ...runner.prefixArgs,
       ...formatArg,
       '--newline',
       '--progress-template', '%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
@@ -255,7 +255,7 @@ async function processJobQueue(jobId, queueItems) {
     ];
 
     await new Promise((resolve, reject) => {
-      const child = spawn(ytDlp, args);
+      const child = spawn(runner.cmd, args);
       job.childProcess = child;
 
       child.stdout.on('data', (data) => {
