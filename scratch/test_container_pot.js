@@ -33,23 +33,21 @@ async function run() {
     '-m', 'yt_dlp',
     '--cookies', '/app/db/cookies.txt',
     '--remote-components', 'ejs:github',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=tv,mweb,web',
     '--dump-single-json',
     '--no-warnings',
     '--skip-download',
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    'https://www.youtube.com/watch?v=5oiuYD5lPIA'
   ];
 
   await new Promise((resolve) => {
     execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
-        console.log('ERROR:', stderr.slice(0, 150) || err.message);
+        console.log('ERROR:', stderr || err.message);
       } else {
         const info = JSON.parse(stdout);
-        console.log('RICK ASTLEY FORMATS:');
-        (info.formats || []).forEach(f => {
-          console.log(`ID: ${f.format_id} | ${f.resolution} | ${f.height}p | fps: ${f.fps} | vcodec: ${f.vcodec} | acodec: ${f.acodec}`);
-        });
+        const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
+        console.log('SING-OFF WITH (tv,mweb,web):', heights);
       }
       resolve();
     });
