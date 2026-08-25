@@ -37,6 +37,18 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+function cleanUnits(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .replace(/([0-9.]+)\s*GiB/gi, '$1 GB')
+    .replace(/([0-9.]+)\s*MiB/gi, '$1 MB')
+    .replace(/([0-9.]+)\s*KiB/gi, '$1 KB')
+    .replace(/([0-9.]+)\s*GiB\/s/gi, '$1 GB/s')
+    .replace(/([0-9.]+)\s*MiB\/s/gi, '$1 MB/s')
+    .replace(/([0-9.]+)\s*KiB\/s/gi, '$1 KB/s')
+    .replace(/([0-9.]+)\s*B\/s/gi, '$1 B/s');
+}
+
 function sanitizeFilename(title) {
   return (title || 'youtube-video')
     .replace(/[^a-z0-9]/gi, '-')
@@ -311,15 +323,30 @@ async function processJobQueue(jobId, queueItems) {
             if (!isNaN(pct)) {
               job.currentProgress = Math.min(100, Math.max(0, pct));
               if (parts[1] && parts[1].trim() !== 'Unknown B/s') {
-                job.speed = parts[1].trim();
+                job.speed = cleanUnits(parts[1].trim());
               }
-              if (parts[2] && parts[2].trim() !== 'Unknown' && parts[2].trim() !== 'NA') {
+              if (parts[2] && parts[2].trim() !== 'Unknown' && parts[2].trim() !== 'NA' && parts[2].trim() !== 'N/A') {
                 job.eta = parts[2].trim();
               }
-              if (parts[3] && parts[4] && parts[3].trim() !== 'NA' && parts[4].trim() !== 'NA') {
-                job.sizeProgress = `${parts[3].trim()} / ${parts[4].trim()}`;
-              } else if (parts[3] && parts[3].trim() !== 'NA') {
-                job.sizeProgress = parts[3].trim();
+              
+              const downloadedRaw = parts[3]?.trim();
+              let totalRaw = parts[4]?.trim();
+
+              // Fallback to pre-calculated estimate if yt-dlp outputs N/A or empty
+              if (!totalRaw || totalRaw === 'NA' || totalRaw === 'N/A' || totalRaw === 'Unknown') {
+                if (item.filesizeFormatted) {
+                  totalRaw = item.filesizeFormatted;
+                }
+              }
+
+              if (downloadedRaw && downloadedRaw !== 'NA' && downloadedRaw !== 'N/A') {
+                const cleanDownloaded = cleanUnits(downloadedRaw);
+                const cleanTotal = cleanUnits(totalRaw);
+                if (cleanTotal && cleanTotal !== 'NA' && cleanTotal !== 'N/A') {
+                  job.sizeProgress = `${cleanDownloaded} / ${cleanTotal}`;
+                } else {
+                  job.sizeProgress = cleanDownloaded;
+                }
               }
               
               const overall = Math.round(((i + (job.currentProgress / 100)) / queueItems.length) * 100);

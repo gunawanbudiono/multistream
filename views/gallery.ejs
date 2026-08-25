@@ -1761,12 +1761,17 @@ async function startYtDownloadQueue() {
   submitBtn.disabled = true;
   progressContainer.classList.remove('hidden');
 
-  const items = ytDownloadQueue.map(item => ({
-    url: item.url,
-    title: item.title,
-    duration: item.duration,
-    resolution: item.selectedResolution
-  }));
+  const items = ytDownloadQueue.map(item => {
+    const selectedRes = (item.resolutions || []).find(r => String(r.height) === String(item.selectedResolution));
+    return {
+      url: item.url,
+      title: item.title,
+      duration: item.duration,
+      resolution: item.selectedResolution,
+      filesize: selectedRes?.filesize || 0,
+      filesizeFormatted: selectedRes?.filesizeFormatted || ''
+    };
+  });
 
   try {
     const res = await fetch('/api/youtube/download', {
