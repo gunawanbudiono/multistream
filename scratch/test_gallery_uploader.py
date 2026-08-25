@@ -1,9 +1,14 @@
 import requests
 import io
 
+import re
+
 s = requests.Session()
-login_res = s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin', 'password':'Jeruksunrise123'})
-print('1. LOGIN ADMIN:', login_res.status_code == 200)
+login_page = s.get('http://192.168.18.2:7575/login')
+csrf_match = re.search(r'name="_csrf" value="([^"]+)"', login_page.text)
+csrf_token = csrf_match.group(1) if csrf_match else ''
+login_res = s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin', 'password':'Jeruksunrise123', '_csrf': csrf_token})
+print('1. LOGIN ADMIN:', login_res.status_code in [200, 302])
 
 # 2. Test Gallery HTML page
 gallery_res = s.get('http://192.168.18.2:7575/gallery')
