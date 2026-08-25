@@ -31,48 +31,60 @@ async function run() {
 
   const testUrls = [
     { title: 'Ngamen 5', url: 'https://www.youtube.com/watch?v=n7X2cbKzh-Q' },
-    { title: 'SING-OFF', url: 'https://www.youtube.com/watch?v=5oiuYD5lPIA' },
-    { title: 'Rick Astley', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
-  ];
-
-  const configs = [
-    { name: '1. No cookies, POT only', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'] },
-    { name: '2. Cookies only, no POT', args: ['--cookies', '/app/db/cookies.txt'] },
-    { name: '3. Cookies + POT', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'] },
-    { name: '4. Cookies + POT + player_client=tv_embedded,web', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=tv_embedded,web'] },
-    { name: '5. Cookies + POT + player_client=android,web', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=android,web'] }
+    { title: 'SING-OFF', url: 'https://www.youtube.com/watch?v=5oiuYD5lPIA' }
   ];
 
   for (const u of testUrls) {
-    console.log(`\n================= ${u.title} =================`);
-    for (const cfg of configs) {
-      const args = [
-        '-m', 'yt_dlp',
-        '--dump-single-json',
-        '--no-warnings',
-        '--skip-download',
-        '--remote-components', 'ejs:github',
-        ...cfg.args,
-        u.url
-      ];
+    const args = [
+      '-m', 'yt_dlp',
+      '--dump-single-json',
+      '--no-warnings',
+      '--skip-download',
+      '--no-playlist',
+      '--geo-bypass',
+      '--remote-components', 'ejs:github',
+      '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=ios,mweb,web',
+      '--cookies', '/app/db/cookies.txt',
+      u.url
+    ];
 
-      await new Promise((resolve) => {
-        execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-          if (err) {
-            console.log(`[${cfg.name}] -> ERROR:`, stderr.split('\n')[0] || err.message);
-          } else {
-            try {
-              const info = JSON.parse(stdout);
-              const heights = [...new Set((info.formats || []).filter(f => f.vcodec && f.vcodec !== 'none').map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
-              console.log(`[${cfg.name}] -> RAW HEIGHTS:`, heights);
-            } catch (e) {
-              console.log(`[${cfg.name}] -> JSON PARSE ERR`);
+    await new Promise((resolve) => {
+      execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          console.log(`[${u.title}] ERROR:`, stderr || err.message);
+        } else {
+          const info = JSON.parse(stdout);
+          const formats = info.formats || [];
+          const labels = {
+            2160: '4K Ultra HD (2160p)',
+            1440: '2K Quad HD (1440p)',
+            1080: 'Full HD (1080p)',
+            720: 'HD (720p)',
+            480: 'SD (480p)',
+            360: 'SD (360p)',
+            240: 'Low (240p)',
+            144: 'Low (144p)'
+          };
+          const resolutionMap = new Map();
+          formats.forEach(f => {
+            if (f.height && f.vcodec && f.vcodec !== 'none') {
+              const h = f.height;
+              const fps = f.fps ? `${f.fps}fps` : '';
+              const label = labels[h] || `${h}p ${fps}`.trim();
+              if (!resolutionMap.has(h)) {
+                resolutionMap.set(h, {
+                  height: h,
+                  label: (f.fps && f.fps > 30) ? `${label} 60fps` : label
+                });
+              }
             }
-          }
-          resolve();
-        });
+          });
+          const res = Array.from(resolutionMap.values()).sort((a, b) => b.height - a.height);
+          console.log(`[${u.title}] PARSED RESOLUTIONS:`, res.map(r => r.label));
+        }
+        resolve();
       });
-    }
+    });
   }
 }
 
