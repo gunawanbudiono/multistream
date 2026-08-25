@@ -12,8 +12,8 @@ function checkPing(url) {
 }
 
 async function run() {
-  console.log('1. PING 172.17.0.1:4416:', await checkPing('http://172.17.0.1:4416/ping'));
-  console.log('2. PING 192.168.18.2:4416:', await checkPing('http://192.168.18.2:4416/ping'));
+  console.log('1. PING multistream-pot-provider:4416:', await checkPing('http://multistream-pot-provider:4416/ping'));
+  console.log('2. PING 172.18.0.1:4416:', await checkPing('http://172.18.0.1:4416/ping'));
 
   const args = [
     '-m', 'yt_dlp',
