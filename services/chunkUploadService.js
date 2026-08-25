@@ -61,47 +61,57 @@ async function initUpload(filename, fileSize, totalChunks, userId, options = {})
   return info;
 }
 
+async function getUploadedChunksList(uploadId, totalChunks) {
+  const list = [];
+  for (let i = 0; i < totalChunks; i++) {
+    if (await fs.pathExists(getChunkPath(uploadId, i))) {
+      list.push(i);
+    }
+  }
+  return list;
+}
+
 async function getUploadInfo(uploadId) {
   const infoPath = getInfoPath(uploadId);
   if (await fs.pathExists(infoPath)) {
-    return await fs.readJson(infoPath);
+    try {
+      const info = await fs.readJson(infoPath);
+      info.uploadedChunks = await getUploadedChunksList(uploadId, info.totalChunks);
+      return info;
+    } catch (e) {
+      return null;
+    }
   }
   return null;
 }
 
 async function saveChunk(uploadId, chunkIndex, chunkData) {
-  const info = await getUploadInfo(uploadId);
-  if (!info) {
-    throw new Error('Upload session not found');
-  }
-  if (info.uploadedChunks.includes(chunkIndex)) {
-    return {
-      uploadedChunks: info.uploadedChunks,
-      totalChunks: info.totalChunks,
-      isComplete: info.uploadedChunks.length === info.totalChunks,
-      skipped: true
-    };
-  }
   const chunkPath = getChunkPath(uploadId, chunkIndex);
   await fs.writeFile(chunkPath, chunkData);
-  info.uploadedChunks.push(chunkIndex);
-  info.uploadedChunks.sort((a, b) => a - b);
-  info.lastActivity = Date.now();
-  await fs.writeJson(getInfoPath(uploadId), info);
+  
+  try {
+    const infoPath = getInfoPath(uploadId);
+    if (await fs.pathExists(infoPath)) {
+      const now = new Date();
+      await fs.utimes(infoPath, now, now);
+    }
+  } catch (e) {}
+
   return {
-    uploadedChunks: info.uploadedChunks,
-    totalChunks: info.totalChunks,
-    isComplete: info.uploadedChunks.length === info.totalChunks,
-    skipped: false
+    chunkIndex,
+    success: true
   };
 }
 
 async function pauseUpload(uploadId) {
-  const info = await getUploadInfo(uploadId);
-  if (info) {
-    info.status = 'paused';
-    info.lastActivity = Date.now();
-    await fs.writeJson(getInfoPath(uploadId), info);
+  const infoPath = getInfoPath(uploadId);
+  if (await fs.pathExists(infoPath)) {
+    try {
+      const info = await fs.readJson(infoPath);
+      info.status = 'paused';
+      info.lastActivity = Date.now();
+      await fs.writeJson(infoPath, info);
+    } catch (e) {}
   }
 }
 
@@ -110,9 +120,18 @@ async function mergeChunks(uploadId) {
   if (!info) {
     throw new Error('Upload session not found');
   }
-  if (info.uploadedChunks.length !== info.totalChunks) {
-    throw new Error('Not all chunks uploaded');
+
+  const missingChunks = [];
+  for (let i = 0; i < info.totalChunks; i++) {
+    if (!await fs.pathExists(getChunkPath(uploadId, i))) {
+      missingChunks.push(i);
+    }
   }
+
+  if (missingChunks.length > 0) {
+    throw new Error(`Missing chunk(s): ${missingChunks.slice(0, 5).join(', ')} (Total missing: ${missingChunks.length})`);
+  }
+
   const ext = path.extname(info.filename);
   const basename = path.basename(info.filename, ext)
     .replace(/[^a-z0-9]/gi, '-')
@@ -146,9 +165,8 @@ async function mergeChunks(uploadId) {
     writeStream.end();
   });
 
-  info.status = 'completed';
-  info.finalFilename = finalFilename;
-  await fs.writeJson(getInfoPath(uploadId), info);
+  await fs.remove(getInfoPath(uploadId));
+
   return {
     filename: finalFilename,
     filepath: `/uploads/videos/${finalFilename}`,
