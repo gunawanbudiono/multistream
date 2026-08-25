@@ -174,7 +174,7 @@ function detectMediaType(item) {
         data-id="<%= video.id %>" data-kind="file" data-title="<%= video.title %>" data-date="<%= video.upload_date %>" data-size="<%= video.file_size %>" data-type="<%= mediaType %>"
         draggable="true"
         onclick="playMedia('<%= video.id %>', '<%= video.title %>', '<%= mediaType %>')">
-        <div class="aspect-video relative overflow-hidden bg-dark-900">
+        <div class="aspect-video relative overflow-hidden bg-dark-950 flex items-center justify-center">
           <% if (mediaType === 'audio') { %>
           <div class="w-full h-full flex items-center justify-center bg-[#181818]">
             <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center audio-visualizer">
@@ -182,9 +182,9 @@ function detectMediaType(item) {
             </div>
           </div>
           <% } else if (mediaType === 'image') { %>
-          <img src="<%= video.thumbnail_path || video.filepath %>" alt="<%= video.title %>" class="w-full h-full object-cover" loading="lazy" decoding="async">
+          <img src="<%= video.thumbnail_path || video.filepath %>" alt="<%= video.title %>" class="w-full h-full object-contain p-0.5" loading="lazy" decoding="async">
           <% } else { %>
-          <img src="<%= video.thumbnail_path %>" alt="<%= video.title %>" class="w-full h-full object-cover" loading="lazy" decoding="async">
+          <img src="<%= video.thumbnail_path %>" alt="<%= video.title %>" class="w-full h-full object-contain" loading="lazy" decoding="async">
           <% } %>
           <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <div class="bg-primary/90 w-10 h-10 rounded-full flex items-center justify-center shadow-lg">
@@ -192,7 +192,7 @@ function detectMediaType(item) {
             </div>
           </div>
           <% if (mediaType === 'video' || mediaType === 'audio') { %>
-          <span class="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+          <span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono">
             <%= formatDuration(video.duration) %>
           </span>
           <% } %>
@@ -207,7 +207,7 @@ function detectMediaType(item) {
           <% } %>
         </div>
         <div class="p-3">
-          <h3 class="font-medium text-sm truncate mb-1"><%= video.title %></h3>
+          <h3 class="font-medium text-sm truncate mb-1 text-white"><%= video.title %></h3>
           <div class="flex items-center justify-between">
             <span class="text-xs text-gray-400"><%= formatFileSize(video.file_size) %></span>
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -248,7 +248,7 @@ function detectMediaType(item) {
                     <i class="ti ti-folder text-lg"></i>
                   </div>
                   <div class="flex items-center gap-2 min-w-0">
-                    <span class="font-medium text-sm truncate max-w-xs"><%= folder.name %></span>
+                    <span class="font-medium text-sm truncate max-w-xs text-white"><%= folder.name %></span>
                   </div>
                 </div>
               </td>
@@ -279,17 +279,17 @@ function detectMediaType(item) {
               onclick="playMedia('<%= video.id %>', '<%= video.title %>', '<%= mediaType %>')">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
-                  <div class="w-12 h-8 rounded overflow-hidden bg-[#181818] flex-shrink-0 relative flex items-center justify-center">
+                  <div class="w-12 h-8 rounded overflow-hidden bg-dark-950 flex-shrink-0 relative flex items-center justify-center">
                     <% if (mediaType === 'audio') { %>
                     <i class="ti ti-music text-primary"></i>
                     <% } else if (mediaType === 'image') { %>
-                    <img src="<%= video.thumbnail_path || video.filepath %>" alt="" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                    <img src="<%= video.thumbnail_path || video.filepath %>" alt="" class="w-full h-full object-contain p-0.5" loading="lazy" decoding="async">
                     <% } else { %>
-                    <img src="<%= video.thumbnail_path %>" alt="" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                    <img src="<%= video.thumbnail_path %>" alt="" class="w-full h-full object-contain" loading="lazy" decoding="async">
                     <% } %>
                   </div>
                   <div class="flex items-center gap-2">
-                    <span class="font-medium text-sm truncate max-w-xs"><%= video.title %></span>
+                    <span class="font-medium text-sm truncate max-w-xs text-white"><%= video.title %></span>
                     <% if (mediaType === 'audio') { %>
                     <span class="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">Audio</span>
                     <% } else if (mediaType === 'image') { %>
@@ -423,12 +423,15 @@ function detectMediaType(item) {
           </div>
 
           <div class="mt-4 hidden" id="uploadProgress">
-            <div class="flex justify-between items-center text-sm mb-2">
-              <span id="uploadProgressStatus" class="text-gray-300 font-medium truncate mr-2">Uploading...</span>
-              <span id="uploadProgressPercent" class="text-primary font-bold">0%</span>
+            <div class="flex justify-between items-center text-sm mb-1.5">
+              <span id="uploadProgressStatus" class="text-gray-200 font-semibold truncate mr-2">Uploading...</span>
+              <span id="uploadProgressPercent" class="text-primary font-bold text-base">0%</span>
             </div>
-            <div class="w-full bg-dark-700 rounded-full h-2 overflow-hidden">
-              <div id="uploadProgressBar" class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            <div class="w-full bg-dark-700 rounded-full h-2.5 overflow-hidden">
+              <div id="uploadProgressBar" class="bg-gradient-to-r from-primary to-blue-500 h-2.5 rounded-full transition-all duration-200" style="width: 0%"></div>
+            </div>
+            <div class="flex items-center justify-between text-xs text-gray-400 mt-2 px-0.5" id="uploadProgressMetrics">
+              <span>Initializing multi-stream upload...</span>
             </div>
             <div id="uploadFilesList" class="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1"></div>
           </div>
@@ -645,10 +648,10 @@ function playMedia(mediaId, mediaTitle, mediaType) {
             </button>
           </div>
           <div class="p-6 flex flex-col items-center">
-            <div class="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-6 audio-visualizer">
+            <div class="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-6 audio-visualizer relative">
               <i class="ti ti-volume text-4xl text-primary"></i>
             </div>
-            <audio id="audio-player" class="w-full" controls autoplay>
+            <audio id="audio-player" class="w-full" controls autoplay preload="auto">
               <source src="/stream/${mediaId}">
               Your browser does not support the audio element.
             </audio>
@@ -671,8 +674,8 @@ function playMedia(mediaId, mediaTitle, mediaType) {
               <i class="ti ti-x text-xl"></i>
             </button>
           </div>
-          <div class="bg-black/90 p-4 flex items-center justify-center max-h-[75vh] overflow-hidden">
-            <img src="/stream/${mediaId}" alt="${mediaTitle}" class="max-h-[70vh] w-auto max-w-full object-contain rounded" loading="lazy" decoding="async">
+          <div class="bg-black/95 p-4 flex items-center justify-center max-h-[75vh] overflow-hidden">
+            <img src="/stream/${mediaId}" alt="${mediaTitle}" class="max-h-[70vh] w-auto max-w-full object-contain rounded shadow-lg" loading="lazy" decoding="async">
           </div>
         </div>
       </div>
@@ -692,8 +695,12 @@ function playMedia(mediaId, mediaTitle, mediaType) {
               <i class="ti ti-x text-xl"></i>
             </button>
           </div>
-          <div class="bg-black aspect-video">
-            <video id="native-player" class="w-full h-full" controls preload="auto" autoplay>
+          <div class="bg-black aspect-video relative flex items-center justify-center">
+            <div id="player-loading-spinner" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 transition-opacity duration-300">
+              <i class="ti ti-loader-2 text-3xl text-primary animate-spin mb-2"></i>
+              <span class="text-xs text-gray-300 font-medium">Buffering stream...</span>
+            </div>
+            <video id="native-player" class="w-full h-full" controls preload="auto" autoplay playsinline>
               <source src="/stream/${mediaId}">
             </video>
           </div>
@@ -705,11 +712,19 @@ function playMedia(mediaId, mediaTitle, mediaType) {
   document.body.appendChild(modal);
   document.body.classList.add('overflow-hidden');
   
+  const video = document.getElementById('native-player');
+  const spinner = document.getElementById('player-loading-spinner');
+  if (video && spinner) {
+    video.addEventListener('playing', () => spinner.classList.add('opacity-0', 'pointer-events-none'));
+    video.addEventListener('canplay', () => spinner.classList.add('opacity-0', 'pointer-events-none'));
+    video.addEventListener('waiting', () => spinner.classList.remove('opacity-0', 'pointer-events-none'));
+  }
+
   const closePlayer = () => {
-    const video = document.getElementById('native-player');
-    const audio = document.getElementById('audio-player');
-    if (video) video.pause();
-    if (audio) audio.pause();
+    const v = document.getElementById('native-player');
+    const a = document.getElementById('audio-player');
+    if (v) v.pause();
+    if (a) a.pause();
     modal.remove();
     document.body.classList.remove('overflow-hidden');
   };
@@ -745,6 +760,8 @@ function resetUploadForm() {
   document.getElementById('selectedFilesList').innerHTML = '';
   document.getElementById('uploadProgressBar').style.width = '0%';
   document.getElementById('uploadProgressPercent').textContent = '0%';
+  const metrics = document.getElementById('uploadProgressMetrics');
+  if (metrics) metrics.textContent = 'Storage ready';
 }
 
 function toggleCloudDropdown() {
@@ -1114,7 +1131,6 @@ function parseMp4FpsFromBuffer(arrayBuffer) {
     let timescale = 0;
 
     for (let offset = 0; offset + 24 <= bytes.length; offset++) {
-      // Find 'mdhd' box
       if (bytes[offset] === 0x6D && bytes[offset+1] === 0x64 && bytes[offset+2] === 0x68 && bytes[offset+3] === 0x64) {
         const version = bytes[offset + 4];
         const tsOffset = (version === 1) ? (offset + 20) : (offset + 12);
@@ -1123,7 +1139,6 @@ function parseMp4FpsFromBuffer(arrayBuffer) {
           if (ts > 0 && ts <= 1000000) timescale = ts;
         }
       }
-      // Find 'stts' box
       if (bytes[offset] === 0x73 && bytes[offset+1] === 0x74 && bytes[offset+2] === 0x74 && bytes[offset+3] === 0x73) {
         if (offset + 20 <= bytes.length) {
           const entryCount = view.getUint32(offset + 8);
@@ -1417,10 +1432,9 @@ document.addEventListener('DOMContentLoaded', function() {
       div.className = 'flex items-center justify-between p-3 rounded-xl bg-dark-700/80 border border-gray-700 hover:border-gray-600 transition-all shadow-sm gap-3';
       div.id = `selected-file-row-${i}`;
       
-      // Temporary skeleton while loading meta
       div.innerHTML = `
         <div class="flex items-center gap-3.5 min-w-0 flex-1">
-          <div class="aspect-video w-24 h-15 rounded-lg bg-dark-600 flex items-center justify-center shrink-0 border border-gray-700 animate-pulse">
+          <div class="w-20 h-15 rounded-lg bg-dark-600 flex items-center justify-center shrink-0 border border-gray-700 animate-pulse">
             <i class="ti ti-loader text-gray-400 text-lg animate-spin"></i>
           </div>
           <div class="min-w-0 flex-1">
@@ -1444,7 +1458,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
       selectedFilesList.appendChild(div);
 
-      // Async inspect and fill real metadata badges
       inspectMediaFile(file).then(meta => {
         let thumbContent = '';
         if (meta.thumbnailUrl) {
@@ -1522,6 +1535,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
   if (clearFileButton) clearFileButton.addEventListener('click', resetUploadForm);
 
+  let uploadStartTime = 0;
+  let batchTotalBytes = 0;
+  const fileLoadedBytesMap = new Map();
+
+  function updateBatchMetrics(currentFileIndex, currentFileName) {
+    let totalSent = 0;
+    fileLoadedBytesMap.forEach(b => totalSent += b);
+    
+    const overallPct = batchTotalBytes > 0 ? Math.min(100, Math.round((totalSent / batchTotalBytes) * 100)) : 0;
+    uploadProgressBar.style.width = overallPct + '%';
+    uploadProgressPercent.textContent = overallPct + '%';
+
+    const now = Date.now();
+    const elapsedSec = (now - uploadStartTime) / 1000;
+    let speedLabel = '';
+    let etaLabel = '';
+
+    if (elapsedSec > 0.4 && totalSent > 0) {
+      const speedBps = totalSent / elapsedSec;
+      speedLabel = ` • ⚡ ${formatFileSize(speedBps)}/s`;
+      
+      const remainingBytes = Math.max(0, batchTotalBytes - totalSent);
+      if (speedBps > 0 && remainingBytes > 0) {
+        const etaSec = Math.round(remainingBytes / speedBps);
+        etaLabel = ` • ⏱️ ETA: ${formatDuration(etaSec)}`;
+      }
+    }
+
+    const metricsEl = document.getElementById('uploadProgressMetrics');
+    if (metricsEl) {
+      metricsEl.innerHTML = `<span><i class="ti ti-chart-bar text-xs mr-1 text-primary"></i> ${formatFileSize(totalSent)} / ${formatFileSize(batchTotalBytes)} Transferred${speedLabel}${etaLabel}</span>`;
+    }
+  }
+
   if (uploadButton) {
     uploadButton.addEventListener('click', async function() {
       if (selectedFiles.length === 0) return;
@@ -1529,10 +1576,15 @@ document.addEventListener('DOMContentLoaded', function() {
       selectedFileInfo.classList.add('hidden');
       uploadProgress.classList.remove('hidden');
       uploadButton.disabled = true;
+
+      uploadStartTime = Date.now();
+      batchTotalBytes = selectedFiles.reduce((acc, f) => acc + (f.size || 0), 0);
+      fileLoadedBytesMap.clear();
+      selectedFiles.forEach((_, idx) => fileLoadedBytesMap.set(idx, 0));
       
       let success = 0, failed = [];
       uploadFilesList.innerHTML = '';
-      selectedFiles.forEach((f) => {
+      selectedFiles.forEach((f, idx) => {
         const category = getFileCategory(f);
         let icon = 'ti-video text-blue-400';
         if (category === 'audio') icon = 'ti-music text-purple-400';
@@ -1540,23 +1592,29 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const div = document.createElement('div');
         div.className = 'flex items-center justify-between p-2.5 rounded-lg bg-dark-700/60 border border-gray-700/50';
+        div.id = `upload-queue-item-${idx}`;
         div.innerHTML = `
           <div class="flex items-center gap-3 min-w-0">
             <div class="w-7 h-7 rounded bg-dark-600 flex items-center justify-center shrink-0">
               <i class="ti ${icon} text-sm"></i>
             </div>
-            <span class="text-xs text-gray-200 truncate max-w-sm font-medium">${f.name}</span>
+            <div class="min-w-0">
+              <p class="text-xs text-gray-200 truncate max-w-sm font-medium">${f.name}</p>
+              <p class="text-[10px] text-gray-500 file-substatus">Waiting in queue (${formatFileSize(f.size)})</p>
+            </div>
           </div>
-          <span class="file-status text-xs text-gray-400 font-semibold">Waiting</span>
+          <span class="file-status text-xs text-gray-400 font-semibold shrink-0">Waiting</span>
         `;
         uploadFilesList.appendChild(div);
       });
+
+      updateBatchMetrics(0, selectedFiles[0].name);
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
         const category = getFileCategory(file);
         uploadProgressStatus.textContent = `Uploading (${i + 1}/${selectedFiles.length}): ${file.name}`;
-        updateFileProgress(i, 'uploading', 0);
+        updateFileProgress(i, 'uploading', 0, 0, file.size);
         
         let result;
         if (category === 'video' && file.size > 50 * 1024 * 1024) {
@@ -1567,11 +1625,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (result.success) {
           success++;
-          updateFileProgress(i, 'success', 100);
+          fileLoadedBytesMap.set(i, file.size);
+          updateFileProgress(i, 'success', 100, file.size, file.size);
         } else {
           failed.push(file.name);
-          updateFileProgress(i, 'error', 0);
+          updateFileProgress(i, 'error', 0, 0, file.size);
         }
+        updateBatchMetrics(i, file.name);
       }
 
       if (failed.length === 0) {
@@ -1585,19 +1645,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function updateFileProgress(index, status, percent) {
-    const items = uploadFilesList.children;
-    if (items[index]) {
-      const el = items[index].querySelector('.file-status');
+  function updateFileProgress(index, status, percent, loadedBytes, totalBytes) {
+    const item = document.getElementById(`upload-queue-item-${index}`);
+    if (item) {
+      const el = item.querySelector('.file-status');
+      const sub = item.querySelector('.file-substatus');
       if (status === 'uploading') {
         el.textContent = `${percent}%`;
         el.className = 'file-status text-xs text-primary font-bold';
+        if (sub && loadedBytes !== undefined && totalBytes !== undefined) {
+          sub.textContent = `${formatFileSize(loadedBytes)} / ${formatFileSize(totalBytes)} (${percent}%)`;
+        }
       } else if (status === 'success') {
         el.textContent = '✓ Done';
         el.className = 'file-status text-xs text-green-400 font-bold';
+        if (sub && totalBytes) sub.textContent = `Completed (${formatFileSize(totalBytes)})`;
       } else if (status === 'error') {
         el.textContent = '✗ Failed';
         el.className = 'file-status text-xs text-red-400 font-bold';
+        if (sub) sub.textContent = 'Upload error';
       }
     }
   }
@@ -1611,17 +1677,17 @@ document.addEventListener('DOMContentLoaded', function() {
       xhr.timeout = 60 * 60 * 1000;
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
+          fileLoadedBytesMap.set(index, e.loaded);
           const pct = Math.round((e.loaded / e.total) * 100);
-          const overall = Math.round(((index + e.loaded / e.total) / total) * 100);
-          uploadProgressBar.style.width = overall + '%';
-          uploadProgressPercent.textContent = overall + '%';
-          updateFileProgress(index, 'uploading', pct);
+          updateFileProgress(index, 'uploading', pct, e.loaded, e.total);
+          updateBatchMetrics(index, file.name);
         }
       });
       xhr.addEventListener('load', () => {
         if (xhr.status === 200) {
           try {
             const r = JSON.parse(xhr.responseText);
+            fileLoadedBytesMap.set(index, file.size);
             resolve({ success: r.success });
           } catch {
             resolve({ success: false });
@@ -1641,7 +1707,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  async function uploadChunked(file, index, total) {
+  async function uploadChunked(file, index, totalFiles) {
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     try {
       const init = await fetch('/api/videos/chunk/init', {
@@ -1657,44 +1723,75 @@ document.addEventListener('DOMContentLoaded', function() {
       const initData = await init.json();
       if (!initData.success) throw new Error(initData.error);
       const uploadId = initData.uploadId;
-      let uploaded = initData.uploadedChunks || [];
+      let uploaded = new Set(initData.uploadedChunks || []);
 
-      for (let i = 0; i < totalChunks; i++) {
-        if (uploaded.includes(i)) continue;
-        const start = i * CHUNK_SIZE;
+      const chunkProgress = new Map();
+      uploaded.forEach(c => chunkProgress.set(c, Math.min(CHUNK_SIZE, file.size - c * CHUNK_SIZE)));
+
+      const uploadChunkSingle = async (chunkIndex) => {
+        if (uploaded.has(chunkIndex)) return;
+        const start = chunkIndex * CHUNK_SIZE;
         const end = Math.min(start + CHUNK_SIZE, file.size);
         const chunk = file.slice(start, end);
+
         let retries = 3;
         while (retries > 0) {
           try {
-            const res = await fetch('/api/videos/chunk/upload', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/octet-stream',
-                'X-Upload-Id': uploadId,
-                'X-Chunk-Index': i.toString()
-              },
-              body: chunk
+            await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.timeout = 15 * 60 * 1000;
+              xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                  chunkProgress.set(chunkIndex, e.loaded);
+                  let fileLoaded = 0;
+                  chunkProgress.forEach(b => fileLoaded += b);
+                  fileLoadedBytesMap.set(index, Math.min(file.size, fileLoaded));
+                  const filePct = Math.min(100, Math.round((fileLoaded / file.size) * 100));
+                  updateFileProgress(index, 'uploading', filePct, fileLoaded, file.size);
+                  updateBatchMetrics(index, file.name);
+                }
+              });
+              xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                  chunkProgress.set(chunkIndex, chunk.size);
+                  uploaded.add(chunkIndex);
+                  resolve();
+                } else {
+                  reject(new Error(`Chunk upload error: ${xhr.status}`));
+                }
+              });
+              xhr.addEventListener('error', () => reject(new Error('Network error')));
+              xhr.addEventListener('timeout', () => reject(new Error('Chunk timeout')));
+              xhr.open('POST', '/api/videos/chunk/upload', true);
+              xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+              xhr.setRequestHeader('X-Upload-Id', uploadId);
+              xhr.setRequestHeader('X-Chunk-Index', chunkIndex.toString());
+              xhr.send(chunk);
             });
-            const data = await res.json();
-            if (data.success) {
-              uploaded = data.uploadedChunks;
-              break;
-            }
-            throw new Error(data.error);
-          } catch {
+            break;
+          } catch (err) {
             retries--;
-            if (retries === 0) throw new Error('Upload failed');
+            if (retries === 0) throw err;
             await new Promise(r => setTimeout(r, 1000));
           }
         }
-        const bytes = Math.min((i + 1) * CHUNK_SIZE, file.size);
-        const pct = Math.round((bytes / file.size) * 100);
-        const overall = Math.round(((index + bytes / file.size) / total) * 100);
-        uploadProgressBar.style.width = overall + '%';
-        uploadProgressPercent.textContent = overall + '%';
-        updateFileProgress(index, 'uploading', pct);
+      };
+
+      // 3-stream parallel queue concurrency
+      const concurrency = 3;
+      const chunksQueue = [];
+      for (let c = 0; c < totalChunks; c++) {
+        if (!uploaded.has(c)) chunksQueue.push(c);
       }
+
+      const workers = Array.from({ length: Math.min(concurrency, chunksQueue.length) }, async () => {
+        while (chunksQueue.length > 0) {
+          const chunkIdx = chunksQueue.shift();
+          await uploadChunkSingle(chunkIdx);
+        }
+      });
+
+      await Promise.all(workers);
 
       const complete = await fetch('/api/videos/chunk/complete', {
         method: 'POST',
@@ -1702,6 +1799,8 @@ document.addEventListener('DOMContentLoaded', function() {
         body: JSON.stringify({ uploadId })
       });
       const completeData = await complete.json();
+      fileLoadedBytesMap.set(index, file.size);
+      updateBatchMetrics(index, file.name);
       return { success: completeData.success };
     } catch (e) {
       console.error(e);
@@ -1807,19 +1906,19 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="gallery-grid-item file-item gallery-playable group bg-dark-700 rounded-lg overflow-hidden border border-transparent hover:border-gray-600 hover:bg-dark-600 transition-all cursor-pointer"
         data-id="${escapeHtml(video.id)}" data-kind="file" data-title="${title}" data-date="${escapeHtml(video.upload_date || video.created_at || '')}" data-size="${Number(video.file_size || 0)}" data-type="${mediaType}"
         data-media-type="${mediaType}" data-media-title="${title}" draggable="true">
-        <div class="aspect-video relative overflow-hidden bg-dark-900">
+        <div class="aspect-video relative overflow-hidden bg-dark-950 flex items-center justify-center">
           ${mediaType === 'audio' ? `
           <div class="w-full h-full flex items-center justify-center bg-[#181818]">
             <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center audio-visualizer">
               <i class="ti ti-music text-3xl text-primary"></i>
             </div>
-          </div>` : `<img src="${thumbnail}" alt="${title}" class="w-full h-full object-cover" loading="lazy" decoding="async">`}
+          </div>` : `<img src="${thumbnail}" alt="${title}" class="w-full h-full object-contain ${mediaType === 'image' ? 'p-0.5' : ''}" loading="lazy" decoding="async">`}
           <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <div class="bg-primary/90 w-10 h-10 rounded-full flex items-center justify-center shadow-lg">
               <i class="ti ${mediaType === 'image' ? 'ti-eye' : 'ti-player-play-filled'} text-white"></i>
             </div>
           </div>
-          ${mediaType !== 'image' ? `<span class="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">${formatDuration(video.duration)}</span>` : ''}
+          ${mediaType !== 'image' ? `<span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono">${formatDuration(video.duration)}</span>` : ''}
           ${mediaType === 'audio' ? `<span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1"><i class="ti ti-music text-xs"></i>Audio</span>` : ''}
           ${mediaType === 'image' ? `<span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1"><i class="ti ti-photo text-xs"></i>Image</span>` : ''}
         </div>
@@ -1856,7 +1955,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
         <td class="px-4 py-3 text-sm text-gray-500">--</td>
-        <td class="px-4 py-3 text-sm text-gray-400">${folder.item_count || 0} item${(folder.item_count || 0) === 1 ? '' : 's'}</td>
+        <td class="px-4 py-3 text-sm text-gray-400">${folder.item_count || 0} item${(folder.item_count || 0) === 1 ? '' : 's'}</p></td>
         <td class="px-4 py-3 text-sm text-gray-400">${formatGalleryDate(folder.updated_at || folder.created_at)}</td>
         <td class="px-4 py-3 text-right">
           <div class="flex items-center justify-end gap-1">
@@ -1882,8 +1981,8 @@ document.addEventListener('DOMContentLoaded', function() {
         data-media-type="${mediaType}" data-media-title="${title}" draggable="true">
         <td class="px-4 py-3">
           <div class="flex items-center gap-3">
-            <div class="w-12 h-8 rounded overflow-hidden bg-[#181818] flex-shrink-0 relative flex items-center justify-center">
-              ${mediaType === 'audio' ? `<i class="ti ti-music text-primary"></i>` : `<img src="${thumbnail}" alt="" class="w-full h-full object-cover" loading="lazy" decoding="async">`}
+            <div class="w-12 h-8 rounded overflow-hidden bg-dark-950 flex-shrink-0 relative flex items-center justify-center">
+              ${mediaType === 'audio' ? `<i class="ti ti-music text-primary"></i>` : `<img src="${thumbnail}" alt="" class="w-full h-full object-contain ${mediaType === 'image' ? 'p-0.5' : ''}" loading="lazy" decoding="async">`}
             </div>
             <div class="flex items-center gap-2">
               <span class="font-medium text-sm truncate max-w-xs text-white">${title}</span>

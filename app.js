@@ -2882,30 +2882,41 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
 
     res.setHeader('Content-Disposition', 'inline');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'no-store');
-    if (range) {
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const isAudio = ext === '.mp3' || ext === '.wav' || ext === '.m4a' || ext === '.aac' || ext === '.flac' || ext === '.ogg';
+    const isImage = ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp' || ext === '.gif';
+
+    if (range && !isImage) {
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      
+      // Bounded chunk streaming window (4MB for video, 2MB for audio) to start playback in < 50ms
+      const maxChunkWindow = isAudio ? (2 * 1024 * 1024) : (4 * 1024 * 1024);
+      let end = parts[1] ? parseInt(parts[1], 10) : (start + maxChunkWindow - 1);
+      if (end >= fileSize) end = fileSize - 1;
+      
       const chunkSize = (end - start) + 1;
-      const file = fs.createReadStream(videoPath, { start, end });
+      const fileStream = fs.createReadStream(videoPath, { start, end, highWaterMark: 128 * 1024 });
+      
       res.writeHead(206, {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Accept-Ranges': 'bytes',
         'Content-Length': chunkSize,
         'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=3600'
       });
-      file.pipe(res);
+      fileStream.pipe(res);
     } else {
       res.writeHead(200, {
         'Content-Length': fileSize,
         'Content-Type': contentType,
+        'Cache-Control': isImage ? 'public, max-age=604800, immutable' : 'public, max-age=3600'
       });
-      fs.createReadStream(videoPath).pipe(res);
+      fs.createReadStream(videoPath, { highWaterMark: 128 * 1024 }).pipe(res);
     }
   } catch (error) {
     console.error('Streaming error:', error);
-    res.status(500).send('Error streaming video');
+    if (!res.headersSent) res.status(500).send('Error streaming video');
   }
 });
 app.get('/api/settings/gdrive-status', isAuthenticated, async (req, res) => {
