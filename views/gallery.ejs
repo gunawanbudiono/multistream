@@ -525,11 +525,7 @@ function detectMediaType(item) {
             <p class="text-xs text-gray-400">Download YouTube videos & Shorts in high-fidelity quality</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <div id="ytCookieStatusPill" onclick="openYouTubeCookieModal()" class="cursor-pointer px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 transition-colors bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600">
-            <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
-            <span>Checking...</span>
-          </div>
+        <div class="flex items-center gap-1.5">
           <button type="button" onclick="openYouTubeCookieModal()" title="YouTube Cookie Settings" class="text-gray-400 hover:text-amber-400 p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
             <i class="ti ti-cookie text-xl"></i>
           </button>
@@ -569,9 +565,9 @@ function detectMediaType(item) {
                 class="w-full bg-dark-900 border border-gray-700 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors placeholder-gray-500"
                 autocomplete="off">
             </div>
-            <button type="button" id="ytScanBtn" onclick="handleScanYouTubeUrl()" class="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-xl transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-red-600/20">
-              <i class="ti ti-search text-base" id="ytScanIcon"></i>
-              <span id="ytScanText">Scan</span>
+            <button type="button" id="ytScanBtn" onclick="handlePasteAndScan()" class="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-xl transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-red-600/20">
+              <i class="ti ti-clipboard text-base" id="ytScanIcon"></i>
+              <span id="ytScanText">Paste</span>
             </button>
           </div>
         </div>
@@ -580,9 +576,7 @@ function detectMediaType(item) {
         <div id="ytQueueContainer" class="space-y-2.5">
           <div class="flex items-center justify-between">
             <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Queue (<span id="ytQueueCount">0</span>)</span>
-            <button type="button" onclick="focusYtUrlInput()" class="text-xs text-red-400 hover:text-red-300 font-medium flex items-center gap-1">
-              <i class="ti ti-plus text-xs"></i> Add More
-            </button>
+          </div>
           </div>
 
           <!-- Empty State -->
@@ -1552,11 +1546,38 @@ function cleanClientYouTubeUrl(raw) {
   }
 }
 
+async function handlePasteAndScan() {
+  const input = document.getElementById('ytUrlInput');
+  if (!input) return;
+
+  // If input already has text, scan directly
+  if (input.value && input.value.trim().length > 5) {
+    return handleScanYouTubeUrl();
+  }
+
+  // Attempt to read from clipboard
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    try {
+      const clipText = await navigator.clipboard.readText();
+      if (clipText && (clipText.includes('youtube.com') || clipText.includes('youtu.be'))) {
+        input.value = clipText.trim();
+        return handleScanYouTubeUrl();
+      } else if (clipText && clipText.trim()) {
+        input.value = clipText.trim();
+      }
+    } catch (err) {
+      console.log('Clipboard access denied or unavailable:', err);
+    }
+  }
+
+  handleScanYouTubeUrl();
+}
+
 async function handleScanYouTubeUrl() {
   const input = document.getElementById('ytUrlInput');
   const url = cleanClientYouTubeUrl(input?.value);
   if (!url) {
-    showToast('error', 'Please enter a valid YouTube URL');
+    showToast('error', 'Please enter or paste a valid YouTube URL');
     return;
   }
 
@@ -1636,8 +1657,8 @@ async function handleScanYouTubeUrl() {
     }
   } finally {
     scanBtn.disabled = false;
-    scanIcon.className = 'ti ti-search text-base';
-    scanText.textContent = 'Scan';
+    scanIcon.className = 'ti ti-clipboard text-base';
+    scanText.textContent = 'Paste';
   }
 }
 
