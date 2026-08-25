@@ -201,6 +201,11 @@ class User {
         fields.push('disk_limit = ?');
         values.push(updateData.disk_limit);
       }
+
+      if (updateData.disk_quota_gb !== undefined) {
+        fields.push('disk_quota_gb = ?');
+        values.push(updateData.disk_quota_gb);
+      }
       
       if (fields.length === 0) {
         return resolve({ id: userId, message: 'No fields to update' });

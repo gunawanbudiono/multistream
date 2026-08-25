@@ -70,7 +70,31 @@
      }
    </script>
 </head>
-<body class="bg-dark-900 text-white font-inter">
+<body class="bg-dark-900 text-white font-inter <%= locals.isImpersonating ? 'pt-10' : '' %>">
+  <% if (locals.isImpersonating) { %>
+  <div class="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white px-4 py-2 flex items-center justify-between shadow-lg text-sm font-medium">
+    <div class="flex items-center gap-2">
+      <i class="ti ti-user-exclamation text-lg"></i>
+      <span>Impersonating <strong><%= req.session.username %></strong> (Logged in as <%= locals.originalAdminUsername %>)</span>
+    </div>
+    <button onclick="exitImpersonation()" class="px-3 py-1 bg-black/40 hover:bg-black/60 rounded-md transition-colors text-xs font-semibold flex items-center gap-1 border border-white/20">
+      <i class="ti ti-arrow-back-up"></i>
+      <span>Exit Impersonation</span>
+    </button>
+  </div>
+  <script>
+    async function exitImpersonation() {
+      try {
+        const res = await fetch('/api/users/exit-impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        if (data.success) window.location.href = '/users';
+        else alert(data.error || 'Failed to exit impersonation');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  </script>
+  <% } %>
   <div
     class="lg:hidden fixed top-0 left-0 right-0 h-16 bg-dark-800 shadow-lg flex items-center justify-between px-6 z-30">
     <div class="flex items-center">

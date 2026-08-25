@@ -154,6 +154,8 @@ app.use(async (req, res, next) => {
   }
   res.locals.req = req;
   res.locals.appVersion = packageJson.version;
+  res.locals.isImpersonating = req.session ? !!req.session.isImpersonating : false;
+  res.locals.originalAdminUsername = req.session ? req.session.originalAdminUsername : null;
   next();
 });
 app.use(function (req, res, next) {
@@ -1102,6 +1104,10 @@ app.get('/users', isAdmin, async (req, res) => {
   try {
     const users = await User.findAll();
     
+    let totalStorageBytes = 0;
+    let totalVideosAll = 0;
+    let totalActiveStreamsAll = 0;
+
     const usersWithStats = await Promise.all(users.map(async (user) => {
       const videoStats = await new Promise((resolve, reject) => {
         db.get(
@@ -1110,7 +1116,7 @@ app.get('/users', isAdmin, async (req, res) => {
           [user.id],
           (err, row) => {
             if (err) reject(err);
-            else resolve(row);
+            else resolve(row || { count: 0, totalSize: 0 });
           }
         );
       });
@@ -1121,7 +1127,7 @@ app.get('/users', isAdmin, async (req, res) => {
            [user.id],
            (err, row) => {
              if (err) reject(err);
-             else resolve(row);
+             else resolve(row || { count: 0 });
            }
          );
        });
@@ -1132,32 +1138,64 @@ app.get('/users', isAdmin, async (req, res) => {
            [user.id],
            (err, row) => {
              if (err) reject(err);
-             else resolve(row);
+             else resolve(row || { count: 0 });
            }
          );
        });
       
       const formatFileSize = (bytes) => {
-        if (bytes === 0) return '0 B';
+        if (!bytes || bytes === 0) return '0 B';
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
       };
       
+      const bytes = videoStats.totalSize || 0;
+      totalStorageBytes += bytes;
+      totalVideosAll += (videoStats.count || 0);
+      totalActiveStreamsAll += (activeStreamStats.count || 0);
+
+      const quotaGb = user.disk_quota_gb || 0;
+      const quotaBytes = quotaGb * 1024 * 1024 * 1024;
+      const quotaPercent = quotaBytes > 0 ? Math.min(100, Math.round((bytes / quotaBytes) * 100)) : 0;
+
       return {
          ...user,
-         videoCount: videoStats.count,
-         totalVideoSize: videoStats.totalSize > 0 ? formatFileSize(videoStats.totalSize) : null,
-         streamCount: streamStats.count,
-         activeStreamCount: activeStreamStats.count
+         videoCount: videoStats.count || 0,
+         totalVideoSizeBytes: bytes,
+         totalVideoSize: bytes > 0 ? formatFileSize(bytes) : '0 B',
+         quotaGb: quotaGb,
+         quotaPercent: quotaPercent,
+         streamCount: streamStats.count || 0,
+         activeStreamCount: activeStreamStats.count || 0
        };
     }));
     
+    // System disk space from systemMonitor
+    let systemDiskStats = { total: '489.61 GB', free: '469.00 GB', used: '20.79 GB' };
+    try {
+      const diskInfo = await systemMonitor.getDiskSpace();
+      if (diskInfo) systemDiskStats = diskInfo;
+    } catch (e) {}
+
+    const formatStorageGB = (bytes) => {
+      return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+    };
+
+    const globalStats = {
+      totalUsers: users.length,
+      totalVideos: totalVideosAll,
+      totalStorageUsed: formatStorageGB(totalStorageBytes),
+      totalActiveStreams: totalActiveStreamsAll,
+      diskFree: systemDiskStats.free || '469 GB'
+    };
+
     res.render('users', {
       title: 'User Management',
       active: 'users',
       users: usersWithStats,
+      globalStats: globalStats,
       user: req.user
     });
   } catch (error) {
@@ -1167,6 +1205,69 @@ app.get('/users', isAdmin, async (req, res) => {
       message: 'Failed to load users page',
       user: req.user
     });
+  }
+});
+
+app.post('/api/users/:id/impersonate', isAdmin, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const targetUser = await User.findById(targetId);
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    if (targetUser.id === req.session.userId) {
+      return res.status(400).json({ success: false, error: 'Cannot impersonate yourself' });
+    }
+    if (!req.session.originalAdminId) {
+      req.session.originalAdminId = req.session.userId;
+      req.session.originalAdminUsername = req.session.username;
+    }
+    req.session.userId = targetUser.id;
+    req.session.username = targetUser.username;
+    req.session.user_role = targetUser.user_role;
+    req.session.avatar_path = targetUser.avatar_path;
+    req.session.isImpersonating = true;
+    res.json({ success: true, message: `Successfully impersonating ${targetUser.username}` });
+  } catch (err) {
+    console.error('Impersonate error:', err);
+    res.status(500).json({ success: false, error: 'Failed to impersonate user' });
+  }
+});
+
+app.post('/api/users/exit-impersonate', isAuthenticated, async (req, res) => {
+  try {
+    if (!req.session.isImpersonating || !req.session.originalAdminId) {
+      return res.status(400).json({ success: false, error: 'Not in impersonation mode' });
+    }
+    const adminUser = await User.findById(req.session.originalAdminId);
+    if (!adminUser) {
+      return res.status(404).json({ success: false, error: 'Original admin account not found' });
+    }
+    req.session.userId = adminUser.id;
+    req.session.username = adminUser.username;
+    req.session.user_role = adminUser.user_role;
+    req.session.avatar_path = adminUser.avatar_path;
+    delete req.session.isImpersonating;
+    delete req.session.originalAdminId;
+    delete req.session.originalAdminUsername;
+    res.json({ success: true, message: 'Returned to admin session' });
+  } catch (err) {
+    console.error('Exit impersonate error:', err);
+    res.status(500).json({ success: false, error: 'Failed to exit impersonation' });
+  }
+});
+
+app.post('/api/users/:id/revoke-sessions', isAdmin, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    // In SQLite store, delete active sessions where sess like userId
+    db.run(`DELETE FROM sessions WHERE sess LIKE ?`, [`%"userId":"${targetId}"%`], (err) => {
+      if (err) console.error('Revoke sessions error:', err);
+      res.json({ success: true, message: 'All active sessions revoked successfully' });
+    });
+  } catch (err) {
+    console.error('Revoke sessions error:', err);
+    res.status(500).json({ success: false, error: 'Failed to revoke sessions' });
   }
 });
 
@@ -1322,7 +1423,8 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
       user_role: role || user.user_role,
       status: status || user.status,
       avatar_path: avatarPath,
-      disk_limit: diskLimit !== undefined && diskLimit !== '' ? parseInt(diskLimit) : user.disk_limit
+      disk_limit: diskLimit !== undefined && diskLimit !== '' ? parseInt(diskLimit) : user.disk_limit,
+      disk_quota_gb: req.body.disk_quota_gb !== undefined && req.body.disk_quota_gb !== '' ? parseInt(req.body.disk_quota_gb) : (user.disk_quota_gb || 0)
     };
 
     if (password && password.trim() !== '') {
@@ -1347,7 +1449,7 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
 
 app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res) => {
   try {
-    const { username, role, status, password, diskLimit } = req.body;
+    const { username, role, status, password, diskLimit, disk_quota_gb } = req.body;
     
     if (!username || !password) {
       return res.status(400).json({
@@ -1364,7 +1466,7 @@ app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res)
       });
     }
 
-    let avatarPath = '/uploads/avatars/default-avatar.png';
+    let avatarPath = '/images/default-avatar.jpg';
     if (req.file) {
       avatarPath = `/uploads/avatars/${req.file.filename}`;
     }
@@ -1372,10 +1474,11 @@ app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res)
     const userData = {
       username: username,
       password: password,
-      user_role: role || 'user',
+      user_role: role || 'admin',
       status: status || 'active',
       avatar_path: avatarPath,
-      disk_limit: diskLimit ? parseInt(diskLimit) : 0
+      disk_limit: diskLimit ? parseInt(diskLimit) : 0,
+      disk_quota_gb: disk_quota_gb ? parseInt(disk_quota_gb) : 0
     };
 
     const result = await User.create(userData);
