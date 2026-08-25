@@ -3021,8 +3021,13 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
       let start = 0;
       let end = fileSize - 1;
       
-      // High-Bitrate 4K Ultra-Resilient Segment Chunk Window (30MB for Video, 2MB for Audio)
-      const chunkWindow = isAudio ? (2 * 1024 * 1024) : (30 * 1024 * 1024);
+      // Adaptive Segment Chunk Window: 80MB for 4K/large video, 40MB for standard video, 4MB for audio
+      let chunkWindow = 40 * 1024 * 1024;
+      if (isAudio) {
+        chunkWindow = 4 * 1024 * 1024;
+      } else if (fileSize > 400 * 1024 * 1024) {
+        chunkWindow = 80 * 1024 * 1024; // 80MB buffer segment gives 20+ seconds headroom for high-bitrate 4K UHD video
+      }
 
       if (parts[0] === '' && parts[1]) {
         // Suffix byte range request (e.g. bytes=-500000)
@@ -3039,7 +3044,7 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
       if (start > end) start = 0;
       
       const chunkSize = (end - start) + 1;
-      const fileStream = fs.createReadStream(videoPath, { start, end, highWaterMark: 256 * 1024 });
+      const fileStream = fs.createReadStream(videoPath, { start, end, highWaterMark: 512 * 1024 });
       
       req.on('close', () => {
         try { fileStream.destroy(); } catch (e) {}
@@ -3056,7 +3061,7 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
       });
       fileStream.pipe(res);
     } else {
-      const fileStream = fs.createReadStream(videoPath, { highWaterMark: 256 * 1024 });
+      const fileStream = fs.createReadStream(videoPath, { highWaterMark: 512 * 1024 });
       
       req.on('close', () => {
         try { fileStream.destroy(); } catch (e) {}
