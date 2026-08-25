@@ -3,20 +3,19 @@ import requests
 s = requests.Session()
 r_login = s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin', 'password':'Jeruksunrise123'})
 dash = s.get('http://192.168.18.2:7575/dashboard')
-print('1. Logged in as ngadimin. User badge present:', 'ngadimin' in dash.text)
+print('1. Admin POV: Has Users Menu:', 'href="/users"' in dash.text)
 
-# Impersonate entertainment
-imp = s.post('http://192.168.18.2:7575/api/users/16425157-7975-4cbd-9368-2df8cb73a100/impersonate')
-print('2. Impersonate response:', imp.json())
+# Impersonate music (member)
+imp = s.post('http://192.168.18.2:7575/api/users/b5e49207-e96c-4450-9d0d-32cf4b2d35c5/impersonate')
+print('2. Impersonate music response:', imp.json())
 
 imp_dash = s.get('http://192.168.18.2:7575/dashboard')
-has_banner = 'Exit Impersonation' in imp_dash.text
-has_username = 'entertainment' in imp_dash.text
-print('3. Impersonated Dashboard: Has Banner:', has_banner, '| Has Username:', has_username)
+print('3. Member POV: Has Users Menu (SHOULD BE FALSE):', 'href="/users"' in imp_dash.text)
+print('4. Member POV: Has Exit Impersonation Banner:', 'Exit Impersonation' in imp_dash.text)
 
 # Exit Impersonation
 exit_res = s.post('http://192.168.18.2:7575/api/users/exit-impersonate')
-print('4. Exit Impersonate response:', exit_res.json())
+print('5. Exit Impersonate response:', exit_res.json())
 
 post_dash = s.get('http://192.168.18.2:7575/dashboard')
-print('5. Returned to ngadimin:', 'ngadimin' in post_dash.text)
+print('6. Admin POV again: Has Users Menu (SHOULD BE TRUE):', 'href="/users"' in post_dash.text)

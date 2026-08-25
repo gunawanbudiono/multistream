@@ -107,3 +107,16 @@ Sebelum AI melaporkan bahwa suatu tugas selesai, AI **WAJIB** menjalankan 3 peng
 1. 🚫 **NO NATIVE BROWSER POPUPS**: Dilarang keras menggunakan pop-up bawaan browser (`window.alert()`, `window.confirm()`, `window.prompt()`).
 2. ✨ **CUSTOM SLEEK MODALS & TOASTS**: Seluruh dialog konfirmasi, peringatan, dan detail modal WAJIB menggunakan custom modal overlay Tailwind CSS yang konsisten dengan tema gelap aplikasi (`bg-dark-800`, `border-[#27272a]`, `rounded-2xl`, `backdrop-blur-sm`).
 3. 🎯 **DESIGN FIDELITY**: Mengikuti estetika desain gelap, modern, dan rapi yang telah ada pada Streamflow.
+
+---
+
+## 🧹 13. CLEAN CODE & ARCHITECTURAL SSOT PRINCIPLES
+
+1. 🧼 **CLEAN CODE PRACTICES**:
+   - **DRY & Single Responsibility**: Setiap modul, model, dan helper harus memiliki tanggung jawab tunggal (*Single Responsibility Principle*). Hindari duplikasi logika di backend maupun template frontend.
+   - **Clean Error Handling**: Selalu gunakan blok `try/catch` dengan error logging yang jelas. Dilarang membiarkan `empty catch block` atau `unhandled promise rejections`.
+   - **Dead Code Elimination**: Hapus kode usang (*dead code*), import yang tidak terpakai, dan sisa console debug berlebihan sebelum commit.
+2. 🏛️ **ARCHITECTURAL SSOT (SINGLE SOURCE OF TRUTH)**:
+   - **Centralized Business Logic**: Logika manipulasi data wajib berada di dalam Models (`models/User.js`, `models/Video.js`, `models/Stream.js`), bukan tersebar acak di route handler.
+   - **Consistent UI State**: Parameter status (seperti `isImpersonating`, role badge, dan user avatars) wajib bersumber dari satu session middleware terpusat untuk mencegah *state mismatch* di client.
+   - **Naming Consistency**: Seluruh penamaan variabel, fungsi, route endpoint, direktori sistem, dan container Docker wajib konsisten dan deskriptif.
