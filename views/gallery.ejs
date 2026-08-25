@@ -619,7 +619,7 @@ function detectMediaType(item) {
   </div>
 </div>
 
-<!-- YouTube Cookie Setup Modal with 3-Step Guide -->
+<!-- YouTube Cookie Setup Modal with Two Input Options (Paste Text & Upload File) -->
 <div id="ytCookieModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden modal-overlay overflow-y-auto">
   <div class="flex min-h-screen items-center justify-center p-4">
     <div class="bg-dark-800 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 overflow-hidden flex flex-col">
@@ -642,7 +642,7 @@ function detectMediaType(item) {
       <!-- Body -->
       <div class="p-5 space-y-4 text-xs">
         <!-- Steps -->
-        <div class="space-y-2.5 bg-dark-900 border border-gray-700/80 rounded-xl p-4">
+        <div class="space-y-2.5 bg-dark-900 border border-gray-700/80 rounded-xl p-3.5">
           <div class="flex items-start gap-2.5">
             <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0 text-[11px]">1</span>
             <div class="text-gray-300">
@@ -655,28 +655,50 @@ function detectMediaType(item) {
           <div class="flex items-start gap-2.5">
             <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0 text-[11px]">2</span>
             <div class="text-gray-300">
-              Open <a href="https://www.youtube.com" target="_blank" rel="noopener" class="text-red-400 hover:underline font-semibold">youtube.com</a> in a new tab while logged in.
+              Open <a href="https://www.youtube.com" target="_blank" rel="noopener" class="text-red-400 hover:underline font-semibold">youtube.com</a> in a new tab (make sure you are logged in).
             </div>
           </div>
           <div class="flex items-start gap-2.5">
             <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0 text-[11px]">3</span>
             <div class="text-gray-300">
-              Click the extension icon &rarr; click <strong class="text-white">Export</strong> &rarr; paste the content below or upload file.
+              Click the extension icon &rarr; click <strong class="text-amber-300">Copy 📋</strong> (or <strong class="text-gray-300">Export 📥</strong>) &rarr; paste or upload below.
             </div>
           </div>
         </div>
 
-        <!-- Paste / Drop area -->
-        <div class="space-y-2">
+        <!-- Mode Tabs -->
+        <div class="flex rounded-xl bg-dark-900 p-1 border border-gray-700/80">
+          <button type="button" id="ytCookieTabPasteBtn" onclick="switchCookieTab('paste')" class="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-white shadow transition-all flex items-center justify-center gap-1.5">
+            <i class="ti ti-clipboard text-sm"></i>
+            <span>Option 1: Paste Text (From "Copy 📋")</span>
+          </button>
+          <button type="button" id="ytCookieTabUploadBtn" onclick="switchCookieTab('upload')" class="flex-1 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5">
+            <i class="ti ti-upload text-sm"></i>
+            <span>Option 2: Upload File (From "Export 📥")</span>
+          </button>
+        </div>
+
+        <!-- Tab 1: Paste Text (Default) -->
+        <div id="ytCookieTabPaste" class="space-y-2">
           <div class="flex items-center justify-between">
-            <label class="font-semibold text-gray-300">Paste cookies.txt Content</label>
-            <label class="cursor-pointer text-amber-400 hover:text-amber-300 font-medium inline-flex items-center gap-1">
-              <i class="ti ti-upload"></i> Upload File
-              <input type="file" id="ytCookieFileInput" accept=".txt" class="hidden" onchange="handleCookieFileSelect(event)">
-            </label>
+            <label class="font-semibold text-gray-300">Paste Copied Cookie Text</label>
+            <button type="button" onclick="pasteCookieFromClipboard()" class="text-xs text-amber-400 hover:text-amber-300 font-medium inline-flex items-center gap-1">
+              <i class="ti ti-clipboard-check"></i> Paste from Clipboard
+            </button>
           </div>
-          <textarea id="ytCookieTextInput" rows="5" placeholder="# Netscape HTTP Cookie File&#10;.youtube.com	TRUE	/	TRUE	...	SID	..."
+          <textarea id="ytCookieTextInput" rows="6" placeholder="# Netscape HTTP Cookie File&#10;.youtube.com	TRUE	/	TRUE	...	SID	..."
             class="w-full bg-dark-900 border border-gray-700 rounded-xl p-3 font-mono text-[11px] text-gray-200 focus:outline-none focus:border-amber-500 transition-colors custom-scrollbar placeholder-gray-600"></textarea>
+        </div>
+
+        <!-- Tab 2: Upload File -->
+        <div id="ytCookieTabUpload" class="hidden space-y-2">
+          <label class="font-semibold text-gray-300 block">Upload cookies.txt File</label>
+          <div id="ytCookieDropzone" onclick="document.getElementById('ytCookieFileInput').click()" class="border-2 border-dashed border-gray-700 hover:border-amber-500/60 rounded-xl p-6 text-center cursor-pointer transition-colors bg-dark-900/50">
+            <i class="ti ti-file-upload text-3xl text-amber-400 mb-2 block"></i>
+            <p class="text-xs text-gray-300 font-medium mb-1" id="ytCookieDropzoneText">Click to browse or drag & drop <span class="text-amber-400">cookies.txt</span> here</p>
+            <p class="text-[11px] text-gray-500">Netscape format .txt file exported from the extension</p>
+            <input type="file" id="ytCookieFileInput" accept=".txt" class="hidden" onchange="handleCookieFileSelect(event)">
+          </div>
         </div>
       </div>
 
@@ -685,7 +707,7 @@ function detectMediaType(item) {
         <button type="button" onclick="closeYouTubeCookieModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 font-medium text-xs rounded-xl transition-colors">Cancel</button>
         <button type="button" id="ytSaveCookieBtn" onclick="saveYouTubeCookie()" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center gap-1.5">
           <i class="ti ti-check text-sm"></i>
-          <span>Save & Activate</span>
+          <span>Save & Activate Cookie</span>
         </button>
       </div>
     </div>
@@ -1341,14 +1363,51 @@ function closeYouTubeCookieModal() {
 const ytCookieModalEl = document.getElementById('ytCookieModal');
 if (ytCookieModalEl) makeModalDismissible(ytCookieModalEl, closeYouTubeCookieModal);
 
+function switchCookieTab(tab) {
+  const pasteTab = document.getElementById('ytCookieTabPaste');
+  const uploadTab = document.getElementById('ytCookieTabUpload');
+  const pasteBtn = document.getElementById('ytCookieTabPasteBtn');
+  const uploadBtn = document.getElementById('ytCookieTabUploadBtn');
+
+  if (tab === 'paste') {
+    pasteTab?.classList.remove('hidden');
+    uploadTab?.classList.add('hidden');
+    pasteBtn.className = 'flex-1 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-white shadow transition-all flex items-center justify-center gap-1.5';
+    uploadBtn.className = 'flex-1 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5';
+  } else {
+    uploadTab?.classList.remove('hidden');
+    pasteTab?.classList.add('hidden');
+    uploadBtn.className = 'flex-1 py-1.5 rounded-lg text-xs font-semibold bg-dark-700 text-white shadow transition-all flex items-center justify-center gap-1.5';
+    pasteBtn.className = 'flex-1 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5';
+  }
+}
+
+async function pasteCookieFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text && text.trim()) {
+      const textarea = document.getElementById('ytCookieTextInput');
+      if (textarea) textarea.value = text.trim();
+      showToast('success', 'Pasted cookie text from clipboard!');
+    } else {
+      showToast('error', 'Clipboard is empty');
+    }
+  } catch (e) {
+    showToast('error', 'Please press Ctrl+V to paste your cookie text');
+  }
+}
+
 function handleCookieFileSelect(e) {
   const file = e.target.files?.[0];
   if (!file) return;
+  const dropzoneText = document.getElementById('ytCookieDropzoneText');
+  if (dropzoneText) dropzoneText.innerHTML = `Loaded: <strong class="text-amber-400">${file.name}</strong> (${Math.round(file.size / 1024)} KB)`;
   const reader = new FileReader();
   reader.onload = (ev) => {
     const text = ev.target.result;
     const input = document.getElementById('ytCookieTextInput');
     if (input) input.value = text;
+    showToast('success', `File "${file.name}" loaded successfully`);
   };
   reader.readAsText(file);
 }
