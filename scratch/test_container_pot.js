@@ -18,6 +18,8 @@ async function run() {
   const args = [
     '-m', 'yt_dlp',
     '-v',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
+    '--extractor-args', 'youtube:player_client=android,ios,tv_embedded,web_creator',
     '--dump-single-json',
     '--no-warnings',
     '--skip-download',
