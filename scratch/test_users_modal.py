@@ -1,17 +1,27 @@
 import requests
 
 s = requests.Session()
-s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin', 'password':'Jeruksunrise123'})
+login_res = s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin', 'password':'Jeruksunrise123'})
+print('1. LOGIN ADMIN:', login_res.status_code == 200)
+
 r = s.get('http://192.168.18.2:7575/users')
+print('2. USERS PAGE 200:', r.status_code == 200)
 
-print('1. USERS PAGE 200:', r.status_code == 200)
+# Check Inspector trigger in table
+print('3. INSPECTOR TRIGGER IN TABLE:', 'openInspectorModal' in r.text)
 
-# Card 1 verification
-print('2. CARD 1 (ACCOUNTS REGISTERED):', 'Accounts Registered' in r.text and 'Member Accounts' in r.text)
+# Check Inspector Modal in HTML
+print('4. INSPECTOR MODAL IN HTML:', 'id="inspectorModal"' in r.text and 'id="tabBtnVideos"' in r.text and 'id="tabBtnStreams"' in r.text)
 
-# Card 2 verification
-print('3. CARD 2 (GLOBAL STORAGE POOL):', 'Global Storage Pool' in r.text and 'GB Available' in r.text and 'Media Files' in r.text and 'Physical Free' in r.text)
-
-# Card 3 verification
-print('4. CARD 3 (CHANNELS CONFIGURED):', 'Channels Configured' in r.text and 'Multi-Channel RTMP' in r.text)
-print('5. BROADCASTER V2.2 EXCLUDED:', 'Broadcaster v2.2' not in r.text)
+# Check Inspector API endpoint with a member ID (e.g. music or ngadimin)
+music_id = 'b5e49207-e96c-4450-9d0d-32cf4b2d35c5'
+api_res = s.get(f'http://192.168.18.2:7575/api/users/{music_id}/inspector')
+print('5. INSPECTOR API STATUS 200:', api_res.status_code == 200)
+try:
+    data = api_res.json()
+    print('6. INSPECTOR API JSON VALID:', data.get('success') == True and 'videos' in data and 'streams' in data)
+    print('   -> User inspected:', data.get('user', {}).get('username'))
+    print('   -> Total videos:', len(data.get('videos', [])))
+    print('   -> Total streams:', len(data.get('streams', [])))
+except Exception as e:
+    print('6. INSPECTOR API JSON ERROR:', e)

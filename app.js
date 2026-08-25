@@ -1452,6 +1452,22 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
       });
     }
 
+    // Safeguard: Prevent admin from locking out or demoting own account
+    if (userId == req.session.userId) {
+      if (role && role !== 'admin') {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot demote your own admin account'
+        });
+      }
+      if (status && status === 'inactive') {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot suspend your own active account'
+        });
+      }
+    }
+
     let avatarPath = user.avatar_path;
     if (req.body.reset_avatar === 'true' || req.body.reset_avatar === '1') {
       avatarPath = '/images/default-avatar.jpg';
@@ -1459,13 +1475,17 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
       avatarPath = `/uploads/avatars/${req.file.filename}`;
     }
 
+    const sanitizedQuota = req.body.disk_quota_gb !== undefined && req.body.disk_quota_gb !== '' 
+      ? Math.max(0, parseInt(req.body.disk_quota_gb, 10) || 0) 
+      : (user.disk_quota_gb || 0);
+
     const updateData = {
       username: username || user.username,
-      user_role: role || user.user_role,
-      status: status || user.status,
+      user_role: (userId == req.session.userId) ? 'admin' : (role || user.user_role),
+      status: (userId == req.session.userId) ? 'active' : (status || user.status),
       avatar_path: avatarPath,
-      disk_limit: diskLimit !== undefined && diskLimit !== '' ? parseInt(diskLimit) : user.disk_limit,
-      disk_quota_gb: req.body.disk_quota_gb !== undefined && req.body.disk_quota_gb !== '' ? parseInt(req.body.disk_quota_gb) : (user.disk_quota_gb || 0)
+      disk_limit: diskLimit !== undefined && diskLimit !== '' ? Math.max(0, parseInt(diskLimit, 10) || 0) : user.disk_limit,
+      disk_quota_gb: sanitizedQuota
     };
 
     if (password && password.trim() !== '') {

@@ -46,14 +46,11 @@
     </div>
   </div>
 
-  <!-- Card 2: GLOBAL STORAGE POOL -->
+  <!-- Card 2: GLOBAL STORAGE POOL (Clean Header without Unallocated badge) -->
   <div class="bg-dark-800 border border-[#27272a] rounded-2xl p-5 shadow-sm flex flex-col justify-between">
     <div>
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <p class="text-xs font-bold uppercase tracking-wider text-gray-400">Global Storage Pool</p>
-          <span class="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20 uppercase tracking-wider">Unallocated</span>
-        </div>
+        <p class="text-xs font-bold uppercase tracking-wider text-gray-400">Global Storage Pool</p>
         <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-base border border-emerald-500/20">
           <i class="ti ti-folder-plus"></i>
         </div>
@@ -508,13 +505,13 @@
 
         <div class="h-px bg-[#27272a]"></div>
 
-        <!-- Account Status (Suspend & Delete inside Modal) -->
+        <!-- Account Status (Suspend & Delete inside Modal with Self-Protection) -->
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="text-xs font-semibold text-white">Account Status</p>
-            <p class="text-[11px] text-gray-400 mt-0.5">Suspend access or delete user</p>
+            <p id="accountStatusSubtext" class="text-[11px] text-gray-400 mt-0.5">Suspend access or delete user</p>
           </div>
-          <div class="flex items-center gap-2 flex-shrink-0">
+          <div id="accountStatusActions" class="flex items-center gap-2 flex-shrink-0">
             <button type="button" id="suspendUserBtn" onclick="toggleUserSuspend()" 
               class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex items-center gap-1">
               <i class="ti ti-ban text-sm"></i>
@@ -525,6 +522,11 @@
               <i class="ti ti-trash text-sm"></i>
               <span>Delete</span>
             </button>
+          </div>
+          <!-- Self-account badge (Visible only when editing logged-in account) -->
+          <div id="selfAccountBadge" class="hidden text-xs text-amber-400/90 font-medium flex items-center gap-1">
+            <i class="ti ti-shield-lock"></i>
+            <span>Current Active Account</span>
           </div>
         </div>
       </div>
@@ -629,6 +631,7 @@
 
 <!-- JavaScript Logic -->
 <script>
+  const currentSessionUserId = '<%= req.session.userId %>';
   let currentActiveEditUserId = null;
   let currentActiveEditUsername = null;
   let currentActiveEditStatus = 'active';
@@ -768,13 +771,20 @@
     currentActiveEditUsername = username;
     currentActiveEditStatus = status;
 
+    const isSelf = (userId === currentSessionUserId);
+
     // Calculate other users allocated sum
     const otherUsers = allUsersData.filter(u => u.id !== userId);
     otherUsersAllocatedGB = otherUsers.reduce((sum, u) => sum + (Number(u.quota) || 0), 0);
 
     document.getElementById('editUserId').value = userId;
     document.getElementById('editUsername').value = username;
-    document.getElementById('editRole').value = role;
+    
+    const roleSelect = document.getElementById('editRole');
+    roleSelect.value = role;
+    // Prevent self-demotion from UI
+    roleSelect.disabled = isSelf;
+
     document.getElementById('editDiskQuotaGb').value = diskQuotaGb || 0;
     document.getElementById('resetAvatarInput').value = '0';
     document.getElementById('editUserAvatar').src = avatar || '/images/default-avatar.jpg';
@@ -791,12 +801,26 @@
     // Calculate dynamic storage bar for current user's quota
     updateStorageOverviewDynamic();
 
-    // Update Suspend button text
-    const suspendText = document.getElementById('suspendBtnText');
-    if (status === 'inactive') {
-      suspendText.innerText = 'Activate';
+    // Self-action protection for Account Status Box
+    const accountStatusActions = document.getElementById('accountStatusActions');
+    const selfBadge = document.getElementById('selfAccountBadge');
+    const accountStatusSubtext = document.getElementById('accountStatusSubtext');
+
+    if (isSelf) {
+      accountStatusActions.classList.add('hidden');
+      selfBadge.classList.remove('hidden');
+      accountStatusSubtext.innerText = 'Primary admin account protected against accidental lockout';
     } else {
-      suspendText.innerText = 'Suspend';
+      accountStatusActions.classList.remove('hidden');
+      selfBadge.classList.add('hidden');
+      accountStatusSubtext.innerText = 'Suspend access or delete user';
+
+      const suspendText = document.getElementById('suspendBtnText');
+      if (status === 'inactive') {
+        suspendText.innerText = 'Activate';
+      } else {
+        suspendText.innerText = 'Suspend';
+      }
     }
 
     const modal = document.getElementById('editModal');
@@ -1172,17 +1196,21 @@
     }
   });
 
-  // Client-side table filter
+  // Client-side table filter with Dynamic Empty State
   const searchInput = document.getElementById('searchInput');
   const roleFilter = document.getElementById('roleFilter');
   const statusFilter = document.getElementById('statusFilter');
 
   function filterUsers() {
-    const query = searchInput.value.toLowerCase();
+    const query = searchInput.value.toLowerCase().trim();
     const role = roleFilter.value;
     const status = statusFilter.value;
+    const tableBody = document.getElementById('usersTableBody');
+    const userRows = document.querySelectorAll('.user-row');
 
-    document.querySelectorAll('.user-row').forEach(row => {
+    let visibleCount = 0;
+
+    userRows.forEach(row => {
       const uName = row.getAttribute('data-username');
       const uRole = row.getAttribute('data-role');
       const uStatus = row.getAttribute('data-status');
@@ -1193,13 +1221,45 @@
 
       if (matchSearch && matchRole && matchStatus) {
         row.style.display = '';
+        visibleCount++;
       } else {
         row.style.display = 'none';
       }
     });
+
+    let noMatchRow = document.getElementById('searchNoMatchRow');
+    if (visibleCount === 0 && userRows.length > 0) {
+      if (!noMatchRow) {
+        noMatchRow = document.createElement('tr');
+        noMatchRow.id = 'searchNoMatchRow';
+        noMatchRow.innerHTML = `
+          <td colspan="7" class="px-6 py-12 text-center text-gray-400">
+            <i class="ti ti-search-off text-3xl mb-2 block text-gray-500"></i>
+            <p class="text-sm font-semibold text-white">No matching users found</p>
+            <p class="text-xs text-gray-400 mt-1">No user accounts matched your search criteria.</p>
+          </td>
+        `;
+        tableBody.appendChild(noMatchRow);
+      }
+    } else if (noMatchRow) {
+      noMatchRow.remove();
+    }
   }
 
   searchInput.addEventListener('input', filterUsers);
   roleFilter.addEventListener('change', filterUsers);
   statusFilter.addEventListener('change', filterUsers);
+
+  // Global Keyboard Escape Key Listener
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' || e.keyCode === 27) {
+      closeEditModal();
+      closeInspectorModal();
+      closeCreateModal();
+      const confirmModal = document.getElementById('confirmModal');
+      if (confirmModal && !confirmModal.classList.contains('hidden')) {
+        document.getElementById('confirmCancelBtn').click();
+      }
+    }
+  });
 </script>
