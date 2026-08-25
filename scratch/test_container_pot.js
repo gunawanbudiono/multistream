@@ -30,8 +30,12 @@ async function run() {
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
   const { db } = require('../db/database');
-  db.all('PRAGMA table_info(videos)', [], (err, rows) => {
-    console.log('VIDEOS TABLE COLUMNS:', rows.map(r => r.name));
+  await new Promise(r => db.run('UPDATE videos SET upload_date = created_at WHERE upload_date IS NULL OR upload_date = ""', [], r));
+  const Video = require('../models/Video');
+  const videos = await Video.findAll();
+  console.log('TOP 5 VIDEOS IN GALLERY AFTER BACKFILL:');
+  videos.slice(0, 5).forEach(v => {
+    console.log(`- ${v.title} | Res: ${v.resolution} | Size: ${Math.round(v.file_size/1024/1024)} MB | Date: ${v.upload_date}`);
   });
 }
 
