@@ -3613,6 +3613,39 @@ app.get('/api/youtube/cookie-status', isAuthenticated, async (req, res) => {
   }
 });
 
+function normalizeNetscapeCookies(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  const lines = raw.split(/\r?\n/);
+  const out = [
+    '# Netscape HTTP Cookie File',
+    '# http://curl.haxx.se/rfc/cookie_spec.html',
+    '# This is a generated file!  Do not edit.',
+    ''
+  ];
+
+  for (let line of lines) {
+    line = line.trim();
+    if (!line || line.startsWith('#')) continue;
+    
+    const tokens = line.split(/\s+/);
+    if (tokens.length >= 7) {
+      let domain = tokens[0];
+      if (!domain.startsWith('.') && domain.includes('.')) {
+        domain = '.' + domain;
+      }
+      const flag = tokens[1].toUpperCase() === 'FALSE' ? 'FALSE' : 'TRUE';
+      const p = tokens[2];
+      const secure = tokens[3].toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE';
+      const expiry = tokens[4];
+      const name = tokens[5];
+      const value = tokens.slice(6).join(' ');
+      out.push([domain, flag, p, secure, expiry, name, value].join('\t'));
+    }
+  }
+
+  return out.join('\n') + '\n';
+}
+
 app.post('/api/youtube/upload-cookie', isAuthenticated, async (req, res) => {
   const tempPath = path.join(__dirname, 'db', `cookies_temp_${Date.now()}.txt`);
   try {
@@ -3620,18 +3653,20 @@ app.post('/api/youtube/upload-cookie', isAuthenticated, async (req, res) => {
     if (!cookieContent || typeof cookieContent !== 'string' || cookieContent.trim().length < 20) {
       return res.status(400).json({ success: false, error: 'Invalid cookie content provided' });
     }
+
+    const normalizedContent = normalizeNetscapeCookies(cookieContent);
     const cookieDir = path.dirname(tempPath);
     if (!fs.existsSync(cookieDir)) {
       fs.mkdirSync(cookieDir, { recursive: true });
     }
-    fs.writeFileSync(tempPath, cookieContent.trim(), 'utf8');
+    fs.writeFileSync(tempPath, normalizedContent, 'utf8');
 
     // Run real-time verification probe against YouTube
     await youtubeDownloadService.verifyCookie(tempPath);
 
     // If verification succeeded, atomically replace db/cookies.txt
     const finalPath = path.join(__dirname, 'db', 'cookies.txt');
-    fs.writeFileSync(finalPath, cookieContent.trim(), 'utf8');
+    fs.writeFileSync(finalPath, normalizedContent, 'utf8');
     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
     res.json({ success: true, message: 'YouTube cookie verified and activated successfully!' });
