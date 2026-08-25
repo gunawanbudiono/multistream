@@ -37,7 +37,8 @@ async function run() {
     '--dump-single-json',
     '--no-warnings',
     '--skip-download',
-    'ytsearch1:SING-OFF TIKTOK SONGS 26 Montagem Xonada'
+    '--default-search', 'ytsearch',
+    'SING-OFF TIKTOK SONGS 26 Montagem Xonada'
   ];
 
   await new Promise((resolve) => {
@@ -45,11 +46,14 @@ async function run() {
       if (err) {
         console.log('ERROR:', stderr || err.message);
       } else {
-        const info = JSON.parse(stdout);
-        const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
-        console.log('SING-OFF TITLE:', info.title);
-        console.log('SING-OFF RESOLUTIONS:', heights);
-        console.log('SING-OFF ALL FORMATS:', (info.formats || []).map(f => ({ id: f.format_id, ext: f.ext, res: f.resolution, height: f.height, vcodec: f.vcodec, acodec: f.acodec })));
+        const root = JSON.parse(stdout);
+        const info = (root.entries && root.entries[0]) || root;
+        const formats = info.formats || [];
+        const heights = [...new Set(formats.map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
+        console.log('VIDEO URL:', info.webpage_url || info.id);
+        console.log('TITLE:', info.title);
+        console.log('RESOLUTIONS:', heights);
+        console.log('FORMAT COUNT:', formats.length);
       }
       resolve();
     });
