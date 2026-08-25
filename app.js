@@ -2246,13 +2246,16 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
               }
             }
 
-            ffmpeg(fullFilePath)
-              .screenshots({
-                timestamps: ['10%'],
-                filename: thumbnailFilename,
-                folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
-                size: '640x360'
-              })
+              const isPortrait = videoStream && videoStream.height && videoStream.width && (videoStream.height > videoStream.width);
+              const thumbSize = isPortrait ? '480x?' : '854x?';
+
+              ffmpeg(fullFilePath)
+                .screenshots({
+                  timestamps: ['10%'],
+                  filename: thumbnailFilename,
+                  folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
+                  size: thumbSize
+                })
               .on('end', () => resolve())
               .on('error', () => resolve());
           });
@@ -2444,12 +2447,15 @@ app.post('/api/videos/upload', isAuthenticated, (req, res, next) => {
         const thumbnailFilename = `thumb-${path.parse(req.file.filename).name}.jpg`;
         const thumbnailPath = `/uploads/thumbnails/${thumbnailFilename}`;
         const fullThumbnailPath = path.join(__dirname, 'public', thumbnailPath);
+        const isPortrait = videoStream && videoStream.height && videoStream.width && (videoStream.height > videoStream.width);
+        const thumbSize = isPortrait ? '480x?' : '854x?';
+
         ffmpeg(fullFilePath)
           .screenshots({
             timestamps: ['10%'],
             filename: thumbnailFilename,
             folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
-            size: '854x480'
+            size: thumbSize
           })
           .on('end', async () => {
             try {
@@ -2722,12 +2728,15 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
         }
         const thumbnailFilename = `thumb-${path.parse(result.filename).name}.jpg`;
         const thumbnailPath = `/uploads/thumbnails/${thumbnailFilename}`;
+        const isPortrait = videoStream && videoStream.height && videoStream.width && (videoStream.height > videoStream.width);
+        const thumbSize = isPortrait ? '480x?' : '854x?';
+
         ffmpeg(fullFilePath)
           .screenshots({
             timestamps: ['10%'],
             filename: thumbnailFilename,
             folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
-            size: '854x480'
+            size: thumbSize
           })
           .on('end', async () => {
             resolve({

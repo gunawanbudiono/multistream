@@ -175,33 +175,45 @@ function detectMediaType(item) {
         draggable="true"
         onclick="playMedia('<%= video.id %>', '<%= video.title %>', '<%= mediaType %>')">
         <div class="aspect-video relative overflow-hidden bg-dark-950 flex items-center justify-center">
+          <% 
+            const isPortrait = video.resolution && (function() {
+              const parts = (video.resolution || '').split('x');
+              return parts.length === 2 && parseInt(parts[1]) > parseInt(parts[0]);
+            })();
+          %>
           <% if (mediaType === 'audio') { %>
           <div class="w-full h-full flex items-center justify-center bg-[#181818]">
             <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center audio-visualizer">
               <i class="ti ti-music text-3xl text-primary"></i>
             </div>
           </div>
+          <% } else if (isPortrait) { %>
+          <img src="<%= video.thumbnail_path || video.filepath %>" alt="" class="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-125" loading="lazy" decoding="async">
+          <img src="<%= video.thumbnail_path || video.filepath %>" alt="<%= video.title %>" class="h-full w-auto max-w-full object-contain relative z-10 mx-auto drop-shadow-md" loading="lazy" decoding="async">
+          <span class="absolute top-2 left-2 bg-indigo-600/90 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm">
+            <i class="ti ti-device-mobile text-xs"></i>Shorts
+          </span>
           <% } else if (mediaType === 'image') { %>
           <img src="<%= video.thumbnail_path || video.filepath %>" alt="<%= video.title %>" class="w-full h-full object-contain p-0.5" loading="lazy" decoding="async">
           <% } else { %>
-          <img src="<%= video.thumbnail_path %>" alt="<%= video.title %>" class="w-full h-full object-contain" loading="lazy" decoding="async">
+          <img src="<%= video.thumbnail_path %>" alt="<%= video.title %>" class="w-full h-full object-cover" loading="lazy" decoding="async">
           <% } %>
-          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
             <div class="bg-primary/90 w-10 h-10 rounded-full flex items-center justify-center shadow-lg">
               <i class="ti <%= mediaType === 'image' ? 'ti-eye' : 'ti-player-play-filled' %> text-white"></i>
             </div>
           </div>
           <% if (mediaType === 'video' || mediaType === 'audio') { %>
-          <span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono">
+          <span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono z-20">
             <%= formatDuration(video.duration) %>
           </span>
           <% } %>
           <% if (mediaType === 'audio') { %>
-          <span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
+          <span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20">
             <i class="ti ti-music text-xs"></i>Audio
           </span>
           <% } else if (mediaType === 'image') { %>
-          <span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
+          <span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20">
             <i class="ti ti-photo text-xs"></i>Image
           </span>
           <% } %>
@@ -706,10 +718,9 @@ function playMedia(mediaId, mediaTitle, mediaType) {
     typeIcon.innerHTML = '<i class="ti ti-video text-lg"></i>';
     videoCont.classList.remove('hidden');
     
-    if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
-    video.src = streamUrl;
-    
+    let seekDebounce = null;
     const hideSpinner = () => {
+      clearTimeout(seekDebounce);
       if (spinner) spinner.classList.add('opacity-0', 'pointer-events-none');
     };
     
@@ -717,8 +728,20 @@ function playMedia(mediaId, mediaTitle, mediaType) {
     video.oncanplay = hideSpinner;
     video.onloadeddata = hideSpinner;
     video.ontimeupdate = hideSpinner;
+    video.onseeked = hideSpinner;
+    
+    video.onseeking = () => {
+      clearTimeout(seekDebounce);
+      seekDebounce = setTimeout(() => {
+        if (spinner && video.seeking) spinner.classList.remove('opacity-0', 'pointer-events-none');
+      }, 120);
+    };
+
     video.onwaiting = () => {
-      if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
+      clearTimeout(seekDebounce);
+      seekDebounce = setTimeout(() => {
+        if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
+      }, 120);
     };
 
     video.play().catch((err) => {
@@ -1932,25 +1955,48 @@ document.addEventListener('DOMContentLoaded', function() {
     const mediaType = detectItemCategory(video);
     const thumbnail = escapeHtml(video.thumbnail_path || video.filepath || '/images/default-video-thumbnail.svg');
     const title = escapeHtml(video.title || '');
+    const isPortrait = video.resolution && (function() {
+      const parts = (video.resolution || '').split('x');
+      return parts.length === 2 && parseInt(parts[1]) > parseInt(parts[0]);
+    })();
+
+    let mediaContent = '';
+    if (mediaType === 'audio') {
+      mediaContent = `
+        <div class="w-full h-full flex items-center justify-center bg-[#181818]">
+          <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center audio-visualizer">
+            <i class="ti ti-music text-3xl text-primary"></i>
+          </div>
+        </div>
+      `;
+    } else if (isPortrait) {
+      mediaContent = `
+        <img src="${thumbnail}" alt="" class="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-125" loading="lazy" decoding="async">
+        <img src="${thumbnail}" alt="${title}" class="h-full w-auto max-w-full object-contain relative z-10 mx-auto drop-shadow-md" loading="lazy" decoding="async">
+        <span class="absolute top-2 left-2 bg-indigo-600/90 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 z-20 font-medium shadow-sm">
+          <i class="ti ti-device-mobile text-xs"></i>Shorts
+        </span>
+      `;
+    } else if (mediaType === 'image') {
+      mediaContent = `<img src="${thumbnail}" alt="${title}" class="w-full h-full object-contain p-0.5" loading="lazy" decoding="async">`;
+    } else {
+      mediaContent = `<img src="${thumbnail}" alt="${title}" class="w-full h-full object-cover" loading="lazy" decoding="async">`;
+    }
+
     return `
       <div class="gallery-grid-item file-item gallery-playable group bg-dark-700 rounded-lg overflow-hidden border border-transparent hover:border-gray-600 hover:bg-dark-600 transition-all cursor-pointer"
         data-id="${escapeHtml(video.id)}" data-kind="file" data-title="${title}" data-date="${escapeHtml(video.upload_date || video.created_at || '')}" data-size="${Number(video.file_size || 0)}" data-type="${mediaType}"
         data-media-type="${mediaType}" data-media-title="${title}" draggable="true">
         <div class="aspect-video relative overflow-hidden bg-dark-950 flex items-center justify-center">
-          ${mediaType === 'audio' ? `
-          <div class="w-full h-full flex items-center justify-center bg-[#181818]">
-            <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center audio-visualizer">
-              <i class="ti ti-music text-3xl text-primary"></i>
-            </div>
-          </div>` : `<img src="${thumbnail}" alt="${title}" class="w-full h-full object-contain ${mediaType === 'image' ? 'p-0.5' : ''}" loading="lazy" decoding="async">`}
-          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          ${mediaContent}
+          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
             <div class="bg-primary/90 w-10 h-10 rounded-full flex items-center justify-center shadow-lg">
               <i class="ti ${mediaType === 'image' ? 'ti-eye' : 'ti-player-play-filled'} text-white"></i>
             </div>
           </div>
-          ${mediaType !== 'image' ? `<span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono">${formatDuration(video.duration)}</span>` : ''}
-          ${mediaType === 'audio' ? `<span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1"><i class="ti ti-music text-xs"></i>Audio</span>` : ''}
-          ${mediaType === 'image' ? `<span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1"><i class="ti ti-photo text-xs"></i>Image</span>` : ''}
+          ${mediaType !== 'image' ? `<span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono z-20">${formatDuration(video.duration)}</span>` : ''}
+          ${mediaType === 'audio' ? `<span class="absolute top-2 left-2 bg-primary/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20"><i class="ti ti-music text-xs"></i>Audio</span>` : ''}
+          ${mediaType === 'image' ? `<span class="absolute top-2 left-2 bg-green-600/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-20"><i class="ti ti-photo text-xs"></i>Image</span>` : ''}
         </div>
         <div class="p-3">
           <h3 class="font-medium text-sm truncate mb-1 text-white">${title}</h3>
