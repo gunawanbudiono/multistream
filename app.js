@@ -3620,7 +3620,10 @@ app.post('/api/youtube/upload-cookie', isAuthenticated, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid cookie content provided' });
     }
     const cookiePath = path.join(__dirname, 'db', 'cookies.txt');
-    fs.ensureDirSync(path.dirname(cookiePath));
+    const cookieDir = path.dirname(cookiePath);
+    if (!fs.existsSync(cookieDir)) {
+      fs.mkdirSync(cookieDir, { recursive: true });
+    }
     fs.writeFileSync(cookiePath, cookieContent.trim(), 'utf8');
     res.json({ success: true, message: 'YouTube cookies saved successfully' });
   } catch (error) {
