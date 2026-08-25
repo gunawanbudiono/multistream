@@ -29,19 +29,29 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const { spawn } = require('child_process');
-  const runner = { cmd: 'python3', prefixArgs: ['-u', '-m', 'yt_dlp'] };
   const args = [
-    ...runner.prefixArgs,
-    '--no-colors',
-    '--newline',
-    '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
+    '-m', 'yt_dlp',
+    '--cookies', '/app/db/cookies.txt',
     '--remote-components', 'ejs:github',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=ios,mweb,web',
-    '-f', '18',
-    '-o', '/tmp/test_stream.mp4',
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=web,tv,mweb,android,ios',
+    '--dump-single-json',
+    '--no-warnings',
+    '--skip-download',
+    'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
   ];
+
+  await new Promise((resolve) => {
+    execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        console.log('ERROR:', stderr || err.message);
+      } else {
+        const info = JSON.parse(stdout);
+        const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
+        console.log('FOUND RESOLUTIONS (web,tv,mweb,android,ios):', heights);
+      }
+      resolve();
+    });
+  });
 
   const child = spawn(runner.cmd, args);
   child.stdout.on('data', (d) => {
