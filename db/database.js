@@ -179,6 +179,10 @@ function createTables() {
         }
       });
 
+      db.run(`ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`, (err) => {});
+      db.run(`ALTER TABLE users ADD COLUMN disk_quota_gb INTEGER DEFAULT 0`, (err) => {});
+      db.run(`ALTER TABLE videos ADD COLUMN file_size INTEGER`, (err) => {});
+
       db.run(`ALTER TABLE users ADD COLUMN youtube_channel_name TEXT`, (err) => {
         if (err && !err.message.includes('duplicate column name')) {
           console.error('Error adding youtube_channel_name column:', err.message);

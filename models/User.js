@@ -81,7 +81,7 @@ class User {
 
   static findAll() {
     return new Promise((resolve, reject) => {
-      db.all('SELECT * FROM users ORDER BY created_at DESC', [], (err, rows) => {
+      db.all('SELECT * FROM users ORDER BY rowid DESC', [], (err, rows) => {
         if (err) {
           console.error('Database error in findAll:', err);
           return reject(err);
