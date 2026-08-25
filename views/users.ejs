@@ -210,7 +210,7 @@
                 <%= user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '--' %>
               </td>
 
-              <!-- Actions (Replaced gear & delete with Impersonate & Detail) -->
+              <!-- Actions (Replaced separate gear/delete with Impersonate & Detail) -->
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
                 <div class="flex items-center justify-end gap-2">
                   <!-- Impersonate Button (Gold) -->
@@ -284,11 +284,24 @@
         </div>
       </div>
 
-      <!-- Username -->
-      <div>
-        <label class="block text-xs font-medium text-gray-300 mb-1.5">Username</label>
-        <input type="text" id="editUsername" name="username" required
-          class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors">
+      <!-- Username & Role (Side by Side in 2 Columns) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1.5">Username</label>
+          <input type="text" id="editUsername" name="username" required
+            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1.5">Role</label>
+          <div class="relative">
+            <select id="editRole" name="role"
+              class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white appearance-none focus:outline-none focus:border-primary pr-8 transition-colors">
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+            <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+          </div>
+        </div>
       </div>
 
       <!-- New Password with Eye Toggle & Strength Meter -->
@@ -312,44 +325,18 @@
         </div>
       </div>
 
-      <!-- Role & Status Selects -->
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-medium text-gray-300 mb-1.5">Role</label>
-          <div class="relative">
-            <select id="editRole" name="role"
-              class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white appearance-none focus:outline-none focus:border-primary pr-8 transition-colors">
-              <option value="member">Member</option>
-              <option value="admin">Admin</option>
-            </select>
-            <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-300 mb-1.5">Status</label>
-          <div class="relative">
-            <select id="editStatus" name="status"
-              class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white appearance-none focus:outline-none focus:border-primary pr-8 transition-colors">
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
-          </div>
-        </div>
-      </div>
-
-      <!-- Server Storage Overview Card -->
+      <!-- Server Storage Overview Card (Reactive Live Progress Bar) -->
       <div class="bg-dark-900/70 border border-[#27272a] rounded-xl p-4 space-y-2.5">
         <div class="flex items-center justify-between text-xs">
           <span class="text-gray-300 font-semibold flex items-center gap-1.5">
             <i class="ti ti-database text-blue-400"></i> Server Storage Overview
           </span>
           <span class="text-gray-400">
-            <strong class="text-emerald-400 font-bold"><%= globalStats ? globalStats.diskFree : '469.00 GB' %> Free</strong> / 489.61 GB Total
+            <strong class="text-emerald-400 font-bold" id="overviewFreeDisk"><%= globalStats ? globalStats.diskFree : '469.00 GB' %> Free</strong> / 489.61 GB Total
           </span>
         </div>
         <div class="w-full bg-dark-950 rounded-full h-2 overflow-hidden border border-gray-800">
-          <div class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full" style="width: 25%"></div>
+          <div id="overviewProgressBar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-300" style="width: 25%"></div>
         </div>
         <div class="flex items-center justify-between text-[11px]">
           <span class="text-gray-400">Allocated (Member Users): <strong class="text-white font-semibold" id="overviewAllocated">0 GB</strong></span>
@@ -357,7 +344,7 @@
         </div>
       </div>
 
-      <!-- Disk Quota Limit (GB) -->
+      <!-- Disk Quota Limit (GB) with Live Reactive Calculation -->
       <div>
         <label class="block text-xs font-medium text-gray-300 mb-1.5">
           Disk Quota Limit (GB) <span class="text-gray-500 font-normal">(e.g. 50 for 50 GB, 0 = Unlimited)</span>
@@ -389,7 +376,7 @@
 
         <div class="h-px bg-[#27272a]"></div>
 
-        <!-- Account Status (Suspend & Delete) -->
+        <!-- Account Status (Suspend & Delete inside Modal) -->
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="text-xs font-semibold text-white">Account Status</p>
@@ -464,19 +451,10 @@
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Status</label>
-          <select id="createStatus" name="status"
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Disk Quota Limit (GB)</label>
+          <input type="number" id="createDiskQuotaGb" name="disk_quota_gb" min="0" placeholder="0 = Unlimited Pool"
             class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
-            <option value="active" selected>Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
         </div>
-      </div>
-
-      <div>
-        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Disk Quota Limit (GB)</label>
-        <input type="number" id="createDiskQuotaGb" name="disk_quota_gb" min="0" placeholder="0 = Unlimited Pool"
-          class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
       </div>
 
       <div class="pt-4 border-t border-[#27272a] flex items-center justify-end gap-3">
@@ -522,6 +500,11 @@
   let currentActiveEditUserId = null;
   let currentActiveEditUsername = null;
   let currentActiveEditStatus = 'active';
+  let totalServerDiskGB = 489.61;
+  let otherUsersAllocatedGB = 0;
+
+  // Pre-load all users quota data for dynamic calculation
+  const allUsersData = <%- JSON.stringify((users || []).map(u => ({ id: u.id, quota: u.disk_quota_gb || 0 }))) %>;
 
   function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
@@ -624,15 +607,34 @@
     }
   });
 
+  // Dynamic Live Storage Overview Calculation
+  function updateStorageOverviewDynamic() {
+    const quotaInput = document.getElementById('editDiskQuotaGb');
+    const newTypedQuota = Math.max(0, parseInt(quotaInput.value) || 0);
+    const totalAllocatedNow = otherUsersAllocatedGB + newTypedQuota;
+    const percent = Math.min(100, Math.max(2, Math.round((totalAllocatedNow / totalServerDiskGB) * 100)));
+    const unallocatedPool = Math.max(0, (totalServerDiskGB - totalAllocatedNow)).toFixed(2);
+
+    document.getElementById('overviewAllocated').innerText = totalAllocatedNow + ' GB';
+    document.getElementById('overviewUnallocated').innerText = 'Unallocated Pool: ' + unallocatedPool + ' GB Available';
+    document.getElementById('overviewProgressBar').style.width = percent + '%';
+  }
+
+  document.getElementById('editDiskQuotaGb').addEventListener('input', updateStorageOverviewDynamic);
+  document.getElementById('editDiskQuotaGb').addEventListener('change', updateStorageOverviewDynamic);
+
   function openEditModal(userId, username, role, status, avatar, diskQuotaGb) {
     currentActiveEditUserId = userId;
     currentActiveEditUsername = username;
     currentActiveEditStatus = status;
 
+    // Calculate other users allocated sum
+    const otherUsers = allUsersData.filter(u => u.id !== userId);
+    otherUsersAllocatedGB = otherUsers.reduce((sum, u) => sum + (Number(u.quota) || 0), 0);
+
     document.getElementById('editUserId').value = userId;
     document.getElementById('editUsername').value = username;
     document.getElementById('editRole').value = role;
-    document.getElementById('editStatus').value = status;
     document.getElementById('editDiskQuotaGb').value = diskQuotaGb || 0;
     document.getElementById('editPassword').value = '';
     document.getElementById('editPassword').type = 'password';
@@ -640,6 +642,9 @@
     document.getElementById('passwordStrengthContainer').classList.add('hidden');
     document.getElementById('editUserAvatar').src = avatar || '/images/default-avatar.jpg';
     document.getElementById('editAvatarFileName').innerText = 'No file chosen';
+
+    // Calculate dynamic storage bar for current user's quota
+    updateStorageOverviewDynamic();
 
     // Update Suspend button text
     const suspendText = document.getElementById('suspendBtnText');
@@ -735,7 +740,7 @@
   function toggleUserSuspend() {
     const userId = currentActiveEditUserId;
     if (!userId) return;
-    const currentStatus = document.getElementById('editStatus').value;
+    const currentStatus = currentActiveEditStatus;
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
     const actionLabel = newStatus === 'active' ? 'activate' : 'suspend';
 
