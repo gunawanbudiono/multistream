@@ -29,47 +29,31 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const clients = [
-    'default',
-    'android,web',
-    'web_creator,android',
-    'tv_embedded,web',
-    'all'
+  const args = [
+    '-m', 'yt_dlp',
+    '--cookies', '/app/db/cookies.txt',
+    '--remote-components', 'ejs:github',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
+    '--dump-single-json',
+    '--no-warnings',
+    '--skip-download',
+    'ytsearch1:SING-OFF TIKTOK SONGS 26 Montagem Xonada'
   ];
 
-  for (const c of clients) {
-    const extArgs = c === 'default' 
-      ? ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416']
-      : ['--extractor-args', `youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=${c}`];
-
-    const args = [
-      '-m', 'yt_dlp',
-      '--cookies', '/app/db/cookies.txt',
-      '--remote-components', 'ejs:github',
-      ...extArgs,
-      '--dump-single-json',
-      '--no-warnings',
-      '--skip-download',
-      'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
-    ];
-
-    await new Promise((resolve) => {
-      execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err) {
-          console.log(`CLIENT [${c}] ERROR:`, stderr.slice(0, 120) || err.message);
-        } else {
-          try {
-            const info = JSON.parse(stdout);
-            const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
-            console.log(`CLIENT [${c}] RESOLUTIONS:`, heights);
-          } catch (e) {
-            console.log(`CLIENT [${c}] PARSE ERROR`);
-          }
-        }
-        resolve();
-      });
+  await new Promise((resolve) => {
+    execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        console.log('ERROR:', stderr || err.message);
+      } else {
+        const info = JSON.parse(stdout);
+        const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
+        console.log('SING-OFF TITLE:', info.title);
+        console.log('SING-OFF RESOLUTIONS:', heights);
+        console.log('SING-OFF ALL FORMATS:', (info.formats || []).map(f => ({ id: f.format_id, ext: f.ext, res: f.resolution, height: f.height, vcodec: f.vcodec, acodec: f.acodec })));
+      }
+      resolve();
     });
-  }
+  });
 }
 
 run();
