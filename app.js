@@ -3671,6 +3671,7 @@ function normalizeNetscapeCookies(raw) {
 }
 
 app.post('/api/youtube/upload-cookie', isAuthenticated, async (req, res) => {
+  const tempPath = path.join(__dirname, 'db', `cookies_temp_${Date.now()}.txt`);
   try {
     const { cookieContent } = req.body;
     if (!cookieContent || typeof cookieContent !== 'string' || cookieContent.trim().length < 20) {
@@ -3686,15 +3687,23 @@ app.post('/api/youtube/upload-cookie', isAuthenticated, async (req, res) => {
     if (!fs.existsSync(cookieDir)) {
       fs.mkdirSync(cookieDir, { recursive: true });
     }
+    fs.writeFileSync(tempPath, normalizedContent, 'utf8');
 
-    // Atomically save to db/cookies.txt
+    // Run real-time verification probe using POT Provider & multi-client fallback
+    await youtubeDownloadService.verifyCookie(tempPath);
+
+    // If verification succeeded, atomically replace db/cookies.txt
     const finalPath = path.join(cookieDir, 'cookies.txt');
     fs.writeFileSync(finalPath, normalizedContent, 'utf8');
+    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
-    res.json({ success: true, message: 'YouTube cookies saved & activated successfully!' });
+    res.json({ success: true, message: 'YouTube cookies verified & activated successfully!' });
   } catch (error) {
-    console.error('Save cookie error:', error);
-    res.status(500).json({ success: false, error: error.message || 'Failed to save cookie file' });
+    if (fs.existsSync(tempPath)) {
+      try { fs.unlinkSync(tempPath); } catch (e) {}
+    }
+    console.error('Save cookie verification error:', error);
+    res.status(400).json({ success: false, error: error.message || 'Failed to verify cookie with YouTube' });
   }
 });
 
