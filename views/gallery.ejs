@@ -1675,6 +1675,55 @@ function formatClientBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+function getPerItemProgressHtml(idx, itemStatus) {
+  if (!itemStatus || itemStatus.status === 'pending') {
+    return `
+      <div class="mt-2 flex items-center gap-1.5 text-[11px] text-gray-500 font-medium px-1">
+        <i class="ti ti-clock text-xs"></i> <span>Queued (Waiting)</span>
+      </div>
+    `;
+  }
+  if (itemStatus.status === 'downloading') {
+    return `
+      <div class="mt-2.5 space-y-1.5 bg-dark-800 p-2.5 rounded-lg border border-gray-700/80">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-white font-medium flex items-center gap-1.5"><i class="ti ti-loader-2 text-xs animate-spin text-red-500"></i> Downloading...</span>
+          <span id="ytItemPct-${idx}" class="text-red-400 font-bold font-mono text-[11px]">${itemStatus.progress}%</span>
+        </div>
+        <div class="w-full bg-dark-700 rounded-full h-1.5 overflow-hidden">
+          <div id="ytItemBar-${idx}" class="bg-gradient-to-r from-red-600 to-red-500 h-1.5 rounded-full" style="width: ${itemStatus.progress}%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+        </div>
+        <div class="flex items-center justify-between text-[10px] text-gray-400">
+          <span id="ytItemSize-${idx}">${itemStatus.sizeProgress || ''}</span>
+          <span id="ytItemSpeed-${idx}">${itemStatus.speed ? `⚡ ${itemStatus.speed}` : ''}</span>
+        </div>
+      </div>
+    `;
+  }
+  if (itemStatus.status === 'merging') {
+    return `
+      <div class="mt-2.5 space-y-1.5 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg">
+        <div class="flex items-center justify-between text-xs text-amber-300">
+          <span class="font-medium flex items-center gap-1.5"><i class="ti ti-loader-2 text-xs animate-spin text-amber-400"></i> Merging video & audio...</span>
+          <span class="font-bold text-[11px]">99%</span>
+        </div>
+        <div class="w-full bg-dark-700 rounded-full h-1.5 overflow-hidden">
+          <div class="bg-amber-500 h-1.5 rounded-full" style="width: 99%"></div>
+        </div>
+      </div>
+    `;
+  }
+  if (itemStatus.status === 'completed') {
+    return `
+      <div class="mt-2.5 flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs">
+        <span class="text-emerald-400 font-medium flex items-center gap-1.5"><i class="ti ti-circle-check text-sm"></i> Downloaded to Gallery</span>
+        <span class="text-emerald-300 font-mono text-[11px] font-semibold">100%</span>
+      </div>
+    `;
+  }
+  return '';
+}
+
 function renderYtQueue() {
   const queueCount = document.getElementById('ytQueueCount');
   const emptyState = document.getElementById('ytQueueEmpty');
@@ -1693,7 +1742,6 @@ function renderYtQueue() {
   }
 
   emptyState?.classList.add('hidden');
-  if (submitBtn) submitBtn.disabled = (ytActiveJobId !== null);
 
   // Calculate total batch size from all selected resolutions
   let totalBatchBytes = 0;
@@ -1744,57 +1792,11 @@ function renderYtQueue() {
         </div>`;
       }
 
-      // Check if job is active and has individual item status
-      let perItemProgressHtml = '';
       const itemStatus = (ytLatestJobStatus && ytLatestJobStatus.itemsStatus) ? ytLatestJobStatus.itemsStatus[idx] : null;
-
-      if (ytActiveJobId && itemStatus) {
-        if (itemStatus.status === 'completed') {
-          perItemProgressHtml = `
-            <div class="mt-2.5 flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs">
-              <span class="text-emerald-400 font-medium flex items-center gap-1.5"><i class="ti ti-circle-check text-sm"></i> Downloaded to Gallery</span>
-              <span class="text-emerald-300 font-mono text-[11px] font-semibold">100%</span>
-            </div>
-          `;
-        } else if (itemStatus.status === 'merging') {
-          perItemProgressHtml = `
-            <div class="mt-2.5 space-y-1.5 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg">
-              <div class="flex items-center justify-between text-xs text-amber-300">
-                <span class="font-medium flex items-center gap-1.5"><i class="ti ti-loader-2 text-xs animate-spin text-amber-400"></i> Merging video & audio...</span>
-                <span class="font-bold text-[11px]">99%</span>
-              </div>
-              <div class="w-full bg-dark-700 rounded-full h-1.5 overflow-hidden">
-                <div class="bg-amber-500 h-1.5 rounded-full" style="width: 99%"></div>
-              </div>
-            </div>
-          `;
-        } else if (itemStatus.status === 'downloading') {
-          perItemProgressHtml = `
-            <div class="mt-2.5 space-y-1.5 bg-dark-800 p-2.5 rounded-lg border border-gray-700/80">
-              <div class="flex items-center justify-between text-xs">
-                <span class="text-white font-medium flex items-center gap-1.5"><i class="ti ti-loader-2 text-xs animate-spin text-red-500"></i> Downloading...</span>
-                <span class="text-red-400 font-bold font-mono text-[11px]">${itemStatus.progress}%</span>
-              </div>
-              <div class="w-full bg-dark-700 rounded-full h-1.5 overflow-hidden">
-                <div class="bg-gradient-to-r from-red-600 to-red-500 h-1.5 rounded-full transition-all duration-150" style="width: ${itemStatus.progress}%"></div>
-              </div>
-              <div class="flex items-center justify-between text-[10px] text-gray-400">
-                <span>${itemStatus.sizeProgress || ''}</span>
-                <span>${itemStatus.speed ? `⚡ ${itemStatus.speed}` : ''}</span>
-              </div>
-            </div>
-          `;
-        } else {
-          perItemProgressHtml = `
-            <div class="mt-2 flex items-center gap-1.5 text-[11px] text-gray-500 font-medium px-1">
-              <i class="ti ti-clock text-xs"></i> <span>Queued (Waiting)</span>
-            </div>
-          `;
-        }
-      }
+      const initialProgressHtml = getPerItemProgressHtml(idx, itemStatus);
 
       return `
-        <div class="bg-dark-900 border border-gray-700/70 hover:border-gray-600 rounded-xl p-3 transition-all">
+        <div id="ytQueueCard-${idx}" class="bg-dark-900 border border-gray-700/70 hover:border-gray-600 rounded-xl p-3 transition-all">
           <div class="flex items-center gap-3">
             <div class="relative w-24 h-14 rounded-lg overflow-hidden bg-black shrink-0 border border-gray-800">
               ${item.thumbnail ? `<img src="${item.thumbnail}" alt="" class="w-full h-full object-cover" loading="lazy">` : `<div class="w-full h-full flex items-center justify-center text-gray-600"><i class="ti ti-video text-xl"></i></div>`}
@@ -1817,7 +1819,9 @@ function renderYtQueue() {
               <i class="ti ti-trash text-base"></i>
             </button>
           </div>
-          ${perItemProgressHtml}
+          <div id="ytItemProgressArea-${idx}" data-status="${itemStatus ? itemStatus.status : 'pending'}">
+            ${initialProgressHtml}
+          </div>
         </div>
       `;
     }).join('');
@@ -1896,13 +1900,41 @@ async function startYtDownloadQueue() {
         const job = sData.status;
 
         ytLatestJobStatus = job;
-        renderYtQueue();
+
+        // Targeted In-Place DOM Mutation for silky smooth transitions
+        if (job.itemsStatus && Array.isArray(job.itemsStatus)) {
+          job.itemsStatus.forEach((s, idx) => {
+            const area = document.getElementById(`ytItemProgressArea-${idx}`);
+            const bar = document.getElementById(`ytItemBar-${idx}`);
+            const pct = document.getElementById(`ytItemPct-${idx}`);
+            const size = document.getElementById(`ytItemSize-${idx}`);
+            const speed = document.getElementById(`ytItemSpeed-${idx}`);
+
+            if (area) {
+              if (s.status === 'downloading' && bar && pct) {
+                bar.style.width = `${s.progress}%`;
+                pct.textContent = `${s.progress}%`;
+                if (size) size.textContent = s.sizeProgress || '';
+                if (speed) speed.textContent = s.speed ? `⚡ ${s.speed}` : '';
+              } else {
+                const currentStatusAttr = area.getAttribute('data-status');
+                if (currentStatusAttr !== s.status) {
+                  area.setAttribute('data-status', s.status);
+                  area.innerHTML = getPerItemProgressHtml(idx, s);
+                }
+              }
+            }
+          });
+        }
 
         const completedCount = (job.itemsStatus || []).filter(s => s.status === 'completed').length;
         if (progressItemTitle) {
           progressItemTitle.textContent = `Overall Progress (${completedCount}/${job.totalItems} completed)`;
         }
-        if (progressBar) progressBar.style.width = `${job.progress}%`;
+        if (progressBar) {
+          progressBar.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+          progressBar.style.width = `${job.progress}%`;
+        }
         if (progressPercentage) progressPercentage.textContent = `${job.progress}%`;
         if (progressMetrics) {
           let metricsHtml = '';

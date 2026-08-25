@@ -322,6 +322,7 @@ async function processJobQueue(jobId, queueItems) {
 
     let streamPhase = 0;
     let lastRawPct = 0;
+    let videoStreamBytesStr = '';
 
     await new Promise((resolve, reject) => {
       const child = spawn(runner.cmd, args);
@@ -356,8 +357,14 @@ async function processJobQueue(jobId, queueItems) {
               if (parts[1] && parts[1].trim() !== 'Unknown B/s') {
                 job.speed = cleanUnits(parts[1].trim());
               }
-              if (parts[2] && parts[2].trim() !== 'Unknown' && parts[2].trim() !== 'NA' && parts[2].trim() !== 'N/A') {
-                job.eta = parts[2].trim();
+
+              const rawEta = parts[2]?.trim();
+              if (rawEta && rawEta !== 'Unknown' && rawEta !== 'NA' && rawEta !== 'N/A') {
+                if (rawEta === '00:00' && itemPct < 90 && job.eta && job.eta !== '00:00') {
+                  // Keep smoother ETA
+                } else {
+                  job.eta = rawEta;
+                }
               }
               
               const downloadedRaw = parts[3]?.trim();
@@ -371,8 +378,14 @@ async function processJobQueue(jobId, queueItems) {
               }
 
               if (downloadedRaw && downloadedRaw !== 'NA' && downloadedRaw !== 'N/A') {
-                const cleanDownloaded = cleanUnits(downloadedRaw);
+                if (streamPhase === 0) {
+                  videoStreamBytesStr = cleanUnits(downloadedRaw);
+                }
                 const cleanTotal = cleanUnits(totalRaw);
+                const cleanDownloaded = (streamPhase === 1 && videoStreamBytesStr)
+                  ? videoStreamBytesStr
+                  : cleanUnits(downloadedRaw);
+
                 if (cleanTotal && cleanTotal !== 'NA' && cleanTotal !== 'N/A') {
                   job.sizeProgress = `${cleanDownloaded} / ${cleanTotal}`;
                 } else {
