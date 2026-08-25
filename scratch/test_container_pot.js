@@ -16,12 +16,7 @@ async function run() {
   console.log('2. PING 172.18.0.1:4416:', await checkPing('http://172.18.0.1:4416/ping'));
 
   const args = [
-    '-c', 'import yt_dlp; yt_dlp.main()',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
-    '--dump-single-json',
-    '--no-warnings',
-    '--skip-download',
-    'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
+    '-c', 'import urllib.request, http.cookiejar; cj = http.cookiejar.MozillaCookieJar("/app/db/cookies.txt"); opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj)); req = urllib.request.Request("https://www.youtube.com", headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"}); opener.open(req); cj.save(ignore_discard=True, ignore_expires=True); print("SAVED COOKIES COUNT:", len(cj))'
   ];
 
   await new Promise((resolve) => {
