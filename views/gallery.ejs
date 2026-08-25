@@ -718,9 +718,10 @@ function playMedia(mediaId, mediaTitle, mediaType) {
     typeIcon.innerHTML = '<i class="ti ti-video text-lg"></i>';
     videoCont.classList.remove('hidden');
     
-    let seekDebounce = null;
+    if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
+    video.src = streamUrl;
+    
     const hideSpinner = () => {
-      clearTimeout(seekDebounce);
       if (spinner) spinner.classList.add('opacity-0', 'pointer-events-none');
     };
     
@@ -728,20 +729,8 @@ function playMedia(mediaId, mediaTitle, mediaType) {
     video.oncanplay = hideSpinner;
     video.onloadeddata = hideSpinner;
     video.ontimeupdate = hideSpinner;
-    video.onseeked = hideSpinner;
-    
-    video.onseeking = () => {
-      clearTimeout(seekDebounce);
-      seekDebounce = setTimeout(() => {
-        if (spinner && video.seeking) spinner.classList.remove('opacity-0', 'pointer-events-none');
-      }, 120);
-    };
-
     video.onwaiting = () => {
-      clearTimeout(seekDebounce);
-      seekDebounce = setTimeout(() => {
-        if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
-      }, 120);
+      if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
     };
 
     video.play().catch((err) => {
