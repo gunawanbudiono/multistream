@@ -205,7 +205,7 @@ async function processJobQueue(jobId, queueItems) {
   const job = activeJobs.get(jobId);
   if (!job) return;
 
-  const ytDlp = getYtDlpPath();
+  const runner = getYtDlpRunner();
 
   for (let i = 0; i < queueItems.length; i++) {
     if (job.status === 'cancelled') break;
