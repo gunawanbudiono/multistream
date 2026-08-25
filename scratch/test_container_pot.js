@@ -29,14 +29,33 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const { db } = require('../db/database');
-  await new Promise(r => db.run('UPDATE videos SET upload_date = created_at WHERE upload_date IS NULL OR upload_date = ""', [], r));
-  const Video = require('../models/Video');
-  const videos = await Video.findAll();
-  console.log('TOP 5 VIDEOS IN GALLERY AFTER BACKFILL:');
-  videos.slice(0, 5).forEach(v => {
-    console.log(`- ${v.title} | Res: ${v.resolution} | Size: ${Math.round(v.file_size/1024/1024)} MB | Date: ${v.upload_date}`);
+  const { spawn } = require('child_process');
+  const runner = { cmd: 'python3', prefixArgs: ['-u', '-m', 'yt_dlp'] };
+  const args = [
+    ...runner.prefixArgs,
+    '--no-colors',
+    '--newline',
+    '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
+    '--remote-components', 'ejs:github',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=ios,mweb,web',
+    '-f', '18',
+    '-o', '/tmp/test_stream.mp4',
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+  ];
+
+  const child = spawn(runner.cmd, args);
+  child.stdout.on('data', (d) => {
+    const raw = d.toString();
+    const lines = raw.split(/\r|\n/).filter(Boolean);
+    for (const line of lines) {
+      if (line.includes('|')) {
+        console.log('PROGRESS TICK:', line);
+      }
+    }
   });
+
+  await new Promise(res => child.on('close', res));
+  console.log('TEST COMPLETE');
 }
 
 run();
