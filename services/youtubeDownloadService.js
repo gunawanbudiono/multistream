@@ -438,6 +438,49 @@ function getJobStatus(jobId) {
   };
 }
 
+/**
+ * Verifies that a given cookie file works with YouTube by running a lightweight test probe.
+ */
+async function verifyCookie(cookieFilePath) {
+  const runner = getYtDlpRunner();
+  const testUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+  return new Promise((resolve, reject) => {
+    const args = [
+      ...runner.prefixArgs,
+      '--dump-single-json',
+      '--no-warnings',
+      '--skip-download',
+      '--no-playlist',
+      '--geo-bypass',
+      ...getPotArgs(),
+      '--cookies', cookieFilePath,
+      testUrl
+    ];
+
+    execFile(runner.cmd, args, { maxBuffer: 5 * 1024 * 1024, timeout: 20000 }, (error, stdout, stderr) => {
+      if (error) {
+        const errText = stderr || error.message || '';
+        if (errText.includes('The page needs to be reloaded')) {
+          return reject(new Error('The YouTube tab must be reloaded (F5) before copying cookies.'));
+        }
+        if (errText.includes('Sign in to confirm you’re not a bot') || errText.includes('bot')) {
+          return reject(new Error('Cookie verification rejected: Account authentication required or expired.'));
+        }
+        return reject(new Error(errText.slice(0, 150) || 'Cookie verification failed.'));
+      }
+      try {
+        const info = JSON.parse(stdout);
+        if (info && info.id) {
+          return resolve(true);
+        }
+        return reject(new Error('Invalid response from YouTube during cookie check.'));
+      } catch (e) {
+        return reject(new Error('Failed to parse YouTube response during verification.'));
+      }
+    });
+  });
+}
+
 function cancelJob(jobId) {
   const job = activeJobs.get(jobId);
   if (!job) return false;
@@ -461,6 +504,7 @@ setInterval(() => {
 
 module.exports = {
   inspectVideo,
+  verifyCookie,
   startDownloadJob,
   getJobStatus,
   cancelJob

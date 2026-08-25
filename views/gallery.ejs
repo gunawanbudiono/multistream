@@ -525,9 +525,14 @@ function detectMediaType(item) {
             <p class="text-xs text-gray-400">Download YouTube videos & Shorts in high-fidelity quality</p>
           </div>
         </div>
-        <button type="button" onclick="closeYouTubeDownloadModal()" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
-          <i class="ti ti-x text-xl"></i>
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button type="button" onclick="openYouTubeCookieModal()" title="YouTube Cookie Settings" class="text-gray-400 hover:text-amber-400 p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
+            <i class="ti ti-cookie text-xl"></i>
+          </button>
+          <button type="button" onclick="closeYouTubeDownloadModal()" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
+            <i class="ti ti-x text-xl"></i>
+          </button>
+        </div>
       </div>
 
       <!-- Modal Body (Scrollable) -->
@@ -1422,6 +1427,7 @@ async function saveYouTubeCookie() {
 
   const btn = document.getElementById('ytSaveCookieBtn');
   btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 text-sm animate-spin"></i> <span>Verifying with YouTube...</span>';
 
   try {
     const res = await fetch('/api/youtube/upload-cookie', {
@@ -1432,7 +1438,7 @@ async function saveYouTubeCookie() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Failed to save cookies');
 
-    showToast('success', 'YouTube cookie activated successfully!');
+    showToast('success', data.message || 'YouTube cookie verified & activated!');
     closeYouTubeCookieModal();
     document.getElementById('ytCookieAlertBanner')?.classList.add('hidden');
     if (textarea) textarea.value = '';
@@ -1446,6 +1452,7 @@ async function saveYouTubeCookie() {
     showToast('error', err.message || 'Failed to save cookies');
   } finally {
     btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-check text-sm"></i> <span>Save & Activate Cookie</span>';
   }
 }
 
