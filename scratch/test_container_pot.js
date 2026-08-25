@@ -29,34 +29,50 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const videos = [
-    'https://www.youtube.com/watch?v=5oiuYD5lPIA',
-    'https://www.youtube.com/watch?v=LXb3EKWsInQ',
-    'https://www.youtube.com/watch?v=n7X2cbKzh-Q',
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+  const testUrls = [
+    { title: 'Ngamen 5', url: 'https://www.youtube.com/watch?v=n7X2cbKzh-Q' },
+    { title: 'SING-OFF', url: 'https://www.youtube.com/watch?v=5oiuYD5lPIA' },
+    { title: 'Rick Astley', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
   ];
 
-  for (const v of videos) {
-    const args = [
-      '-m', 'yt_dlp',
-      '-F',
-      '--cookies', '/app/db/cookies.txt',
-      '--remote-components', 'ejs:github',
-      v
-    ];
+  const configs = [
+    { name: '1. No cookies, POT only', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'] },
+    { name: '2. Cookies only, no POT', args: ['--cookies', '/app/db/cookies.txt'] },
+    { name: '3. Cookies + POT', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'] },
+    { name: '4. Cookies + POT + player_client=tv_embedded,web', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=tv_embedded,web'] },
+    { name: '5. Cookies + POT + player_client=android,web', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=android,web'] }
+  ];
 
-    await new Promise((resolve) => {
-      execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-        console.log(`=== VIDEO: ${v} ===`);
-        if (err) {
-          console.log('ERROR:', stderr.slice(0, 150) || err.message);
-        } else {
-          const lines = stdout.split('\n').filter(l => l.includes('mp4') || l.includes('webm') || l.includes('m4a'));
-          console.log(lines.slice(0, 12).join('\n'));
-        }
-        resolve();
+  for (const u of testUrls) {
+    console.log(`\n================= ${u.title} =================`);
+    for (const cfg of configs) {
+      const args = [
+        '-m', 'yt_dlp',
+        '--dump-single-json',
+        '--no-warnings',
+        '--skip-download',
+        '--remote-components', 'ejs:github',
+        ...cfg.args,
+        u.url
+      ];
+
+      await new Promise((resolve) => {
+        execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+          if (err) {
+            console.log(`[${cfg.name}] -> ERROR:`, stderr.split('\n')[0] || err.message);
+          } else {
+            try {
+              const info = JSON.parse(stdout);
+              const heights = [...new Set((info.formats || []).filter(f => f.vcodec && f.vcodec !== 'none').map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
+              console.log(`[${cfg.name}] -> RAW HEIGHTS:`, heights);
+            } catch (e) {
+              console.log(`[${cfg.name}] -> JSON PARSE ERR`);
+            }
+          }
+          resolve();
+        });
       });
-    });
+    }
   }
 }
 
