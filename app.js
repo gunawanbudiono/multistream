@@ -123,7 +123,7 @@ app.use(session({
     dir: path.join(__dirname, 'db'),
     table: 'sessions'
   }),
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || 'multistream_secret_key_12345',
   resave: false,
   saveUninitialized: false,
   rolling: true,
