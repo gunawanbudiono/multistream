@@ -237,6 +237,14 @@ function startDownloadJob(userId, queueItems, folderId = null) {
     speed: '',
     eta: '',
     currentItemTitle: queueItems[0]?.title || 'Starting download...',
+    itemsStatus: queueItems.map((item, idx) => ({
+      index: idx,
+      title: item.title || `Video ${idx + 1}`,
+      status: idx === 0 ? 'downloading' : 'pending',
+      progress: 0,
+      sizeProgress: '',
+      speed: ''
+    })),
     downloadedFiles: [],
     childProcess: null,
     error: null,
@@ -266,6 +274,11 @@ async function processJobQueue(jobId, queueItems) {
     job.currentIndex = i;
     job.currentItemTitle = item.title || `Item ${i + 1}`;
     job.currentProgress = 0;
+    job.speed = '';
+    job.sizeProgress = '';
+    if (job.itemsStatus && job.itemsStatus[i]) {
+      job.itemsStatus[i].status = 'downloading';
+    }
 
     const isAudio = item.resolution === 'audio' || item.resolution === 0 || item.resolution === '0';
     const height = parseInt(item.resolution, 10) || 1080;
@@ -366,6 +379,17 @@ async function processJobQueue(jobId, queueItems) {
                   job.sizeProgress = cleanDownloaded;
                 }
               }
+
+              if (job.itemsStatus && job.itemsStatus[i]) {
+                job.itemsStatus[i].progress = itemPct;
+                job.itemsStatus[i].speed = job.speed;
+                job.itemsStatus[i].sizeProgress = job.sizeProgress;
+                if (itemPct >= 98 && !isAudio) {
+                  job.itemsStatus[i].status = 'merging';
+                } else {
+                  job.itemsStatus[i].status = 'downloading';
+                }
+              }
               
               const overall = Math.round(((i + (job.currentProgress / 100)) / queueItems.length) * 100);
               job.progress = Math.max(job.progress || 0, Math.min(99, overall));
@@ -426,6 +450,11 @@ async function processJobQueue(jobId, queueItems) {
 
       const createdVideo = await Video.create(videoData);
       job.downloadedFiles.push(createdVideo);
+
+      if (job.itemsStatus && job.itemsStatus[i]) {
+        job.itemsStatus[i].status = 'completed';
+        job.itemsStatus[i].progress = 100;
+      }
     }
   }
 
@@ -527,6 +556,7 @@ function getJobStatus(jobId) {
     speed: job.speed,
     eta: job.eta,
     sizeProgress: job.sizeProgress || '',
+    itemsStatus: job.itemsStatus || [],
     filesCount: job.downloadedFiles.length,
     error: job.error
   };
