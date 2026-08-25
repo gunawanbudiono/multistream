@@ -139,31 +139,18 @@ async function inspectVideo(rawUrl) {
           }
         });
 
-        const standardPresets = [
-          { height: 2160, label: '4K Ultra HD (2160p)', ext: 'mp4', type: 'video' },
-          { height: 1440, label: '2K Quad HD (1440p)', ext: 'mp4', type: 'video' },
-          { height: 1080, label: 'Full HD (1080p)', ext: 'mp4', type: 'video' },
-          { height: 720, label: 'HD (720p)', ext: 'mp4', type: 'video' },
-          { height: 480, label: 'SD (480p)', ext: 'mp4', type: 'video' },
-          { height: 360, label: 'SD (360p)', ext: 'mp4', type: 'video' },
-          { height: 'audio', label: 'Audio Only (MP3 Best Quality)', ext: 'mp3', type: 'audio' }
-        ];
+        const sortedResolutions = Array.from(resolutionMap.values())
+          .sort((a, b) => b.height - a.height);
 
-        let finalResolutions;
-        const availableHeights = new Set(Array.from(resolutionMap.keys()));
-        if (!availableHeights.has(1080) && !availableHeights.has(720)) {
-          finalResolutions = standardPresets;
-        } else {
-          finalResolutions = Array.from(resolutionMap.values()).sort((a, b) => b.height - a.height);
-          finalResolutions.push({
-            height: 'audio',
-            label: 'Audio Only (MP3 Best Quality)',
-            ext: 'mp3',
-            type: 'audio'
-          });
-        }
+        // Always provide Audio Only option
+        sortedResolutions.push({
+          height: 'audio',
+          label: 'Audio Only (MP3 Best Quality)',
+          ext: 'mp3',
+          type: 'audio'
+        });
 
-        const defaultRes = finalResolutions.find(r => r.height === 1080) || finalResolutions.find(r => r.height === 720) || finalResolutions[0];
+        const defaultRes = sortedResolutions.find(r => r.height === 1080) || sortedResolutions[0];
 
         const result = {
           id: info.id,
@@ -173,8 +160,8 @@ async function inspectVideo(rawUrl) {
           durationFormatted: formatDuration(info.duration),
           thumbnail: info.thumbnail || (info.thumbnails && info.thumbnails[0]?.url) || '',
           url: info.webpage_url || url,
-          resolutions: finalResolutions,
-          defaultResolution: defaultRes ? defaultRes.height : 1080
+          resolutions: sortedResolutions,
+          defaultResolution: defaultRes ? defaultRes.height : (sortedResolutions[0]?.height || '360')
         };
 
         resolve(result);
