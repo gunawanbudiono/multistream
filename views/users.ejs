@@ -242,13 +242,14 @@
                 </div>
               </td>
 
-              <!-- Last Login & Created -->
+              <!-- Last Login & Created (Accurate Jakarta WIB Format) -->
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex flex-col">
                   <% if (user.last_login_at) { %>
-                    <div class="text-xs font-semibold text-white flex items-center gap-1.5">
+                    <div class="text-xs font-semibold text-white flex items-center gap-1.5" title="<%= helpers.formatDateTime(user.last_login_at) %>">
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                      <span><%= new Date(user.last_login_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) %></span>
+                      <span><%= helpers.formatRelativeTime(user.last_login_at) %></span>
+                      <span class="text-[10px] text-gray-400 font-normal">(<%= helpers.formatDateTime(user.last_login_at) %>)</span>
                     </div>
                   <% } else { %>
                     <div class="text-xs text-gray-500 italic flex items-center gap-1.5">
@@ -258,7 +259,7 @@
                   <% } %>
                   <div class="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
                     <i class="ti ti-calendar text-[10px] text-gray-500"></i>
-                    <span>Joined <%= user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '--' %></span>
+                    <span>Joined <%= helpers.formatDateTime(user.created_at) %></span>
                   </div>
                 </div>
               </td>
@@ -380,15 +381,39 @@
         </div>
       </div>
 
-      <!-- Tab Content: Activity Logs -->
+      <!-- Tab Content: Activity Logs (With Category Filters) -->
       <div id="inspectorTabLogs" class="hidden">
+        <!-- Log Category Filter Pills -->
+        <div class="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
+          <button type="button" onclick="filterLogCategory('all')" id="logFilterAll" 
+            class="px-3 py-1 rounded-lg text-xs font-semibold bg-primary text-white transition-colors flex-shrink-0">
+            All
+          </button>
+          <button type="button" onclick="filterLogCategory('auth')" id="logFilterAuth" 
+            class="px-3 py-1 rounded-lg text-xs font-semibold bg-dark-800 text-gray-300 hover:text-white border border-[#27272a] transition-colors flex-shrink-0">
+            Auth & Login
+          </button>
+          <button type="button" onclick="filterLogCategory('stream')" id="logFilterStream" 
+            class="px-3 py-1 rounded-lg text-xs font-semibold bg-dark-800 text-gray-300 hover:text-white border border-[#27272a] transition-colors flex-shrink-0">
+            Live Stream
+          </button>
+          <button type="button" onclick="filterLogCategory('media')" id="logFilterMedia" 
+            class="px-3 py-1 rounded-lg text-xs font-semibold bg-dark-800 text-gray-300 hover:text-white border border-[#27272a] transition-colors flex-shrink-0">
+            Media Files
+          </button>
+          <button type="button" onclick="filterLogCategory('admin')" id="logFilterAdmin" 
+            class="px-3 py-1 rounded-lg text-xs font-semibold bg-dark-800 text-gray-300 hover:text-white border border-[#27272a] transition-colors flex-shrink-0">
+            Admin Changes
+          </button>
+        </div>
+
         <div id="inspectorLogList" class="space-y-3">
           <!-- Dynamically populated via JS -->
         </div>
         <div id="inspectorLogEmpty" class="hidden py-12 text-center text-gray-400">
           <i class="ti ti-notes-off text-4xl mb-2 block text-gray-500"></i>
           <p class="text-sm font-semibold text-white">No Activity Logs Found</p>
-          <p class="text-xs text-gray-400 mt-1">No recorded action history for this user account yet.</p>
+          <p class="text-xs text-gray-400 mt-1">No recorded action history for this filter category.</p>
         </div>
       </div>
     </div>
@@ -748,10 +773,29 @@
   let totalServerDiskGB = 489.61;
   let otherUsersAllocatedGB = 0;
   let allExistingAllocatedGB = 0;
+  let currentLoadedInspectorLogs = [];
+  let currentActiveLogFilter = 'all';
 
   // Pre-load all users quota data for dynamic calculation
   const allUsersData = <%- JSON.stringify((users || []).map(u => ({ id: u.id, quota: u.disk_quota_gb || 0 }))) %>;
   allExistingAllocatedGB = allUsersData.reduce((sum, u) => sum + (Number(u.quota) || 0), 0);
+
+  function parseDbDate(dateStr) {
+    if (!dateStr) return null;
+    const s = String(dateStr).trim();
+    return (s.includes('Z') || s.includes('+')) ? new Date(s) : new Date(s.replace(' ', 'T') + 'Z');
+  }
+
+  function formatRelativeTime(date) {
+    if (!date) return '';
+    const now = new Date();
+    const diffSec = Math.floor((now - date) / 1000);
+    if (diffSec < 60) return 'Just now';
+    if (diffSec < 3600) return `${Math.max(1, Math.floor(diffSec / 60))}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
   function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
@@ -1019,8 +1063,6 @@
   // ========================================================
   // QUICK ASSET, STREAM & LOGS INSPECTOR LOGIC
   // ========================================================
-  let currentInspectorTab = 'videos';
-
   function formatBytes(bytes) {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
@@ -1056,7 +1098,86 @@
     return { icon: 'ti-history', bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', label: 'GENERAL' };
   }
 
+  function renderInspectorLogs() {
+    const logList = document.getElementById('inspectorLogList');
+    const logEmpty = document.getElementById('inspectorLogEmpty');
+    logList.innerHTML = '';
+
+    const filtered = currentLoadedInspectorLogs.filter(log => {
+      if (currentActiveLogFilter === 'all') return true;
+      const cat = (log.category || '').toLowerCase();
+      const act = (log.action_type || '').toLowerCase();
+      if (currentActiveLogFilter === 'auth') return cat === 'auth' || act.startsWith('auth') || act.includes('session');
+      if (currentActiveLogFilter === 'stream') return cat === 'stream' || act.startsWith('stream') || cat === 'rotation' || act.startsWith('rotation');
+      if (currentActiveLogFilter === 'media') return cat === 'media' || act.startsWith('media');
+      if (currentActiveLogFilter === 'admin') return cat === 'admin' || act.startsWith('user_');
+      return true;
+    });
+
+    if (filtered.length > 0) {
+      logEmpty.classList.add('hidden');
+      logList.classList.remove('hidden');
+      filtered.forEach(log => {
+        const style = getActionCategoryStyle(log.category, log.action_type);
+        const isByAdmin = log.performed_by && log.performed_by !== currentActiveEditUsername;
+        const parsedDate = parseDbDate(log.created_at);
+        const relTime = formatRelativeTime(parsedDate);
+        const fullTimeStr = parsedDate ? parsedDate.toLocaleString('en-GB', { timeZone: 'Asia/Jakarta', month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '';
+
+        const logItem = document.createElement('div');
+        logItem.className = 'bg-dark-900 border border-[#27272a] rounded-xl p-3.5 flex items-start gap-3 hover:border-gray-600 transition-colors';
+        logItem.innerHTML = `
+          <div class="w-8 h-8 rounded-lg ${style.bg} ${style.text} border ${style.border} flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
+            <i class="ti ${style.icon}"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${style.bg} ${style.text} border ${style.border}">
+                  ${style.label}
+                </span>
+                ${isByAdmin ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-semibold">By ${log.performed_by}</span>` : ''}
+              </div>
+              <span class="text-[11px] text-gray-400 font-mono flex-shrink-0" title="${fullTimeStr}">
+                ${relTime} <span class="text-gray-500 text-[10px]">(${fullTimeStr.split(' ')[3] || ''})</span>
+              </span>
+            </div>
+            <p class="text-xs text-gray-200 mt-1.5 font-medium leading-relaxed break-words">
+              ${log.description || log.action_type}
+            </p>
+            ${log.ip_address ? `
+              <div class="mt-1.5 flex items-center gap-1 text-[10px] text-gray-500 font-mono">
+                <i class="ti ti-map-pin text-[11px]"></i> IP: ${log.ip_address}
+              </div>
+            ` : ''}
+          </div>
+        `;
+        logList.appendChild(logItem);
+      });
+    } else {
+      logList.classList.add('hidden');
+      logEmpty.classList.remove('hidden');
+    }
+  }
+
+  function filterLogCategory(cat) {
+    currentActiveLogFilter = cat;
+    ['All', 'Auth', 'Stream', 'Media', 'Admin'].forEach(k => {
+      const btn = document.getElementById('logFilter' + k);
+      if (!btn) return;
+      if (k.toLowerCase() === cat.toLowerCase()) {
+        btn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-primary text-white transition-colors flex-shrink-0';
+      } else {
+        btn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-dark-800 text-gray-300 hover:text-white border border-[#27272a] transition-colors flex-shrink-0';
+      }
+    });
+    renderInspectorLogs();
+  }
+
   async function openInspectorModal(userId, username, role, avatar, defaultTab = 'videos') {
+    currentActiveEditUserId = userId;
+    currentActiveEditUsername = username;
+
     document.getElementById('inspectorUsername').innerText = username;
     document.getElementById('inspectorAvatar').src = avatar || '/images/default-avatar.jpg';
     
@@ -1094,6 +1215,10 @@
         document.getElementById('inspectorVideoCountBadge').innerText = (data.videos || []).length;
         document.getElementById('inspectorStreamCountBadge').innerText = (data.streams || []).length;
         document.getElementById('inspectorLogCountBadge').innerText = (data.logs || []).length;
+
+        // Cache logs and reset filter
+        currentLoadedInspectorLogs = data.logs || [];
+        currentActiveLogFilter = 'all';
 
         // Render Videos
         const videoGrid = document.getElementById('inspectorVideoGrid');
@@ -1174,51 +1299,8 @@
           streamEmpty.classList.remove('hidden');
         }
 
-        // Render Activity Logs
-        const logList = document.getElementById('inspectorLogList');
-        const logEmpty = document.getElementById('inspectorLogEmpty');
-        logList.innerHTML = '';
-
-        if (data.logs && data.logs.length > 0) {
-          logEmpty.classList.add('hidden');
-          logList.classList.remove('hidden');
-          data.logs.forEach(log => {
-            const style = getActionCategoryStyle(log.category, log.action_type);
-            const isByAdmin = log.performed_by && log.performed_by !== username;
-            const logItem = document.createElement('div');
-            logItem.className = 'bg-dark-900 border border-[#27272a] rounded-xl p-3.5 flex items-start gap-3 hover:border-gray-600 transition-colors';
-            logItem.innerHTML = `
-              <div class="w-8 h-8 rounded-lg ${style.bg} ${style.text} border ${style.border} flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
-                <i class="ti ${style.icon}"></i>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${style.bg} ${style.text} border ${style.border}">
-                      ${style.label}
-                    </span>
-                    ${isByAdmin ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-semibold">By ${log.performed_by}</span>` : ''}
-                  </div>
-                  <span class="text-[11px] text-gray-500 font-mono flex-shrink-0">
-                    ${log.created_at ? new Date(log.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
-                  </span>
-                </div>
-                <p class="text-xs text-gray-200 mt-1 font-medium leading-relaxed break-words">
-                  ${log.description || log.action_type}
-                </p>
-                ${log.ip_address ? `
-                  <div class="mt-1.5 flex items-center gap-1 text-[10px] text-gray-500 font-mono">
-                    <i class="ti ti-map-pin text-[11px]"></i> IP: ${log.ip_address}
-                  </div>
-                ` : ''}
-              </div>
-            `;
-            logList.appendChild(logItem);
-          });
-        } else {
-          logList.classList.add('hidden');
-          logEmpty.classList.remove('hidden');
-        }
+        // Render Logs initially
+        renderInspectorLogs();
 
         // Switch to requested tab
         switchInspectorTab(defaultTab);
@@ -1232,7 +1314,6 @@
   }
 
   function switchInspectorTab(tab) {
-    currentInspectorTab = tab;
     const tabVideos = document.getElementById('inspectorTabVideos');
     const tabStreams = document.getElementById('inspectorTabStreams');
     const tabLogs = document.getElementById('inspectorTabLogs');

@@ -1,19 +1,17 @@
 import requests
-from datetime import datetime
 
 s = requests.Session()
 login_res = s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin', 'password':'Jeruksunrise123'})
 print('1. LOGIN ADMIN:', login_res.status_code == 200)
 
-# Check Server Time endpoint
-time_res = s.get('http://192.168.18.2:7575/api/server-time')
-time_data = time_res.json()
-print('2. /api/server-time RESPONSE:', time_data)
+admin_id = 'bdb0aa84-e0ce-4c04-a0d0-7e44bc6eef35'
+insp_res = s.get(f'http://192.168.18.2:7575/api/users/{admin_id}/inspector')
+insp_data = insp_res.json()
+logs = insp_data.get('logs', [])
+print(f'2. ADMIN LOGS COUNT: {len(logs)}')
+if len(logs) > 0:
+    for i, l in enumerate(logs[:3]):
+        print(f"   [{i+1}] {l.get('category').upper()}: {l.get('description')} ({l.get('created_at')})")
 
-is_jakarta = time_data.get('timezone') == 'Asia/Jakarta'
-is_wib_offset = time_data.get('timezoneOffset') == -420
-print('3. TIMEZONE IS ASIA/JAKARTA:', is_jakarta)
-print('4. TIMEZONE OFFSET IS -420 (WIB UTC+7):', is_wib_offset)
-
-formatted_time = time_data.get('formattedTime', '')
-print(f'5. FORMATTED JAKARTA SERVER TIME: {formatted_time}')
+time_res = s.get('http://192.168.18.2:7575/api/server-time').json()
+print(f"3. SERVER TIME (WIB): {time_res.get('formattedTime')}")

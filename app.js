@@ -98,18 +98,29 @@ app.locals.helpers = {
   },
   formatDateTime: function (isoString) {
     if (!isoString) return '--';
-    
-    const utcDate = new Date(isoString);
-    
-    return utcDate.toLocaleString('en-US', {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    const dateStr = String(isoString).trim();
+    const utcDate = (dateStr.includes('Z') || dateStr.includes('+')) ? new Date(dateStr) : new Date(dateStr.replace(' ', 'T') + 'Z');
+    return utcDate.toLocaleString('en-GB', {
+      timeZone: 'Asia/Jakarta',
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
+      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
     });
+  },
+  formatRelativeTime: function (isoString) {
+    if (!isoString) return '--';
+    const dateStr = String(isoString).trim();
+    const d = (dateStr.includes('Z') || dateStr.includes('+')) ? new Date(dateStr) : new Date(dateStr.replace(' ', 'T') + 'Z');
+    const now = new Date();
+    const diffSec = Math.floor((now - d) / 1000);
+    if (diffSec < 60) return 'Just now';
+    if (diffSec < 3600) return `${Math.max(1, Math.floor(diffSec / 60))}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}d ago`;
+    return d.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', month: 'short', day: 'numeric', year: 'numeric' });
   },
   formatDuration: function (seconds) {
     if (!seconds) return '--';
