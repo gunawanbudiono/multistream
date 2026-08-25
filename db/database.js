@@ -144,6 +144,15 @@ function createTables() {
         FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
         FOREIGN KEY (audio_id) REFERENCES videos(id) ON DELETE CASCADE
       )`);
+
+      // Performance Compound Indexes for Ultra-Fast Gallery & Stream Lookups
+      db.run(`CREATE INDEX IF NOT EXISTS idx_videos_user_folder ON videos(user_id, folder_id);`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_videos_user_date ON videos(user_id, upload_date DESC);`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_videos_user_size ON videos(user_id, file_size);`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_media_folders_user ON media_folders(user_id);`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_playlist_videos ON playlist_videos(playlist_id);`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_playlist_audios ON playlist_audios(playlist_id);`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_streams_user_status ON streams(user_id, status);`);
       
       db.run(`ALTER TABLE users ADD COLUMN user_role TEXT DEFAULT 'admin'`, (err) => {
         if (err && !err.message.includes('duplicate column name')) {

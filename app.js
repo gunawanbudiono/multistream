@@ -2232,6 +2232,19 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
         let format = ext.replace('.', '') || 'mp4';
 
         await new Promise((resolve) => {
+          let isResolved = false;
+          const safeResolve = () => {
+            if (!isResolved) {
+              isResolved = true;
+              clearTimeout(timer);
+              resolve();
+            }
+          };
+          const timer = setTimeout(() => {
+            console.warn(`[FFprobe] Safety timeout reached for: ${file.filename}, using default metadata.`);
+            safeResolve();
+          }, 15000);
+
           ffmpeg.ffprobe(fullFilePath, (probeErr, metadata) => {
             let videoStream = null;
             if (!probeErr && metadata) {
@@ -2262,8 +2275,8 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
                 folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
                 size: thumbSize
               })
-              .on('end', () => resolve())
-              .on('error', () => resolve());
+              .on('end', safeResolve)
+              .on('error', safeResolve);
           });
         });
 
@@ -2748,6 +2761,31 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
     const title = path.parse(info.filename).name;
     const fullFilePath = result.fullPath;
     const videoData = await new Promise((resolve) => {
+      let isResolved = false;
+      const safeResolve = (data) => {
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timer);
+          resolve(data);
+        }
+      };
+      const timer = setTimeout(() => {
+        console.warn(`[FFprobe] Safety timeout reached for chunk complete: ${info.filename}, using default metadata.`);
+        safeResolve({
+          title,
+          filepath: result.filepath,
+          thumbnail_path: '/images/default-video-thumbnail.svg',
+          file_size: result.fileSize,
+          duration: 0,
+          format: path.extname(result.filename).replace('.', '') || 'mp4',
+          resolution: '',
+          bitrate: null,
+          fps: null,
+          user_id: req.session.userId,
+          folder_id: info.folderId || null
+        });
+      }, 15000);
+
       ffmpeg.ffprobe(fullFilePath, (err, metadata) => {
         let duration = 0;
         let format = path.extname(result.filename).replace('.', '') || '';
@@ -2782,7 +2820,7 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
         const isAudioOnly = ['.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac'].includes(ext) || (!videoStream && !resolution);
 
         if (isAudioOnly) {
-          return resolve({
+          return safeResolve({
             title,
             filepath: result.filepath,
             thumbnail_path: '/images/default-video-thumbnail.svg',
@@ -2810,7 +2848,7 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
             size: thumbSize
           })
           .on('end', () => {
-            resolve({
+            safeResolve({
               title,
               filepath: result.filepath,
               thumbnail_path: thumbnailPath,
@@ -2825,7 +2863,7 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
             });
           })
           .on('error', () => {
-            resolve({
+            safeResolve({
               title,
               filepath: result.filepath,
               thumbnail_path: '/images/default-video-thumbnail.svg',
