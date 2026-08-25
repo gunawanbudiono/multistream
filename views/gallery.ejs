@@ -257,12 +257,12 @@ function detectMediaType(item) {
                 metaLine = parts.join(' • ');
               } else if (mediaType === 'audio') {
                 const br = formatBitrate(video.bitrate);
-                metaLine = 'Audio • ' + ext + (br ? ' • ' + br : '');
+                metaLine = ext + (br ? ' • ' + br : '');
               } else if (mediaType === 'image') {
-                metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext + ' Image';
+                metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext;
               }
             %>
-            <p class="text-xs text-gray-400 font-mono truncate"><%= metaLine %></p>
+            <p class="text-xs text-gray-400 font-mono leading-snug break-words"><%= metaLine %></p>
           </div>
         </div>
         <div class="p-3 pt-0">
@@ -342,9 +342,9 @@ function detectMediaType(item) {
                 metaLine = parts.join(' • ');
               } else if (mediaType === 'audio') {
                 const br = formatBitrate(video.bitrate);
-                metaLine = 'Audio • ' + ext + (br ? ' • ' + br : '');
+                metaLine = ext + (br ? ' • ' + br : '');
               } else if (mediaType === 'image') {
-                metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext + ' Image';
+                metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext;
               }
             %>
             <tr class="gallery-list-item file-item-row group hover:bg-dark-700 transition-colors cursor-pointer"
@@ -3508,9 +3508,9 @@ document.addEventListener('DOMContentLoaded', function() {
       metaLine = parts.join(' • ');
     } else if (mediaType === 'audio') {
       const br = formatBitrate(video.bitrate);
-      metaLine = 'Audio • ' + ext + (br ? ' • ' + br : '');
+      metaLine = ext + (br ? ' • ' + br : '');
     } else if (mediaType === 'image') {
-      metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext + ' Image';
+      metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext;
     }
 
     return `
@@ -3530,7 +3530,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
           <div class="p-3 pb-2">
             <h3 class="font-medium text-sm truncate mb-1 text-white" title="${title}">${title}</h3>
-            <p class="text-xs text-gray-400 font-mono truncate">${metaLine}</p>
+            <p class="text-xs text-gray-400 font-mono leading-snug break-words">${metaLine}</p>
           </div>
         </div>
         <div class="p-3 pt-0">
@@ -3604,9 +3604,9 @@ document.addEventListener('DOMContentLoaded', function() {
       metaLine = parts.join(' • ');
     } else if (mediaType === 'audio') {
       const br = formatBitrate(video.bitrate);
-      metaLine = 'Audio • ' + ext + (br ? ' • ' + br : '');
+      metaLine = ext + (br ? ' • ' + br : '');
     } else if (mediaType === 'image') {
-      metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext + ' Image';
+      metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext;
     }
 
     return `
