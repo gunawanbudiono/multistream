@@ -29,35 +29,34 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const testClients = [
-    'android',
-    'android_vr',
-    'android_creator',
-    'tv',
-    'tv_embedded',
-    'web',
-    'web_creator',
-    'web_safari',
-    'web_embedded',
-    'mweb',
-    'ios'
+  // First, let's install yt-dlp-ytse inside python environment
+  await new Promise((resolve) => {
+    execFile('pip', ['install', '-U', 'yt-dlp-ytse'], (err, stdout, stderr) => {
+      console.log('PIP INSTALL YT-DLP-YTSE:', stdout || stderr || 'done');
+      resolve();
+    });
+  });
+
+  const testArgs = [
+    { name: 'formats=sabr with POT', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:formats=sabr'] },
+    { name: 'formats=sabr with Cookies + POT', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:formats=sabr'] },
+    { name: 'formats=sabr without POT', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtube:formats=sabr'] }
   ];
 
-  for (const c of testClients) {
+  for (const t of testArgs) {
     const args = [
       '-m', 'yt_dlp',
       '-F',
-      '--cookies', '/app/db/cookies.txt',
       '--remote-components', 'ejs:github',
-      '--extractor-args', `youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=${c}`,
+      ...t.args,
       'https://www.youtube.com/watch?v=5oiuYD5lPIA'
     ];
 
     await new Promise((resolve) => {
       execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-        console.log(`=== CLIENT: ${c} ===`);
+        console.log(`=== TEST: ${t.name} ===`);
         if (err) {
-          console.log('ERROR:', stderr.slice(0, 100) || err.message);
+          console.log('ERROR:', stderr.slice(0, 150) || err.message);
         } else {
           const lines = stdout.split('\n').filter(l => l.includes('mp4') || l.includes('webm') || l.includes('m4a'));
           console.log(lines.slice(0, 15).join('\n'));
