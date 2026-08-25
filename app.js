@@ -2884,12 +2884,18 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Accept-Ranges', 'bytes');
 
+    const isAudio = ext === '.mp3' || ext === '.wav' || ext === '.m4a' || ext === '.aac' || ext === '.flac' || ext === '.ogg';
     const isImage = ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp' || ext === '.gif';
 
     if (range && !isImage) {
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      
+      // YouTube-grade Segment Chunk Window (16MB for Video, 2MB for Audio)
+      const chunkWindow = isAudio ? (2 * 1024 * 1024) : (16 * 1024 * 1024);
+      let end = parts[1] ? parseInt(parts[1], 10) : (start + chunkWindow - 1);
+      if (end >= fileSize) end = fileSize - 1;
+      
       const chunkSize = (end - start) + 1;
       const fileStream = fs.createReadStream(videoPath, { start, end, highWaterMark: 256 * 1024 });
       
