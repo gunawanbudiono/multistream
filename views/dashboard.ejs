@@ -282,55 +282,34 @@
                 <div class="space-y-4">
                   <label class="text-sm font-medium text-white block">Stream Configuration</label>
                   <div class="space-y-3">
-                    <div class="relative">
-                      <input type="text" id="rtmpUrl" name="rtmpUrl"
-                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white"
-                        placeholder="RTMP URL" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" required>
-                      <i class="ti ti-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                      <button type="button" id="platformSelector"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-dark-600 transition-colors"
-                        aria-label="Select platform">
-                        <i class="ti ti-list-check text-gray-400 hover:text-primary"></i>
-                      </button>
-                      <div id="platformDropdown"
-                        class="hidden absolute z-10 right-0 mt-1 w-48 bg-dark-700 rounded-lg border border-gray-600 shadow-lg overflow-hidden">
-                        <div class="py-1">
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://a.rtmp.youtube.com/live2">
-                            <i class="ti ti-brand-youtube text-red-500 text-base mr-2"></i>
-                            <span class="text-sm">YouTube</span>
-                          </button>
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://live-api-s.facebook.com:443/rtmp">
-                            <i class="ti ti-brand-facebook text-blue-500 text-base mr-2"></i>
-                            <span class="text-sm">Facebook</span>
-                          </button>
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://ingest.global.live.prod.tiktok.com/live">
-                            <i class="ti ti-brand-tiktok text-black text-base mr-2"></i>
-                            <span class="text-sm">TikTok</span>
-                          </button>
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://live.shopee.co.id/live">
-                            <i class="ti ti-brand-shopee text-orange-500 text-base mr-2"></i>
-                            <span class="text-sm">Shopee Live</span>
-                          </button>
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://live.twitch.tv/live">
-                            <i class="ti ti-brand-twitch text-purple-500 text-base mr-2"></i>
-                            <span class="text-sm">Twitch</span>
-                          </button>
-                        </div>
+                    <!-- Platform Selector -->
+                    <div>
+                      <div class="relative">
+                        <select id="platformSelect" onchange="handlePlatformChange(this.value, 'new')"
+                          class="w-full pl-10 pr-10 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm appearance-none cursor-pointer">
+                          <option value="youtube">YouTube Live</option>
+                          <option value="tiktok">TikTok Live</option>
+                          <option value="facebook">Facebook Live</option>
+                          <option value="instagram">Instagram Live</option>
+                          <option value="custom">Custom RTMP</option>
+                        </select>
+                        <i class="ti ti-device-tv absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
                       </div>
                     </div>
+
+                    <!-- RTMP URL -->
+                    <div class="relative">
+                      <input type="text" id="rtmpUrl" name="rtmpUrl"
+                        class="w-full pl-10 pr-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm"
+                        placeholder="RTMP URL" value="rtmps://a.rtmp.youtube.com/live2" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" required>
+                      <i class="ti ti-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+
+                    <!-- Stream Key -->
                     <div class="relative">
                       <input type="password" id="streamKey" name="streamKey"
-                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white"
+                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm"
                         placeholder="Stream Key" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" required>
                       <i class="ti ti-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                       <button type="button" onclick="toggleStreamKeyVisibility()"
@@ -766,55 +745,34 @@
                 <div class="space-y-4">
                   <label class="text-sm font-medium text-white block mb-3">Stream Configuration</label>
                   <div class="space-y-3">
-                    <div class="relative">
-                      <input type="text" id="editRtmpUrl" name="rtmpUrl"
-                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white"
-                        placeholder="RTMP URL" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" required>
-                      <i class="ti ti-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                      <button type="button" id="editPlatformSelector"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-dark-600 transition-colors"
-                        aria-label="Select platform">
-                        <i class="ti ti-list-check text-gray-400 hover:text-primary"></i>
-                      </button>
-                      <div id="editPlatformDropdown"
-                        class="hidden absolute z-10 right-0 mt-1 w-48 bg-dark-700 rounded-lg border border-gray-600 shadow-lg overflow-hidden">
-                        <div class="py-1">
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://a.rtmp.youtube.com/live2">
-                            <i class="ti ti-brand-youtube text-red-500 text-base mr-2"></i>
-                            <span class="text-sm">YouTube</span>
-                          </button>
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://live-api-s.facebook.com:443/rtmp">
-                            <i class="ti ti-brand-facebook text-blue-500 text-base mr-2"></i>
-                            <span class="text-sm">Facebook</span>
-                          </button>
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://ingest.global.live.prod.tiktok.com/live">
-                            <i class="ti ti-brand-tiktok text-black text-base mr-2"></i>
-                            <span class="text-sm">TikTok</span>
-                          </button>
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://live.shopee.co.id/live">
-                            <i class="ti ti-brand-shopee text-orange-500 text-base mr-2"></i>
-                            <span class="text-sm">Shopee Live</span>
-                          </button>
-                          <button type="button"
-                            class="platform-option w-full flex items-center px-4 py-2 hover:bg-dark-600" 
-                            data-url="rtmps://live.twitch.tv/live">
-                            <i class="ti ti-brand-twitch text-purple-500 text-base mr-2"></i>
-                            <span class="text-sm">Twitch</span>
-                          </button>
-                        </div>
+                    <!-- Platform Selector -->
+                    <div>
+                      <div class="relative">
+                        <select id="editPlatformSelect" onchange="handlePlatformChange(this.value, 'edit')"
+                          class="w-full pl-10 pr-10 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm appearance-none cursor-pointer">
+                          <option value="youtube">YouTube Live</option>
+                          <option value="tiktok">TikTok Live</option>
+                          <option value="facebook">Facebook Live</option>
+                          <option value="instagram">Instagram Live</option>
+                          <option value="custom">Custom RTMP</option>
+                        </select>
+                        <i class="ti ti-device-tv absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
                       </div>
                     </div>
+
+                    <!-- RTMP URL -->
+                    <div class="relative">
+                      <input type="text" id="editRtmpUrl" name="rtmpUrl"
+                        class="w-full pl-10 pr-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm"
+                        placeholder="RTMP URL" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" required>
+                      <i class="ti ti-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+
+                    <!-- Stream Key -->
                     <div class="relative">
                       <input type="password" id="editStreamKey" name="streamKey"
-                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white"
+                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm"
                         placeholder="Stream Key" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" required>
                       <i class="ti ti-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                       <button type="button" onclick="toggleEditStreamKeyVisibility()"
@@ -3231,8 +3189,24 @@
         youtubeForm.classList.add('hidden');
         
         document.getElementById('editStreamTitle').value = stream.title;
-        document.getElementById('editRtmpUrl').value = stream.rtmp_url || '';
+        const currentRtmp = stream.rtmp_url || '';
+        document.getElementById('editRtmpUrl').value = currentRtmp;
         document.getElementById('editStreamKey').value = stream.stream_key || '';
+        
+        const editSelect = document.getElementById('editPlatformSelect');
+        if (editSelect) {
+          if (currentRtmp.includes('youtube.com')) {
+            editSelect.value = 'youtube';
+          } else if (currentRtmp.includes('tiktok') || currentRtmp.includes('tiktokcdn')) {
+            editSelect.value = 'tiktok';
+          } else if (currentRtmp.includes('facebook.com')) {
+            editSelect.value = 'facebook';
+          } else if (currentRtmp.includes('instagram.com')) {
+            editSelect.value = 'instagram';
+          } else {
+            editSelect.value = 'custom';
+          }
+        }
         
         const editStreamTitle = document.getElementById('editStreamTitle');
         const editRtmpUrl = document.getElementById('editRtmpUrl');

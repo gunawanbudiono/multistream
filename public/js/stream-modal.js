@@ -7,6 +7,26 @@ let isStreamKeyValid = true;
 let currentPlatform = 'Custom';
 let audioCodecWarningActive = false;
 
+const PLATFORM_URLS = {
+  youtube: 'rtmps://a.rtmp.youtube.com/live2',
+  tiktok: 'rtmps://ingest.global.live.prod.tiktok.com/live',
+  facebook: 'rtmps://live-api-s.facebook.com:443/rtmp',
+  instagram: 'rtmps://live-upload.instagram.com:443/rtmp',
+  custom: ''
+};
+
+function handlePlatformChange(platform, context = 'new') {
+  const urlInput = context === 'edit' ? document.getElementById('editRtmpUrl') : document.getElementById('rtmpUrl');
+  if (!urlInput) return;
+  if (platform === 'custom') {
+    urlInput.value = '';
+    urlInput.placeholder = 'rtmp://your-custom-server/live';
+    urlInput.focus();
+  } else if (PLATFORM_URLS[platform]) {
+    urlInput.value = PLATFORM_URLS[platform];
+  }
+}
+
 function openNewStreamModal() {
   const modal = document.getElementById('newStreamModal');
   document.body.style.overflow = 'hidden';
@@ -18,9 +38,13 @@ function openNewStreamModal() {
     const icon = advancedSettingsToggle.querySelector('i');
     if (icon) icon.style.transform = '';
   }
+  const platformSelect = document.getElementById('platformSelect');
+  if (platformSelect) {
+    platformSelect.value = 'youtube';
+  }
   const rtmpUrlEl = document.getElementById('rtmpUrl');
   const streamKeyEl = document.getElementById('streamKey');
-  if (rtmpUrlEl) rtmpUrlEl.value = '';
+  if (rtmpUrlEl) rtmpUrlEl.value = PLATFORM_URLS.youtube;
   if (streamKeyEl) streamKeyEl.value = '';
   requestAnimationFrame(() => { modal.classList.add('active'); });
   loadGalleryVideos();
