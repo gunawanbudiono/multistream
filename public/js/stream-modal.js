@@ -18,6 +18,10 @@ function openNewStreamModal() {
     const icon = advancedSettingsToggle.querySelector('i');
     if (icon) icon.style.transform = '';
   }
+  const rtmpUrlEl = document.getElementById('rtmpUrl');
+  const streamKeyEl = document.getElementById('streamKey');
+  if (rtmpUrlEl) rtmpUrlEl.value = '';
+  if (streamKeyEl) streamKeyEl.value = '';
   requestAnimationFrame(() => { modal.classList.add('active'); });
   loadGalleryVideos();
 }
