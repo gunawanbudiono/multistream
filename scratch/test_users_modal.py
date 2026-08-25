@@ -4,48 +4,43 @@ s = requests.Session()
 login_res = s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin', 'password':'Jeruksunrise123'})
 print('1. LOGIN ADMIN:', login_res.status_code == 200)
 
-# 2. Check normalized logo.svg
-logo_res = s.get('http://192.168.18.2:7575/images/logo.svg')
-print('2. LOGO.SVG NORMALIZED (viewBox="0 0 100 100"):', 'viewBox="0 0 100 100"' in logo_res.text)
-
-# 3. Check Create Modal consistent features in HTML
 r_users = s.get('http://192.168.18.2:7575/users')
-print('3. CREATE MODAL HAS AVATAR & EYE TOGGLE & STRENGTH METER:', 
-      'createUserAvatar' in r_users.text and 
-      'createPasswordToggleIcon' in r_users.text and 
-      'createPasswordStrengthContainer' in r_users.text and
-      'createOverviewProgressBar' in r_users.text)
 
-# 4. Test User Creation with disk_quota_gb persistence
+# 2. Check Last Login & Created column in HTML
+print('2. LAST LOGIN COLUMN PRESENT IN TABLE:', 'Last Login & Created' in r_users.text)
+
+# 3. Check Tab 3 Activity Logs in Inspector Modal
+print('3. TAB 3 ACTIVITY LOGS PRESENT IN INSPECTOR:', 'tabBtnLogs' in r_users.text and 'inspectorTabLogs' in r_users.text)
+
+# 4. Check Inspector endpoint returns logs for admin
+admin_id = 'bdb0aa84-e0ce-4c04-a0d0-7e44bc6eef35'
+insp_res = s.get(f'http://192.168.18.2:7575/api/users/{admin_id}/inspector')
+insp_data = insp_res.json()
+print('4. INSPECTOR RETURNS LOGS ARRAY:', 'logs' in insp_data and len(insp_data['logs']) > 0)
+if 'logs' in insp_data and len(insp_data['logs']) > 0:
+    latest_log = insp_data['logs'][0]
+    print(f"   -> Latest log: [{latest_log.get('action_type')}] {latest_log.get('description')} by {latest_log.get('performed_by')}")
+
+# 5. Create test user and verify USER_CREATE log
 create_res = s.post('http://192.168.18.2:7575/api/users/create', data={
-    'username': 'audit_test_75',
+    'username': 'log_test_user',
     'password': 'testpassword123',
     'role': 'member',
     'status': 'active',
-    'disk_quota_gb': '75'
+    'disk_quota_gb': '30'
 })
 create_data = create_res.json()
-print('4. USER CREATED SUCCESSFULLY:', create_data.get('success') == True)
-created_user_id = create_data.get('userId')
+test_user_id = create_data.get('userId')
+print('5. USER CREATED:', create_data.get('success') == True)
 
-if created_user_id:
-    # Verify inspector endpoint or users list shows 75 GB quota
-    insp_res = s.get(f'http://192.168.18.2:7575/api/users/{created_user_id}/inspector')
-    insp_data = insp_res.json()
-    print('   -> User inspected successfully:', insp_data.get('success'))
+if test_user_id:
+    user_insp = s.get(f'http://192.168.18.2:7575/api/users/{test_user_id}/inspector').json()
+    user_logs = user_insp.get('logs', [])
+    has_create_log = any(l.get('action_type') == 'USER_CREATE' for l in user_logs)
+    print('6. USER_CREATE ACTION LOGGED IN DB:', has_create_log)
+    if has_create_log:
+        print(f"   -> Log entry: {user_logs[0].get('description')}")
     
-    # Check users table page contains '75 GB'
-    r_after_create = s.get('http://192.168.18.2:7575/users')
-    print('5. DISK QUOTA (75 GB) PERSISTED IN DATABASE & RENDERED:', '/ 75 GB' in r_after_create.text)
-
-    # 6. Test duplicate username prevention on update
-    entertainment_id = '16425157-7975-4cbd-9368-2df8cb73a100'
-    dup_res = s.post('http://192.168.18.2:7575/api/users/update', data={
-        'userId': entertainment_id,
-        'username': 'ngadimin'  # Existing admin username
-    })
-    print('6. DUPLICATE USERNAME UPDATE BLOCKED (400):', dup_res.status_code == 400)
-
-    # Clean up test user
-    del_res = s.post('http://192.168.18.2:7575/api/users/delete', json={'userId': created_user_id})
-    print('7. CLEANUP TEST USER (DELETED):', del_res.json().get('success') == True)
+    # Cleanup test user
+    del_res = s.post('http://192.168.18.2:7575/api/users/delete', json={'userId': test_user_id})
+    print('7. CLEANUP TEST USER:', del_res.json().get('success') == True)

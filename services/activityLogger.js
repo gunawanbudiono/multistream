@@ -24,13 +24,14 @@ function logActivity({ userId, performedBy, actionType, category = 'general', de
       `INSERT INTO user_activity_logs (id, user_id, performed_by, action_type, category, description, details, ip_address) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        id,
         userId,
         performedBy || userId || 'system',
         actionType || 'UNKNOWN',
-        category,
+        category || 'general',
         description || '',
         detailsStr,
-        ipAddress
+        ipAddress || null
       ],
       (err) => {
         if (err) {
