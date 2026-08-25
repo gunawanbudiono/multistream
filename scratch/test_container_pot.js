@@ -18,7 +18,7 @@ async function run() {
   const args = [
     '-m', 'yt_dlp',
     '--cookies', '/app/db/cookies.txt',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=web,web_creator,android',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=android,ios,web_safari',
     '--dump-single-json',
     '--no-warnings',
     '--skip-download',
