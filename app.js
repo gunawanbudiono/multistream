@@ -3623,15 +3623,15 @@ function normalizeNetscapeCookies(raw) {
     ''
   ];
 
-  for (let line of lines) {
-    line = line.trim();
+  for (let rawLine of lines) {
+    let line = rawLine.trim();
     if (!line) continue;
     if (line.startsWith('#') && !line.startsWith('#HttpOnly_')) continue;
 
     let isHttpOnly = false;
     if (line.startsWith('#HttpOnly_')) {
       isHttpOnly = true;
-      line = line.replace(/^#HttpOnly_/, '');
+      line = line.substring(10).trim();
     }
 
     // Split either by tab or multiple spaces
@@ -3657,12 +3657,12 @@ function normalizeNetscapeCookies(raw) {
       if (isNaN(expiry) || expiry <= 0) {
         expiry = Math.round(Date.now() / 1000) + 86400 * 365;
       }
-      const name = tokens[5].trim();
-      const value = tokens.slice(6).join(' ').trim();
+      const name = tokens[5].trim().replace(/[\t\r\n]/g, '');
+      const value = tokens.slice(6).join(' ').trim().replace(/[\t\r\n]/g, '');
 
       if (name && value) {
         const prefix = isHttpOnly ? '#HttpOnly_' : '';
-        out.push(`${prefix}${domain}\t${flag}\t${path}\t${secure}\t${expiry}\t${name}\t${value}`);
+        out.push([prefix + domain, flag, path, secure, String(expiry), name, value].join('\t'));
       }
     }
   }
