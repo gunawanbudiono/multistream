@@ -1865,8 +1865,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  function getDynamicChunkSize(fileSize) {
+    if (fileSize <= 300 * 1024 * 1024) {
+      return 10 * 1024 * 1024; // 10MB chunk for files <= 300MB
+    } else if (fileSize <= 2 * 1024 * 1024 * 1024) {
+      return 25 * 1024 * 1024; // 25MB chunk for files 300MB - 2GB
+    } else {
+      return 50 * 1024 * 1024; // 50MB chunk for files > 2GB (Strict Cloudflare 100MB compliance)
+    }
+  }
+
   async function uploadChunked(file, index, totalFiles) {
-    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const chunkSize = getDynamicChunkSize(file.size);
+    const totalChunks = Math.ceil(file.size / chunkSize);
     try {
       const init = await fetch('/api/videos/chunk/init', {
         method: 'POST',
@@ -1884,15 +1895,16 @@ document.addEventListener('DOMContentLoaded', function() {
       let uploaded = new Set(initData.uploadedChunks || []);
 
       const chunkProgress = new Map();
-      uploaded.forEach(c => chunkProgress.set(c, Math.min(CHUNK_SIZE, file.size - c * CHUNK_SIZE)));
+      uploaded.forEach(c => chunkProgress.set(c, Math.min(chunkSize, file.size - c * chunkSize)));
 
       const uploadChunkSingle = async (chunkIndex) => {
         if (uploaded.has(chunkIndex)) return;
-        const start = chunkIndex * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const start = chunkIndex * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
         const chunk = file.slice(start, end);
 
-        let retries = 3;
+        let retries = 4;
+        let backoffMs = 1000;
         while (retries > 0) {
           try {
             await new Promise((resolve, reject) => {
@@ -1930,7 +1942,9 @@ document.addEventListener('DOMContentLoaded', function() {
           } catch (err) {
             retries--;
             if (retries === 0) throw err;
-            await new Promise(r => setTimeout(r, 1000));
+            const jitter = Math.floor(Math.random() * 400);
+            await new Promise(r => setTimeout(r, backoffMs + jitter));
+            backoffMs *= 2;
           }
         }
       };
@@ -2001,13 +2015,58 @@ document.addEventListener('DOMContentLoaded', function() {
       if (uploadDropzone) uploadDropzone.classList.remove('border-primary', 'bg-primary/10');
       if (selectedFileInfo) selectedFileInfo.classList.remove('ring-2', 'ring-primary', 'bg-primary/5');
     });
-    target.addEventListener('drop', (e) => {
+    target.addEventListener('drop', async (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (uploadDropzone) uploadDropzone.classList.remove('border-primary', 'bg-primary/10');
       if (selectedFileInfo) selectedFileInfo.classList.remove('ring-2', 'ring-primary', 'bg-primary/5');
-      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        handleFilesSelected(Array.from(e.dataTransfer.files));
+      
+      const droppedFiles = [];
+      if (e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+        const items = Array.from(e.dataTransfer.items);
+        const readEntryRecursive = async (entry) => {
+          if (!entry) return;
+          if (entry.isFile) {
+            await new Promise(res => {
+              entry.file(f => {
+                if (f) droppedFiles.push(f);
+                res();
+              }, () => res());
+            });
+          } else if (entry.isDirectory) {
+            const dirReader = entry.createReader();
+            const readEntries = async () => {
+              return new Promise(res => {
+                dirReader.readEntries(async (entries) => {
+                  if (entries && entries.length > 0) {
+                    for (const ent of entries) {
+                      await readEntryRecursive(ent);
+                    }
+                    await readEntries();
+                  }
+                  res();
+                }, () => res());
+              });
+            };
+            await readEntries();
+          }
+        };
+
+        for (const item of items) {
+          const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+          if (entry) {
+            await readEntryRecursive(entry);
+          } else if (item.getAsFile) {
+            const f = item.getAsFile();
+            if (f) droppedFiles.push(f);
+          }
+        }
+      } else if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        droppedFiles.push(...Array.from(e.dataTransfer.files));
+      }
+
+      if (droppedFiles.length > 0) {
+        handleFilesSelected(droppedFiles);
       }
     });
   });

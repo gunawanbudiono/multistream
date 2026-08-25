@@ -140,12 +140,12 @@ async function mergeChunks(uploadId) {
   const random = Math.floor(Math.random() * 1000000);
   const finalFilename = `${basename}-${timestamp}-${random}${ext}`;
   const finalPath = path.join(VIDEOS_DIR, finalFilename);
-  const writeStream = fs.createWriteStream(finalPath, { flags: 'w', highWaterMark: 256 * 1024 });
+  const writeStream = fs.createWriteStream(finalPath, { flags: 'w', highWaterMark: 1024 * 1024 });
 
   for (let i = 0; i < info.totalChunks; i++) {
     const chunkPath = getChunkPath(uploadId, i);
     await new Promise((resolve, reject) => {
-      const readStream = fs.createReadStream(chunkPath, { highWaterMark: 256 * 1024 });
+      const readStream = fs.createReadStream(chunkPath, { highWaterMark: 1024 * 1024 });
       readStream.on('error', reject);
       readStream.on('end', async () => {
         try {
