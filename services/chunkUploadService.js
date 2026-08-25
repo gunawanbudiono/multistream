@@ -38,11 +38,15 @@ async function findExistingUpload(filename, fileSize, userId) {
 async function initUpload(filename, fileSize, totalChunks, userId, options = {}) {
   const existingUpload = await findExistingUpload(filename, fileSize, userId);
   if (existingUpload) {
-    existingUpload.folderId = options.folderId || existingUpload.folderId || null;
-    existingUpload.status = 'uploading';
-    existingUpload.lastActivity = Date.now();
-    await fs.writeJson(getInfoPath(existingUpload.uploadId), existingUpload);
-    return existingUpload;
+    if (existingUpload.totalChunks !== totalChunks) {
+      await cleanupUpload(existingUpload.uploadId);
+    } else {
+      existingUpload.folderId = options.folderId || existingUpload.folderId || null;
+      existingUpload.status = 'uploading';
+      existingUpload.lastActivity = Date.now();
+      await fs.writeFile(getInfoPath(existingUpload.uploadId), JSON.stringify(existingUpload));
+      return existingUpload;
+    }
   }
   const uploadId = generateFileHash(filename, fileSize, userId);
   const info = {
@@ -57,7 +61,7 @@ async function initUpload(filename, fileSize, totalChunks, userId, options = {})
     lastActivity: Date.now(),
     status: 'uploading'
   };
-  await fs.writeJson(getInfoPath(uploadId), info);
+  await fs.writeFile(getInfoPath(uploadId), JSON.stringify(info));
   return info;
 }
 
@@ -179,16 +183,20 @@ async function mergeChunks(uploadId) {
 }
 
 async function cleanupUpload(uploadId) {
-  const info = await getUploadInfo(uploadId);
-  if (info) {
-    for (let i = 0; i < info.totalChunks; i++) {
+  try {
+    const info = await getUploadInfo(uploadId);
+    const total = info ? info.totalChunks : 300;
+    for (let i = 0; i < total; i++) {
       const chunkPath = getChunkPath(uploadId, i);
       if (await fs.pathExists(chunkPath)) {
         await fs.remove(chunkPath);
       }
     }
-    await fs.remove(getInfoPath(uploadId));
-  }
+    const infoPath = getInfoPath(uploadId);
+    if (await fs.pathExists(infoPath)) {
+      await fs.remove(infoPath);
+    }
+  } catch (e) {}
 }
 
 async function cleanupOldUploads(maxAgeMs = 2 * 60 * 60 * 1000) {
