@@ -417,7 +417,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-xs font-medium text-gray-300 mb-1.5">Username</label>
-          <input type="text" id="editUsername" name="username" required autocomplete="off"
+          <input type="text" id="editUsername" name="username" required autocomplete="off" pattern="^[a-zA-Z0-9_-]{3,30}$"
             class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors">
         </div>
         <div>
@@ -547,58 +547,134 @@
 </div>
 
 <!-- ========================================== -->
-<!-- MODAL: CREATE USER -->
+<!-- MODAL: CREATE USER (HIGH FIDELITY CONSISTENT) -->
 <!-- ========================================== -->
 <div id="createModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
-  <div id="createModalContent" class="bg-[#18181b] border border-[#27272a] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-[#27272a]">
-      <h3 class="text-lg font-bold text-white flex items-center gap-2">
-        <i class="ti ti-user-plus text-blue-400"></i>
-        <span>Create New User</span>
-      </h3>
+  <div id="createModalContent" class="bg-[#18181b] border border-[#27272a] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200 flex flex-col max-h-[92vh]">
+    
+    <!-- Modal Header -->
+    <div class="flex items-start justify-between px-6 pt-5 pb-3 border-b border-[#27272a]/60 flex-shrink-0">
+      <div>
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="ti ti-user-plus text-blue-400"></i>
+          <span>Create New User</span>
+        </h3>
+        <p class="text-xs text-gray-400 mt-0.5">Add a new user account with custom disk quota and permissions</p>
+      </div>
       <button onclick="closeCreateModal()" class="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-dark-800">
         <i class="ti ti-x text-lg"></i>
       </button>
     </div>
 
-    <form id="createUserForm" autocomplete="off" class="p-6 space-y-4">
+    <!-- Modal Form Body (Scrollable & Consistent) -->
+    <form id="createUserForm" autocomplete="off" class="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+      
+      <!-- Profile Photo / Avatar Logo Section -->
+      <div>
+        <label class="block text-xs font-medium text-gray-300 mb-1.5">Profile Photo / Avatar Logo</label>
+        <div class="flex items-center gap-3 bg-dark-900 border border-[#27272a] rounded-xl p-2.5">
+          <div class="w-10 h-10 rounded-full overflow-hidden bg-dark-800 border border-[#27272a] flex-shrink-0">
+            <img id="createUserAvatar" src="/images/default-avatar.jpg" alt="Avatar" class="w-full h-full object-cover">
+          </div>
+          <label for="createAvatarInput" class="px-3 py-1.5 bg-primary hover:bg-blue-600 text-xs font-semibold text-white rounded-lg cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-sm flex-shrink-0">
+            Choose File
+          </label>
+          <span id="createAvatarFileName" class="text-xs text-gray-400 truncate flex-1">No file chosen</span>
+          <input type="file" id="createAvatarInput" name="avatar" accept="image/*" class="hidden">
+          
+          <!-- Reset to Default Avatar Button -->
+          <button type="button" id="resetCreateAvatarBtn" onclick="resetCreateAvatarToDefault()" 
+            class="p-2 text-gray-400 hover:text-rose-400 bg-dark-800 hover:bg-dark-700 border border-[#27272a] rounded-lg transition-colors flex-shrink-0" 
+            title="Reset to Default Avatar">
+            <i class="ti ti-trash text-sm"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Username & Role (Side by Side in 2 Columns) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Username</label>
-          <input type="text" id="createUsername" name="username" required placeholder="e.g. streaming_ops" autocomplete="off"
-            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
+          <label class="block text-xs font-medium text-gray-300 mb-1.5">Username</label>
+          <input type="text" id="createUsername" name="username" required placeholder="e.g. streaming_ops" autocomplete="off" pattern="^[a-zA-Z0-9_-]{3,30}$"
+            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors">
+          <p class="text-[10px] text-gray-500 mt-1">3-30 letters, numbers, or dashes (no spaces)</p>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Password</label>
+          <label class="block text-xs font-medium text-gray-300 mb-1.5">Role</label>
+          <div class="relative">
+            <select id="createRole" name="role"
+              class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white appearance-none focus:outline-none focus:border-primary pr-8 transition-colors">
+              <option value="member" selected>Member</option>
+              <option value="admin">Admin</option>
+            </select>
+            <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Password with Eye Toggle & Strength Meter -->
+      <div>
+        <label class="block text-xs font-medium text-gray-300 mb-1.5">Password</label>
+        <div class="relative">
           <input type="password" id="createPassword" name="password" required placeholder="Minimum 6 characters" autocomplete="new-password"
-            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
+            class="w-full bg-dark-900 border border-[#27272a] rounded-xl pl-3.5 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors">
+          <button type="button" onclick="togglePasswordVisibility('createPassword', 'createPasswordToggleIcon')" 
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1">
+            <i id="createPasswordToggleIcon" class="ti ti-eye-off text-base"></i>
+          </button>
+        </div>
+        <div id="createPasswordStrengthContainer" class="mt-2 hidden">
+          <div class="w-full bg-dark-950 rounded-full h-1.5 overflow-hidden">
+            <div id="createPasswordStrengthBar" class="h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p id="createPasswordStrengthText" class="text-[11px] font-semibold mt-1"></p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Role</label>
-          <select id="createRole" name="role"
-            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
-            <option value="member" selected>Member</option>
-            <option value="admin">Admin</option>
-          </select>
+      <!-- Server Storage Overview Card (Reactive Live Progress Bar) -->
+      <div class="bg-dark-900/70 border border-[#27272a] rounded-xl p-4 space-y-2.5">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-gray-300 font-semibold flex items-center gap-1.5">
+            <i class="ti ti-database text-blue-400"></i> Server Storage Overview
+          </span>
+          <span class="text-gray-400">
+            <strong class="text-emerald-400 font-bold"><%= globalStats ? globalStats.diskFree : '469.00 GB' %> Free</strong> / 489.61 GB Total
+          </span>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Disk Quota Limit (GB)</label>
-          <input type="number" id="createDiskQuotaGb" name="disk_quota_gb" min="0" placeholder="0 = Unlimited Pool" autocomplete="off"
-            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
+        <div class="w-full bg-dark-950 rounded-full h-2 overflow-hidden border border-gray-800">
+          <div id="createOverviewProgressBar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-300" style="width: 25%"></div>
+        </div>
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="text-gray-400">Allocated (All Users): <strong class="text-white font-semibold" id="createOverviewAllocated">0 GB</strong></span>
+          <span class="text-emerald-400 font-semibold" id="createOverviewUnallocated">Unallocated Pool: 469 GB Available</span>
         </div>
       </div>
 
-      <div class="pt-4 border-t border-[#27272a] flex items-center justify-end gap-3">
+      <!-- Disk Quota Limit (GB) with Live Reactive Calculation -->
+      <div>
+        <label class="block text-xs font-medium text-gray-300 mb-1.5">
+          Disk Quota Limit (GB) <span class="text-gray-500 font-normal">(e.g. 50 for 50 GB, 0 = Unlimited Pool)</span>
+        </label>
+        <div class="relative flex items-center">
+          <input type="number" id="createDiskQuotaGb" name="disk_quota_gb" min="0" placeholder="0" autocomplete="off"
+            class="w-full bg-dark-900 border border-[#27272a] rounded-xl pl-3.5 pr-14 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors">
+          <span class="absolute right-3 px-2 py-0.5 rounded bg-dark-800 text-xs font-semibold text-blue-400 border border-[#27272a]">GB</span>
+        </div>
+        <p class="text-[11px] text-emerald-400/90 mt-1.5 flex items-center gap-1">
+          <i class="ti ti-info-circle"></i> Quota limit setting in Gigabytes (GB)
+        </p>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-3 pb-1 flex items-center justify-end gap-3 flex-shrink-0 border-t border-[#27272a]">
         <button type="button" onclick="closeCreateModal()" 
-          class="px-4 py-2 text-sm text-gray-400 hover:text-white bg-dark-900 border border-[#27272a] rounded-xl transition-colors">
+          class="px-5 py-2.5 text-sm text-gray-300 hover:text-white bg-dark-900 border border-[#27272a] rounded-xl transition-colors">
           Cancel
         </button>
         <button type="submit" 
-          class="px-4 py-2 text-sm bg-primary hover:bg-blue-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-blue-500/20">
-          Create Account
+          class="px-5 py-2.5 text-sm bg-primary hover:bg-blue-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-blue-500/20 flex items-center gap-1.5">
+          <i class="ti ti-plus text-base"></i>
+          <span>Create Account</span>
         </button>
       </div>
     </form>
@@ -637,9 +713,11 @@
   let currentActiveEditStatus = 'active';
   let totalServerDiskGB = 489.61;
   let otherUsersAllocatedGB = 0;
+  let allExistingAllocatedGB = 0;
 
   // Pre-load all users quota data for dynamic calculation
   const allUsersData = <%- JSON.stringify((users || []).map(u => ({ id: u.id, quota: u.disk_quota_gb || 0 }))) %>;
+  allExistingAllocatedGB = allUsersData.reduce((sum, u) => sum + (Number(u.quota) || 0), 0);
 
   function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
@@ -705,12 +783,11 @@
     }
   }
 
-  // Real-time password strength meter
-  document.getElementById('editPassword').addEventListener('input', function() {
-    const val = this.value;
-    const container = document.getElementById('passwordStrengthContainer');
-    const bar = document.getElementById('passwordStrengthBar');
-    const text = document.getElementById('passwordStrengthText');
+  // Password strength meter calculator
+  function evaluatePasswordStrength(val, containerId, barId, textId) {
+    const container = document.getElementById(containerId);
+    const bar = document.getElementById(barId);
+    const text = document.getElementById(textId);
 
     if (!val) {
       container.classList.add('hidden');
@@ -740,9 +817,19 @@
       text.innerText = 'Password Strength: Strong';
       text.className = 'text-[11px] font-semibold mt-1 text-emerald-400';
     }
+  }
+
+  // Real-time password strength meter for Edit Modal
+  document.getElementById('editPassword').addEventListener('input', function() {
+    evaluatePasswordStrength(this.value, 'passwordStrengthContainer', 'passwordStrengthBar', 'passwordStrengthText');
   });
 
-  // Dynamic Live Storage Overview Calculation
+  // Real-time password strength meter for Create Modal
+  document.getElementById('createPassword').addEventListener('input', function() {
+    evaluatePasswordStrength(this.value, 'createPasswordStrengthContainer', 'createPasswordStrengthBar', 'createPasswordStrengthText');
+  });
+
+  // Dynamic Live Storage Overview Calculation for Edit Modal
   function updateStorageOverviewDynamic() {
     const quotaInput = document.getElementById('editDiskQuotaGb');
     const newTypedQuota = Math.max(0, parseInt(quotaInput.value) || 0);
@@ -758,11 +845,34 @@
   document.getElementById('editDiskQuotaGb').addEventListener('input', updateStorageOverviewDynamic);
   document.getElementById('editDiskQuotaGb').addEventListener('change', updateStorageOverviewDynamic);
 
+  // Dynamic Live Storage Overview Calculation for Create Modal
+  function updateCreateStorageOverviewDynamic() {
+    const quotaInput = document.getElementById('createDiskQuotaGb');
+    const newTypedQuota = Math.max(0, parseInt(quotaInput.value) || 0);
+    const totalAllocatedNow = allExistingAllocatedGB + newTypedQuota;
+    const percent = Math.min(100, Math.max(2, Math.round((totalAllocatedNow / totalServerDiskGB) * 100)));
+    const unallocatedPool = Math.max(0, (totalServerDiskGB - totalAllocatedNow)).toFixed(2);
+
+    document.getElementById('createOverviewAllocated').innerText = totalAllocatedNow + ' GB';
+    document.getElementById('createOverviewUnallocated').innerText = 'Unallocated Pool: ' + unallocatedPool + ' GB Available';
+    document.getElementById('createOverviewProgressBar').style.width = percent + '%';
+  }
+
+  document.getElementById('createDiskQuotaGb').addEventListener('input', updateCreateStorageOverviewDynamic);
+  document.getElementById('createDiskQuotaGb').addEventListener('change', updateCreateStorageOverviewDynamic);
+
   function resetAvatarToDefault() {
     document.getElementById('editUserAvatar').src = '/images/default-avatar.jpg';
     document.getElementById('editAvatarFileName').innerText = 'Reset to default avatar';
     document.getElementById('editAvatarInput').value = '';
     document.getElementById('resetAvatarInput').value = '1';
+    showToast('Photo reset to default avatar', 'info');
+  }
+
+  function resetCreateAvatarToDefault() {
+    document.getElementById('createUserAvatar').src = '/images/default-avatar.jpg';
+    document.getElementById('createAvatarFileName').innerText = 'No file chosen';
+    document.getElementById('createAvatarInput').value = '';
     showToast('Photo reset to default avatar', 'info');
   }
 
@@ -841,6 +951,34 @@
   function closeEditModal() {
     const modal = document.getElementById('editModal');
     const content = document.getElementById('editModalContent');
+    modal.classList.add('opacity-0');
+    content.classList.add('opacity-0', 'scale-95');
+    setTimeout(() => modal.classList.add('hidden'), 200);
+  }
+
+  function openCreateModal() {
+    document.getElementById('createUserForm').reset();
+    document.getElementById('createUserAvatar').src = '/images/default-avatar.jpg';
+    document.getElementById('createAvatarFileName').innerText = 'No file chosen';
+    document.getElementById('createAvatarInput').value = '';
+    document.getElementById('createPassword').type = 'password';
+    document.getElementById('createPasswordToggleIcon').className = 'ti ti-eye-off text-base text-gray-400';
+    document.getElementById('createPasswordStrengthContainer').classList.add('hidden');
+    
+    updateCreateStorageOverviewDynamic();
+
+    const modal = document.getElementById('createModal');
+    const content = document.getElementById('createModalContent');
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+      modal.classList.remove('opacity-0');
+      content.classList.remove('opacity-0', 'scale-95');
+    }, 10);
+  }
+
+  function closeCreateModal() {
+    const modal = document.getElementById('createModal');
+    const content = document.getElementById('createModalContent');
     modal.classList.add('opacity-0');
     content.classList.add('opacity-0', 'scale-95');
     setTimeout(() => modal.classList.add('hidden'), 200);
@@ -1025,25 +1163,6 @@
     setTimeout(() => modal.classList.add('hidden'), 200);
   }
 
-  function openCreateModal() {
-    document.getElementById('createUserForm').reset();
-    const modal = document.getElementById('createModal');
-    const content = document.getElementById('createModalContent');
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-      modal.classList.remove('opacity-0');
-      content.classList.remove('opacity-0', 'scale-95');
-    }, 10);
-  }
-
-  function closeCreateModal() {
-    const modal = document.getElementById('createModal');
-    const content = document.getElementById('createModalContent');
-    modal.classList.add('opacity-0');
-    content.classList.add('opacity-0', 'scale-95');
-    setTimeout(() => modal.classList.add('hidden'), 200);
-  }
-
   function impersonateUser(userId, username) {
     showConfirmModal(
       'Impersonate User',
@@ -1149,6 +1268,7 @@
     );
   }
 
+  // Edit Avatar selection preview
   document.getElementById('editAvatarInput').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
@@ -1160,6 +1280,18 @@
     }
   });
 
+  // Create Avatar selection preview
+  document.getElementById('createAvatarInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      document.getElementById('createAvatarFileName').innerText = file.name;
+      const reader = new FileReader();
+      reader.onload = (e) => document.getElementById('createUserAvatar').src = e.target.result;
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Edit User submit
   document.getElementById('editUserForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const formData = new FormData(this);
@@ -1178,6 +1310,7 @@
     }
   });
 
+  // Create User submit
   document.getElementById('createUserForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const formData = new FormData(this);

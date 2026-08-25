@@ -1,23 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<!-- Creator: CorelDRAW -->
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="12.7923mm" height="11.7711mm" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
-viewBox="0 0 4.26 3.92"
- xmlns:xlink="http://www.w3.org/1999/xlink"
- xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
- <defs>
-  <style type="text/css">
-   <![CDATA[
-    .fil0 {fill:url(#id0)}
-   ]]>
-  </style>
-  <linearGradient id="id0" gradientUnits="userSpaceOnUse" x1="3.18" y1="3.78" x2="1.85" y2="0.15">
-   <stop offset="0" style="stop-opacity:1; stop-color:#0048FF"/>
-   <stop offset="1" style="stop-opacity:1; stop-color:#6BB0FF"/>
-  </linearGradient>
- </defs>
- <g id="Layer_x0020_1">
-  <metadata id="CorelCorpID_0Corel-Layer"/>
-  <path class="fil0" d="M1.18 3.92l-0.2 0 -0.2 0 -0.59 0c-0.1,0 -0.18,-0.09 -0.18,-0.19l0 -0.68c0,-0.11 0.08,-0.19 0.18,-0.19l0.59 0 0.2 0 1.16 0c0,-0.59 0.43,-1.06 0.96,-1.06l0.09 0 0 -0 0.88 0c0.1,0 0.18,0.09 0.18,0.19l0 0.68c0,0.11 -0.08,0.19 -0.18,0.19l-0.02 0 -0.04 0 -0.04 0 -0.04 0 -1.8 0c0,0.59 -0.43,1.06 -0.96,1.06zm2.1 -3.92l0.79 0c0.1,0 0.18,0.09 0.18,0.19l0 0.68c0,0.11 -0.08,0.19 -0.18,0.19l-0.02 0 -0.04 0 -0.04 0 -0.04 0 -1.8 0c0,0.59 -0.43,1.06 -0.96,1.06l-0.2 0 -0.2 0 -0.59 0c-0.1,0 -0.18,-0.09 -0.18,-0.19l0 -0.68c0,-0.11 0.08,-0.19 0.18,-0.19l0.59 0 0.2 0 1.16 0c0,-0.59 0.43,-1.06 0.96,-1.06l0.09 0 0.09 0zm0 2.86l0.11 0 0.1 0 0.09 0 0.09 0 0.08 0 0.07 0 0.07 0 0.06 0 0.05 0 0.05 0 0.02 0m-0.79 -1.8l0.11 0 0.1 0 0.09 0 0.09 0 0.08 0 0.07 0 0.07 0 0.06 0 0.05 0 0.05 0 0.02 0"/>
- </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="streamflowGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0048FF"/>
+      <stop offset="100%" stop-color="#6BB0FF"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#streamflowGradient)">
+    <!-- Top Stream Wave Ribbon -->
+    <path d="M 75 5 L 94 5 C 96.5 5 98.5 7 98.5 9.5 L 98.5 26.5 C 98.5 29 96.5 31 94 31 L 52 31 C 52 45 42 56 28 56 L 14 56 C 11.5 56 9.5 54 9.5 51.5 L 9.5 34.5 C 9.5 32 11.5 30 14 30 L 42 30 C 42 16 52 5 66 5 Z"/>
+    <!-- Bottom Stream Wave Ribbon -->
+    <path d="M 25 95 L 6 95 C 3.5 95 1.5 93 1.5 90.5 L 1.5 73.5 C 1.5 71 3.5 69 6 69 L 48 69 C 48 55 58 44 72 44 L 86 44 C 88.5 44 90.5 46 90.5 48.5 L 90.5 65.5 C 90.5 68 88.5 70 86 70 L 58 70 C 58 84 48 95 34 95 Z"/>
+  </g>
 </svg>

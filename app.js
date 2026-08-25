@@ -1452,6 +1452,24 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
       });
     }
 
+    // Check username collision if username is changed
+    if (username && username !== user.username) {
+      const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/;
+      if (!usernameRegex.test(username)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username must be 3-30 alphanumeric characters, underscores, or dashes with no spaces.'
+        });
+      }
+      const existing = await User.findByUsername(username);
+      if (existing && existing.id !== userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username already taken by another user'
+        });
+      }
+    }
+
     // Safeguard: Prevent admin from locking out or demoting own account
     if (userId == req.session.userId) {
       if (role && role !== 'admin') {
@@ -1489,6 +1507,12 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
     };
 
     if (password && password.trim() !== '') {
+      if (password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters'
+        });
+      }
       const bcrypt = require('bcrypt');
       updateData.password = await bcrypt.hash(password, 10);
     }
@@ -1519,6 +1543,21 @@ app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res)
       });
     }
 
+    const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username must be 3-30 alphanumeric characters, underscores, or dashes with no spaces.'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
     const existingUser = await User.findByUsername(username);
     if (existingUser) {
       return res.status(400).json({
@@ -1535,11 +1574,11 @@ app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res)
     const userData = {
       username: username,
       password: password,
-      user_role: role || 'admin',
+      user_role: role || 'member',
       status: status || 'active',
       avatar_path: avatarPath,
-      disk_limit: diskLimit ? parseInt(diskLimit) : 0,
-      disk_quota_gb: disk_quota_gb ? parseInt(disk_quota_gb) : 0
+      disk_limit: diskLimit ? Math.max(0, parseInt(diskLimit, 10) || 0) : 0,
+      disk_quota_gb: disk_quota_gb ? Math.max(0, parseInt(disk_quota_gb, 10) || 0) : 0
     };
 
     const result = await User.create(userData);

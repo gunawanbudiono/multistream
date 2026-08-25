@@ -39,15 +39,31 @@ class User {
       const userId = uuidv4();
       return new Promise((resolve, reject) => {
         db.run(
-          'INSERT INTO users (id, username, password, avatar_path, user_role, status, disk_limit) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [userId, userData.username, hashedPassword, userData.avatar_path || null, userData.user_role || 'admin', userData.status || 'active', userData.disk_limit || 0],
+          'INSERT INTO users (id, username, password, avatar_path, user_role, status, disk_limit, disk_quota_gb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            userId, 
+            userData.username, 
+            hashedPassword, 
+            userData.avatar_path || null, 
+            userData.user_role || 'member', 
+            userData.status || 'active', 
+            userData.disk_limit || 0,
+            userData.disk_quota_gb || 0
+          ],
           function (err) {
             if (err) {
               console.error("DB error during user creation:", err);
               return reject(err);
             }
             console.log("User created successfully with ID:", userId);
-            resolve({ id: userId, username: userData.username, user_role: userData.user_role || 'admin', status: userData.status || 'active', disk_limit: userData.disk_limit || 0 });
+            resolve({ 
+              id: userId, 
+              username: userData.username, 
+              user_role: userData.user_role || 'member', 
+              status: userData.status || 'active', 
+              disk_limit: userData.disk_limit || 0,
+              disk_quota_gb: userData.disk_quota_gb || 0
+            });
           }
         );
       });
