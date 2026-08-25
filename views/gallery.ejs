@@ -997,14 +997,20 @@ function openCloudModal(provider) {
   document.body.classList.add('overflow-hidden');
   
   document.getElementById('cloudImportForm').addEventListener('submit', (e) => handleCloudImport(e, provider));
-}
+let activeCloudPollInterval = null;
 
 function closeCloudModal() {
+  if (activeCloudPollInterval) {
+    clearInterval(activeCloudPollInterval);
+    activeCloudPollInterval = null;
+  }
   document.getElementById('cloudImportModal').classList.add('hidden');
   document.body.classList.remove('overflow-hidden');
 }
 
 document.getElementById('closeCloudBtn')?.addEventListener('click', closeCloudModal);
+const cloudModalEl = document.getElementById('cloudImportModal');
+if (cloudModalEl) makeModalDismissible(cloudModalEl, closeCloudModal);
 
 async function handleCloudImport(e, provider) {
   e.preventDefault();
@@ -1043,7 +1049,8 @@ async function handleCloudImport(e, provider) {
     if (!data.success) throw new Error(data.error || 'Import failed to start');
     
     const jobId = data.jobId;
-    const pollInterval = setInterval(async () => {
+    if (activeCloudPollInterval) clearInterval(activeCloudPollInterval);
+    activeCloudPollInterval = setInterval(async () => {
       try {
         const pollRes = await fetch(`/api/videos/import-status/${jobId}`);
         const pollData = await pollRes.json();
@@ -1053,17 +1060,20 @@ async function handleCloudImport(e, provider) {
           progressBar.style.width = `${pollData.progress || 0}%`;
           progressPct.textContent = `${pollData.progress || 0}%`;
         } else if (pollData.status === 'completed') {
-          clearInterval(pollInterval);
+          clearInterval(activeCloudPollInterval);
+          activeCloudPollInterval = null;
           showToast('success', 'File imported successfully');
           closeCloudModal();
           await window.refreshGalleryData?.();
           loadDiskUsage();
         } else if (pollData.status === 'failed') {
-          clearInterval(pollInterval);
+          clearInterval(activeCloudPollInterval);
+          activeCloudPollInterval = null;
           throw new Error(pollData.message || 'Import failed');
         }
       } catch (err) {
-        clearInterval(pollInterval);
+        clearInterval(activeCloudPollInterval);
+        activeCloudPollInterval = null;
         showToast('error', err.message);
         submitBtn.disabled = false;
       }
@@ -1109,6 +1119,12 @@ function showRenameDialog(id, currentTitle) {
   makeModalDismissible(modal, close);
   document.getElementById('cancelRenameBtn').onclick = close;
   const confirmBtn = document.getElementById('confirmRenameBtn');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmBtn.click();
+    }
+  });
   confirmBtn.onclick = async () => {
     const title = input.value.trim();
     if (!title) return;
@@ -1203,6 +1219,12 @@ function openCreateFolderDialog() {
   makeModalDismissible(modal, close);
   document.getElementById('cancelFolderBtn').onclick = close;
   const confirmBtn = document.getElementById('confirmFolderBtn');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmBtn.click();
+    }
+  });
   confirmBtn.onclick = async () => {
     const name = input.value.trim();
     if (!name) return;
@@ -1253,6 +1275,12 @@ function showRenameFolderDialog(id, currentName) {
   makeModalDismissible(modal, close);
   document.getElementById('cancelRenameFolderBtn').onclick = close;
   const confirmBtn = document.getElementById('confirmRenameFolderBtn');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmBtn.click();
+    }
+  });
   confirmBtn.onclick = async () => {
     const name = input.value.trim();
     if (!name) return;
@@ -2876,6 +2904,28 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+
+  window.addEventListener('beforeunload', (e) => {
+    if (isUploadInProgress) {
+      e.preventDefault();
+      e.returnValue = 'Upload is currently in progress. Leaving will cancel the transfer.';
+      return e.returnValue;
+    }
+  });
+
+  window.addEventListener('offline', () => {
+    if (isUploadInProgress) {
+      showToast('warning', 'Network connection lost. Upload paused until reconnected.');
+      const floatSub = document.getElementById('floatingUploadSubtitle');
+      if (floatSub) floatSub.innerHTML = '<span class="text-amber-400 font-semibold">⚠️ Offline - Waiting for connection...</span>';
+    }
+  });
+
+  window.addEventListener('online', () => {
+    if (isUploadInProgress) {
+      showToast('success', 'Network connection restored. Upload resuming...');
+    }
+  });
 });
 </script>
 
