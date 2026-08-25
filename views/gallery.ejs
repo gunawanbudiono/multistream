@@ -1277,16 +1277,16 @@ async function inspectMediaFile(file) {
         if (parsedFps) {
           meta.fps = parsedFps;
           meta.fpsLabel = `${parsedFps} FPS`;
-          meta.keyframeLabel = `2s Keyframe (${parsedFps * 2}f)`;
+          meta.keyframeLabel = '2s Keyframe';
         } else {
           meta.fps = 30;
           meta.fpsLabel = '30 FPS';
-          meta.keyframeLabel = '2s Keyframe (60f)';
+          meta.keyframeLabel = '2s Keyframe';
         }
       } catch (e) {
         meta.fps = 30;
         meta.fpsLabel = '30 FPS';
-        meta.keyframeLabel = '2s Keyframe (60f)';
+        meta.keyframeLabel = '2s Keyframe';
       }
 
     } catch (e) {}
