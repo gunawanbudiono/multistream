@@ -443,7 +443,7 @@ function getJobStatus(jobId) {
  */
 async function verifyCookie(cookieFilePath) {
   const runner = getYtDlpRunner();
-  const testUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+  const testUrl = 'https://www.youtube.com/watch?v=n7X2cbKzh-Q';
   return new Promise((resolve, reject) => {
     const args = [
       ...runner.prefixArgs,
