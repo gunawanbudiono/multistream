@@ -16,13 +16,7 @@ async function run() {
   console.log('2. PING 172.18.0.1:4416:', await checkPing('http://172.18.0.1:4416/ping'));
 
   const args = [
-    '-m', 'yt_dlp',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;disable_innertube=1',
-    '--extractor-args', 'youtube:player_client=web',
-    '--dump-single-json',
-    '--no-warnings',
-    '--skip-download',
-    'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
+    '-c', 'import yt_dlp_plugins; print("PLUGINS:", dir(yt_dlp_plugins)); import yt_dlp; print("YT_DLP VERSION:", yt_dlp.version.__version__)'
   ];
 
   await new Promise((resolve) => {
