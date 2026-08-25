@@ -29,6 +29,14 @@ function formatDuration(sec) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0 || isNaN(bytes)) return '';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 function sanitizeFilename(title) {
   return (title || 'youtube-video')
     .replace(/[^a-z0-9]/gi, '-')
@@ -112,6 +120,7 @@ async function inspectVideo(rawUrl) {
         const formats = info.formats || [];
         const resolutionMap = new Map();
 
+        const duration = info.duration || 0;
         const labels = {
           2160: '4K Ultra HD (2160p)',
           1440: '2K Quad HD (1440p)',
@@ -123,15 +132,38 @@ async function inspectVideo(rawUrl) {
           144: 'Low (144p)'
         };
 
+        // Determine best audio stream size
+        let bestAudioSize = 0;
+        const audioFormats = formats.filter(f => !f.vcodec || f.vcodec === 'none');
+        if (audioFormats.length > 0) {
+          const sortedAudio = audioFormats.sort((a, b) => (b.tbr || b.abr || 0) - (a.tbr || a.abr || 0));
+          const bestA = sortedAudio[0];
+          bestAudioSize = bestA.filesize || bestA.filesize_approx || (duration > 0 && (bestA.abr || bestA.tbr || 128) ? Math.round(((bestA.abr || bestA.tbr || 128) * 1000 / 8) * duration) : 0);
+        } else if (duration > 0) {
+          bestAudioSize = Math.round((128000 / 8) * duration);
+        }
+
         formats.forEach(f => {
           if (f.height && f.vcodec && f.vcodec !== 'none') {
             const h = f.height;
             const fps = f.fps ? `${f.fps}fps` : '';
-            const label = labels[h] || `${h}p ${fps}`.trim();
+            const baseLabel = labels[h] || `${h}p ${fps}`.trim();
+            const labelText = (f.fps && f.fps > 30) ? `${baseLabel} 60fps` : baseLabel;
+
+            let videoSize = f.filesize || f.filesize_approx || 0;
+            if (!videoSize && duration > 0 && (f.tbr || f.vbr)) {
+              videoSize = Math.round(((f.vbr || f.tbr) * 1000 / 8) * duration);
+            }
+            const totalBytes = videoSize > 0 ? (videoSize + (f.acodec && f.acodec !== 'none' ? 0 : bestAudioSize)) : 0;
+            const sizeStr = totalBytes > 0 ? formatBytes(totalBytes) : '';
+
             if (!resolutionMap.has(h)) {
               resolutionMap.set(h, {
                 height: h,
-                label: (f.fps && f.fps > 30) ? `${label} 60fps` : label,
+                label: sizeStr ? `${labelText} • ~${sizeStr}` : labelText,
+                rawLabel: labelText,
+                filesize: totalBytes,
+                filesizeFormatted: sizeStr ? `~${sizeStr}` : '',
                 ext: 'mp4',
                 type: 'video'
               });
@@ -143,9 +175,13 @@ async function inspectVideo(rawUrl) {
           .sort((a, b) => b.height - a.height);
 
         // Always provide Audio Only option
+        const audioSizeStr = bestAudioSize > 0 ? formatBytes(bestAudioSize) : '';
         sortedResolutions.push({
           height: 'audio',
-          label: 'Audio Only (MP3 Best Quality)',
+          label: audioSizeStr ? `Audio Only (MP3 Best Quality) • ~${audioSizeStr}` : 'Audio Only (MP3 Best Quality)',
+          rawLabel: 'Audio Only (MP3 Best Quality)',
+          filesize: bestAudioSize,
+          filesizeFormatted: audioSizeStr ? `~${audioSizeStr}` : '',
           ext: 'mp3',
           type: 'audio'
         });

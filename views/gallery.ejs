@@ -1661,6 +1661,14 @@ async function handleScanYouTubeUrl() {
   }
 }
 
+function formatClientBytes(bytes) {
+  if (!bytes || bytes <= 0 || isNaN(bytes)) return '';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 function renderYtQueue() {
   const queueCount = document.getElementById('ytQueueCount');
   const emptyState = document.getElementById('ytQueueEmpty');
@@ -1680,7 +1688,16 @@ function renderYtQueue() {
 
   emptyState?.classList.add('hidden');
   if (submitBtn) submitBtn.disabled = (ytActiveJobId !== null);
-  if (submitText) submitText.textContent = `Start Download (${ytDownloadQueue.length})`;
+
+  // Calculate total batch size from all selected resolutions
+  let totalBatchBytes = 0;
+  ytDownloadQueue.forEach(item => {
+    const res = (item.resolutions || []).find(r => String(r.height) === String(item.selectedResolution));
+    if (res && res.filesize) totalBatchBytes += res.filesize;
+  });
+  const batchSizeStr = totalBatchBytes > 0 ? ` • ~${formatClientBytes(totalBatchBytes)}` : '';
+  const countLabel = ytDownloadQueue.length === 1 ? '1 item' : `${ytDownloadQueue.length} items`;
+  if (submitText) submitText.textContent = `Start Download (${countLabel}${batchSizeStr})`;
 
   if (cardsContainer) {
     cardsContainer.innerHTML = ytDownloadQueue.map((item, idx) => {
@@ -1703,7 +1720,7 @@ function renderYtQueue() {
             </div>
             <div class="flex items-center gap-2">
               <label class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Quality:</label>
-              <select onchange="updateYtQueueResolution(${idx}, this.value)" class="bg-dark-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-red-500 transition-colors">
+              <select onchange="updateYtQueueResolution(${idx}, this.value)" class="bg-dark-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-red-500 transition-colors max-w-[240px] truncate">
                 ${resOptionsHtml}
               </select>
             </div>
@@ -1720,6 +1737,7 @@ function renderYtQueue() {
 function updateYtQueueResolution(index, value) {
   if (ytDownloadQueue[index]) {
     ytDownloadQueue[index].selectedResolution = value;
+    renderYtQueue();
   }
 }
 
