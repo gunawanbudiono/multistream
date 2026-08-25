@@ -5,16 +5,13 @@ s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin', 'password'
 r = s.get('http://192.168.18.2:7575/users')
 
 print('1. USERS PAGE 200:', r.status_code == 200)
-# Check table action button order: Detail before Impersonate
-idx_detail = r.text.find('<span>Detail</span>')
-idx_impersonate = r.text.find('<span>Impersonate</span>')
-print('2. DETAIL COMES BEFORE IMPERSONATE:', idx_detail < idx_impersonate)
 
-# Check GB formatting
-print('3. STORAGE IN GB (NO "0 B"):', '0 B' not in r.text and '0 GB' in r.text)
+# Card 1 verification
+print('2. CARD 1 (ACCOUNTS REGISTERED):', 'Accounts Registered' in r.text and 'Member Accounts' in r.text)
 
-# Check Reset Avatar button
-print('4. RESET AVATAR BUTTON PRESENT:', 'resetAvatarBtn' in r.text)
+# Card 2 verification
+print('3. CARD 2 (GLOBAL STORAGE POOL):', 'Global Storage Pool' in r.text and 'GB Available' in r.text and 'Media Files' in r.text and 'Physical Free' in r.text)
 
-# Check Anti-Autofill attributes
-print('5. ANTI-AUTOFILL PRESENT:', 'autocomplete="new-password"' in r.text)
+# Card 3 verification
+print('4. CARD 3 (CHANNELS CONFIGURED):', 'Channels Configured' in r.text and 'Multi-Channel RTMP' in r.text)
+print('5. BROADCASTER V2.2 EXCLUDED:', 'Broadcaster v2.2' not in r.text)

@@ -1560,6 +1560,32 @@ app.get('/api/users/:id/streams', isAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/users/:id/inspector', isAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const targetUser = await User.findById(userId);
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const videos = await Video.findAll(userId);
+    const streams = await Stream.findAll(userId);
+    res.json({
+      success: true,
+      user: {
+        id: targetUser.id,
+        username: targetUser.username,
+        user_role: targetUser.user_role,
+        avatar_path: targetUser.avatar_path
+      },
+      videos: videos || [],
+      streams: streams || []
+    });
+  } catch (error) {
+    console.error('Inspector error:', error);
+    res.status(500).json({ success: false, message: 'Failed to inspect user assets' });
+  }
+});
+
 app.get('/api/user/disk-usage', isAuthenticated, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);

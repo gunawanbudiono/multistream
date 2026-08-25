@@ -201,7 +201,7 @@
                 <% } %>
               </td>
 
-              <!-- Storage & Quota (Consistent GB units) -->
+              <!-- Storage & Quota (With Quick Peek Trigger) -->
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex flex-col gap-1 w-44">
                   <div class="flex items-center justify-between text-xs">
@@ -219,14 +219,22 @@
                       <div class="bg-blue-500 h-1.5 rounded-full" style="width: <%= Math.min(100, user.quotaPercent || 0) %>%"></div>
                     </div>
                   <% } %>
-                  <span class="text-[11px] text-gray-400"><%= user.videoCount || 0 %> videos uploaded</span>
+                  <button onclick="openInspectorModal('<%= user.id %>', '<%= user.username %>', '<%= user.user_role %>', '<%= user.avatar_path || '' %>', 'videos')" 
+                    class="text-[11px] text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 transition-colors text-left group">
+                    <i class="ti ti-eye text-xs group-hover:scale-110 transition-transform"></i>
+                    <span><%= user.videoCount || 0 %> videos uploaded</span>
+                  </button>
                 </div>
               </td>
 
-              <!-- Streams -->
+              <!-- Streams (With Quick Peek Trigger) -->
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex flex-col text-xs gap-1">
-                  <span class="text-white font-medium"><%= user.streamCount || 0 %> Total Streams</span>
+                  <button onclick="openInspectorModal('<%= user.id %>', '<%= user.username %>', '<%= user.user_role %>', '<%= user.avatar_path || '' %>', 'streams')" 
+                    class="text-white font-medium hover:text-blue-400 flex items-center gap-1.5 transition-colors text-left group">
+                    <span><%= user.streamCount || 0 %> Total Streams</span>
+                    <i class="ti ti-eye text-xs text-gray-500 group-hover:text-blue-400 transition-colors"></i>
+                  </button>
                   <% if (user.activeStreamCount > 0) { %>
                     <span class="text-emerald-400 flex items-center gap-1 font-semibold">
                       <i class="ti ti-circle-filled text-[8px] animate-pulse"></i> <%= user.activeStreamCount %> Online Now
@@ -277,6 +285,90 @@
         <% } %>
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: USER ASSETS & STREAM INSPECTOR -->
+<!-- ========================================== -->
+<div id="inspectorModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+  <div id="inspectorModalContent" class="bg-[#18181b] border border-[#27272a] rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200 flex flex-col max-h-[90vh]">
+    
+    <!-- Modal Header -->
+    <div class="px-6 pt-5 pb-4 border-b border-[#27272a]/70 flex-shrink-0 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl overflow-hidden bg-dark-900 border border-[#27272a] flex-shrink-0">
+          <img id="inspectorAvatar" src="/images/default-avatar.jpg" alt="Avatar" class="w-full h-full object-cover">
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 id="inspectorUsername" class="text-base font-bold text-white">--</h3>
+            <span id="inspectorRoleBadge" class="text-[10px] px-2 py-0.5 rounded-md font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">--</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-0.5">Quick inspection of media files and configured live broadcasts</p>
+        </div>
+      </div>
+      <button onclick="closeInspectorModal()" class="text-gray-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-dark-800">
+        <i class="ti ti-x text-lg"></i>
+      </button>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="px-6 pt-2 flex items-center gap-2 border-b border-[#27272a] bg-dark-900/40 flex-shrink-0">
+      <button type="button" id="tabBtnVideos" onclick="switchInspectorTab('videos')" 
+        class="px-4 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 border-primary text-white flex items-center gap-2 transition-all">
+        <i class="ti ti-video text-base text-blue-400"></i>
+        <span>Media Files</span>
+        <span id="inspectorVideoCountBadge" class="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px]">0</span>
+      </button>
+      <button type="button" id="tabBtnStreams" onclick="switchInspectorTab('streams')" 
+        class="px-4 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center gap-2 transition-all">
+        <i class="ti ti-broadcast text-base text-purple-400"></i>
+        <span>Live Streams</span>
+        <span id="inspectorStreamCountBadge" class="px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px]">0</span>
+      </button>
+    </div>
+
+    <!-- Content Area (Scrollable) -->
+    <div class="p-6 overflow-y-auto flex-1 custom-scrollbar">
+      <!-- Loading State -->
+      <div id="inspectorLoading" class="py-12 flex flex-col items-center justify-center gap-3 text-gray-400">
+        <div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-xs font-medium">Loading user assets...</p>
+      </div>
+
+      <!-- Tab Content: Videos -->
+      <div id="inspectorTabVideos" class="hidden">
+        <div id="inspectorVideoGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <!-- Dynamically populated via JS -->
+        </div>
+        <div id="inspectorVideoEmpty" class="hidden py-12 text-center text-gray-400">
+          <i class="ti ti-video-off text-4xl mb-2 block text-gray-500"></i>
+          <p class="text-sm font-semibold text-white">No Media Files</p>
+          <p class="text-xs text-gray-400 mt-1">This user has not uploaded any video files yet.</p>
+        </div>
+      </div>
+
+      <!-- Tab Content: Streams -->
+      <div id="inspectorTabStreams" class="hidden">
+        <div id="inspectorStreamList" class="space-y-3">
+          <!-- Dynamically populated via JS -->
+        </div>
+        <div id="inspectorStreamEmpty" class="hidden py-12 text-center text-gray-400">
+          <i class="ti ti-broadcast-off text-4xl mb-2 block text-gray-500"></i>
+          <p class="text-sm font-semibold text-white">No Streams Configured</p>
+          <p class="text-xs text-gray-400 mt-1">This user has not created any stream channels yet.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="px-6 py-3 border-t border-[#27272a] bg-dark-900/60 flex items-center justify-between flex-shrink-0">
+      <span class="text-xs text-gray-400">Quick Peek Read-Only Mode</span>
+      <button onclick="closeInspectorModal()" class="px-4 py-2 text-xs font-semibold bg-dark-800 hover:bg-dark-700 text-white rounded-xl border border-[#27272a] transition-colors">
+        Close
+      </button>
+    </div>
   </div>
 </div>
 
@@ -725,6 +817,185 @@
   function closeEditModal() {
     const modal = document.getElementById('editModal');
     const content = document.getElementById('editModalContent');
+    modal.classList.add('opacity-0');
+    content.classList.add('opacity-0', 'scale-95');
+    setTimeout(() => modal.classList.add('hidden'), 200);
+  }
+
+  // ========================================================
+  // QUICK ASSET & STREAM INSPECTOR LOGIC
+  // ========================================================
+  let currentInspectorTab = 'videos';
+
+  function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds) return '00:00';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hrs > 0) {
+      return `${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  }
+
+  async function openInspectorModal(userId, username, role, avatar, defaultTab = 'videos') {
+    document.getElementById('inspectorUsername').innerText = username;
+    document.getElementById('inspectorAvatar').src = avatar || '/images/default-avatar.jpg';
+    
+    const roleBadge = document.getElementById('inspectorRoleBadge');
+    roleBadge.innerText = role;
+    if (role === 'admin') {
+      roleBadge.className = 'text-[10px] px-2 py-0.5 rounded-md font-semibold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20';
+    } else {
+      roleBadge.className = 'text-[10px] px-2 py-0.5 rounded-md font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20';
+    }
+
+    // Show loading
+    document.getElementById('inspectorLoading').classList.remove('hidden');
+    document.getElementById('inspectorTabVideos').classList.add('hidden');
+    document.getElementById('inspectorTabStreams').classList.add('hidden');
+    
+    const modal = document.getElementById('inspectorModal');
+    const content = document.getElementById('inspectorModalContent');
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+      modal.classList.remove('opacity-0');
+      content.classList.remove('opacity-0', 'scale-95');
+    }, 10);
+
+    // Fetch user inspector assets
+    try {
+      const res = await fetch(`/api/users/${userId}/inspector`);
+      const data = await res.json();
+      
+      document.getElementById('inspectorLoading').classList.add('hidden');
+      
+      if (data.success) {
+        // Update tab badges
+        document.getElementById('inspectorVideoCountBadge').innerText = (data.videos || []).length;
+        document.getElementById('inspectorStreamCountBadge').innerText = (data.streams || []).length;
+
+        // Render Videos
+        const videoGrid = document.getElementById('inspectorVideoGrid');
+        const videoEmpty = document.getElementById('inspectorVideoEmpty');
+        videoGrid.innerHTML = '';
+        
+        if (data.videos && data.videos.length > 0) {
+          videoEmpty.classList.add('hidden');
+          videoGrid.classList.remove('hidden');
+          data.videos.forEach(v => {
+            const thumbSrc = v.thumbnail_path || '/images/placeholder.jpg';
+            const card = document.createElement('div');
+            card.className = 'bg-dark-900 border border-[#27272a] rounded-xl overflow-hidden shadow-sm hover:border-gray-600 transition-colors flex flex-col';
+            card.innerHTML = `
+              <div class="relative aspect-video bg-dark-950 overflow-hidden">
+                <img src="${thumbSrc}" alt="${v.title || v.filename}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='/images/placeholder.jpg';">
+                <span class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono text-white">
+                  ${formatDuration(v.duration)}
+                </span>
+                ${v.resolution ? `<span class="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-blue-500/80 text-[10px] font-semibold text-white">${v.resolution}</span>` : ''}
+              </div>
+              <div class="p-3 flex-1 flex flex-col justify-between">
+                <p class="text-xs font-semibold text-white truncate" title="${v.title || v.original_name || v.filename}">
+                  ${v.title || v.original_name || v.filename}
+                </p>
+                <div class="mt-2 flex items-center justify-between text-[11px] text-gray-400">
+                  <span>${formatBytes(v.file_size)}</span>
+                  <span>${v.created_at ? new Date(v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+                </div>
+              </div>
+            `;
+            videoGrid.appendChild(card);
+          });
+        } else {
+          videoGrid.classList.add('hidden');
+          videoEmpty.classList.remove('hidden');
+        }
+
+        // Render Streams
+        const streamList = document.getElementById('inspectorStreamList');
+        const streamEmpty = document.getElementById('inspectorStreamEmpty');
+        streamList.innerHTML = '';
+
+        if (data.streams && data.streams.length > 0) {
+          streamEmpty.classList.add('hidden');
+          streamList.classList.remove('hidden');
+          data.streams.forEach(s => {
+            const isLive = s.status === 'live';
+            const card = document.createElement('div');
+            card.className = 'bg-dark-900 border border-[#27272a] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-gray-600 transition-colors';
+            card.innerHTML = `
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl ${isLive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-dark-800 text-gray-400 border border-[#27272a]'} flex items-center justify-center text-lg flex-shrink-0">
+                  <i class="ti ${isLive ? 'ti-broadcast text-emerald-400 animate-pulse' : 'ti-device-gamepad-2'}"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h4 class="text-sm font-semibold text-white">${s.title}</h4>
+                    <span class="text-[10px] px-2 py-0.5 rounded uppercase font-semibold ${isLive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-800 text-gray-400'}">
+                      ${isLive ? 'LIVE' : 'OFFLINE'}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                    <span class="text-blue-400 font-medium">${s.platform || 'Custom RTMP'}</span>
+                    <span>•</span>
+                    <span>${s.schedule_type === 'continuous' ? '24/7 Continuous Loop' : (s.schedule_type || 'Manual')}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="text-xs text-gray-400 sm:text-right">
+                <p class="font-mono text-[11px] text-gray-500">${s.created_at ? new Date(s.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}</p>
+              </div>
+            `;
+            streamList.appendChild(card);
+          });
+        } else {
+          streamList.classList.add('hidden');
+          streamEmpty.classList.remove('hidden');
+        }
+
+        // Switch to requested tab
+        switchInspectorTab(defaultTab);
+      } else {
+        showToast(data.message || 'Failed to load user data', 'error');
+      }
+    } catch (e) {
+      document.getElementById('inspectorLoading').classList.add('hidden');
+      showToast('Error inspecting user assets', 'error');
+    }
+  }
+
+  function switchInspectorTab(tab) {
+    currentInspectorTab = tab;
+    const tabVideos = document.getElementById('inspectorTabVideos');
+    const tabStreams = document.getElementById('inspectorTabStreams');
+    const btnVideos = document.getElementById('tabBtnVideos');
+    const btnStreams = document.getElementById('tabBtnStreams');
+
+    if (tab === 'videos') {
+      tabVideos.classList.remove('hidden');
+      tabStreams.classList.add('hidden');
+      btnVideos.className = 'px-4 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 border-primary text-white flex items-center gap-2 transition-all';
+      btnStreams.className = 'px-4 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center gap-2 transition-all';
+    } else {
+      tabVideos.classList.add('hidden');
+      tabStreams.classList.remove('hidden');
+      btnVideos.className = 'px-4 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center gap-2 transition-all';
+      btnStreams.className = 'px-4 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 border-primary text-white flex items-center gap-2 transition-all';
+    }
+  }
+
+  function closeInspectorModal() {
+    const modal = document.getElementById('inspectorModal');
+    const content = document.getElementById('inspectorModalContent');
     modal.classList.add('opacity-0');
     content.classList.add('opacity-0', 'scale-95');
     setTimeout(() => modal.classList.add('hidden'), 200);
