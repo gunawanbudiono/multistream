@@ -465,6 +465,45 @@ function detectMediaType(item) {
       <div id="cloudModalBody"></div>
     </div>
   </div>
+<!-- Pre-rendered Persistent Media Preview Modal (Instant 0ms Open) -->
+<div id="mediaPreviewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden modal-overlay overflow-y-auto">
+  <div class="flex min-h-screen items-center justify-center p-4">
+    <div class="bg-dark-800 rounded-2xl shadow-2xl w-full max-w-4xl border border-gray-700 overflow-hidden" id="mediaPreviewModalContent">
+      <div class="flex items-center justify-between p-4 px-6 border-b border-gray-700 bg-dark-800">
+        <div class="flex items-center gap-3 min-w-0">
+          <div id="previewModalTypeIcon" class="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 text-blue-400">
+            <i class="ti ti-video text-lg"></i>
+          </div>
+          <h3 id="previewModalTitle" class="text-base font-semibold truncate text-white">Media Preview</h3>
+        </div>
+        <button onclick="closePreviewModal()" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
+          <i class="ti ti-x text-xl"></i>
+        </button>
+      </div>
+      
+      <!-- Video Container -->
+      <div id="previewVideoContainer" class="bg-black aspect-video relative flex items-center justify-center hidden">
+        <div id="previewVideoSpinner" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 transition-opacity duration-300 pointer-events-none opacity-0">
+          <i class="ti ti-loader-2 text-3xl text-primary animate-spin mb-2"></i>
+          <span class="text-xs text-gray-300 font-medium">Buffering stream...</span>
+        </div>
+        <video id="previewNativeVideo" class="w-full h-full" controls playsinline preload="auto"></video>
+      </div>
+
+      <!-- Audio Container -->
+      <div id="previewAudioContainer" class="p-8 flex flex-col items-center justify-center bg-dark-900 hidden">
+        <div class="w-24 h-24 rounded-full bg-primary/15 flex items-center justify-center mb-6 audio-visualizer shadow-inner">
+          <i class="ti ti-music text-4xl text-primary"></i>
+        </div>
+        <audio id="previewNativeAudio" class="w-full max-w-md" controls preload="auto"></audio>
+      </div>
+
+      <!-- Image Container -->
+      <div id="previewImageContainer" class="bg-black/95 p-4 flex items-center justify-center max-h-[75vh] overflow-hidden hidden">
+        <img id="previewNativeImage" src="" alt="Preview" class="max-h-[70vh] w-auto max-w-full object-contain rounded shadow-lg" loading="lazy" decoding="async">
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="toast" class="fixed top-16 right-4 bg-dark-800 text-white px-4 py-3 rounded-lg shadow-lg z-50 hidden flex items-center">
@@ -628,116 +667,105 @@ function initializeGalleryViewButtons() {
 }
 
 function playMedia(mediaId, mediaTitle, mediaType) {
-  const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4';
-  modal.id = 'media-player-modal';
-  
+  const modal = document.getElementById('mediaPreviewModal');
+  const title = document.getElementById('previewModalTitle');
+  const typeIcon = document.getElementById('previewModalTypeIcon');
+  const videoCont = document.getElementById('previewVideoContainer');
+  const audioCont = document.getElementById('previewAudioContainer');
+  const imageCont = document.getElementById('previewImageContainer');
+  const video = document.getElementById('previewNativeVideo');
+  const audio = document.getElementById('previewNativeAudio');
+  const image = document.getElementById('previewNativeImage');
+  const spinner = document.getElementById('previewVideoSpinner');
+
+  if (!modal) return;
+
+  title.textContent = mediaTitle || 'Media Preview';
+
+  videoCont.classList.add('hidden');
+  audioCont.classList.add('hidden');
+  imageCont.classList.add('hidden');
+
+  const streamUrl = `/stream/${encodeURIComponent(mediaId)}`;
+
   if (mediaType === 'audio') {
-    modal.innerHTML = `
-      <div class="relative w-full max-w-lg mx-auto">
-        <div class="bg-dark-800 rounded-xl overflow-hidden shadow-2xl border border-gray-700">
-          <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <i class="ti ti-music text-primary text-lg"></i>
-              </div>
-              <h3 class="text-base font-semibold truncate pr-4 text-white">${mediaTitle || 'Now Playing'}</h3>
-            </div>
-            <button id="close-player-btn" class="text-gray-400 hover:text-white p-1 rounded-lg">
-              <i class="ti ti-x text-xl"></i>
-            </button>
-          </div>
-          <div class="p-6 flex flex-col items-center">
-            <div class="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-6 audio-visualizer relative">
-              <i class="ti ti-volume text-4xl text-primary"></i>
-            </div>
-            <audio id="audio-player" class="w-full" controls autoplay preload="auto">
-              <source src="/stream/${mediaId}">
-              Your browser does not support the audio element.
-            </audio>
-          </div>
-        </div>
-      </div>
-    `;
+    typeIcon.className = 'w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0 text-purple-400';
+    typeIcon.innerHTML = '<i class="ti ti-music text-lg"></i>';
+    audioCont.classList.remove('hidden');
+    audio.src = streamUrl;
+    audio.play().catch(() => {});
   } else if (mediaType === 'image') {
-    modal.innerHTML = `
-      <div class="relative w-full max-w-4xl mx-auto">
-        <div class="bg-dark-800 rounded-xl overflow-hidden shadow-2xl border border-gray-700">
-          <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                <i class="ti ti-photo text-green-400 text-lg"></i>
-              </div>
-              <h3 class="text-base font-semibold truncate pr-4 text-white">${mediaTitle || 'Image Preview'}</h3>
-            </div>
-            <button id="close-player-btn" class="text-gray-400 hover:text-white p-1 rounded-lg">
-              <i class="ti ti-x text-xl"></i>
-            </button>
-          </div>
-          <div class="bg-black/95 p-4 flex items-center justify-center max-h-[75vh] overflow-hidden">
-            <img src="/stream/${mediaId}" alt="${mediaTitle}" class="max-h-[70vh] w-auto max-w-full object-contain rounded shadow-lg" loading="lazy" decoding="async">
-          </div>
-        </div>
-      </div>
-    `;
+    typeIcon.className = 'w-9 h-9 rounded-xl bg-green-500/20 flex items-center justify-center shrink-0 text-green-400';
+    typeIcon.innerHTML = '<i class="ti ti-photo text-lg"></i>';
+    imageCont.classList.remove('hidden');
+    image.src = streamUrl;
   } else {
-    modal.innerHTML = `
-      <div class="relative w-full max-w-4xl mx-auto">
-        <div class="bg-dark-800 rounded-xl overflow-hidden shadow-2xl border border-gray-700">
-          <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                <i class="ti ti-video text-blue-400 text-lg"></i>
-              </div>
-              <h3 class="text-base font-semibold truncate pr-4 text-white">${mediaTitle || 'Now Playing'}</h3>
-            </div>
-            <button id="close-player-btn" class="text-gray-400 hover:text-white p-1 rounded-lg">
-              <i class="ti ti-x text-xl"></i>
-            </button>
-          </div>
-          <div class="bg-black aspect-video relative flex items-center justify-center">
-            <div id="player-loading-spinner" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 transition-opacity duration-300">
-              <i class="ti ti-loader-2 text-3xl text-primary animate-spin mb-2"></i>
-              <span class="text-xs text-gray-300 font-medium">Buffering stream...</span>
-            </div>
-            <video id="native-player" class="w-full h-full" controls preload="auto" autoplay playsinline>
-              <source src="/stream/${mediaId}">
-            </video>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-  
-  document.body.appendChild(modal);
-  document.body.classList.add('overflow-hidden');
-  
-  const video = document.getElementById('native-player');
-  const spinner = document.getElementById('player-loading-spinner');
-  if (video && spinner) {
-    video.addEventListener('playing', () => spinner.classList.add('opacity-0', 'pointer-events-none'));
-    video.addEventListener('canplay', () => spinner.classList.add('opacity-0', 'pointer-events-none'));
-    video.addEventListener('waiting', () => spinner.classList.remove('opacity-0', 'pointer-events-none'));
+    typeIcon.className = 'w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 text-blue-400';
+    typeIcon.innerHTML = '<i class="ti ti-video text-lg"></i>';
+    videoCont.classList.remove('hidden');
+    
+    if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
+    video.src = streamUrl;
+    
+    const hideSpinner = () => {
+      if (spinner) spinner.classList.add('opacity-0', 'pointer-events-none');
+    };
+    
+    video.onplaying = hideSpinner;
+    video.oncanplay = hideSpinner;
+    video.onloadeddata = hideSpinner;
+    video.ontimeupdate = hideSpinner;
+    video.onwaiting = () => {
+      if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
+    };
+
+    video.play().catch((err) => {
+      console.warn('Autoplay with audio blocked by browser policy:', err);
+    });
   }
 
-  const closePlayer = () => {
-    const v = document.getElementById('native-player');
-    const a = document.getElementById('audio-player');
-    if (v) v.pause();
-    if (a) a.pause();
-    modal.remove();
-    document.body.classList.remove('overflow-hidden');
-  };
-  
-  document.getElementById('close-player-btn').addEventListener('click', closePlayer);
-  modal.addEventListener('click', (e) => { if (e.target === modal) closePlayer(); });
-  document.addEventListener('keydown', function handler(e) {
-    if (e.key === 'Escape') {
-      closePlayer();
-      document.removeEventListener('keydown', handler);
-    }
-  });
+  modal.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
 }
+
+function closePreviewModal() {
+  const modal = document.getElementById('mediaPreviewModal');
+  const video = document.getElementById('previewNativeVideo');
+  const audio = document.getElementById('previewNativeAudio');
+  const image = document.getElementById('previewNativeImage');
+
+  if (video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.load(); // Immediately aborts network HTTP stream
+  }
+  if (audio) {
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+  }
+  if (image) {
+    image.removeAttribute('src');
+  }
+
+  if (modal) modal.classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('mediaPreviewModal');
+    if (modal && !modal.classList.contains('hidden')) {
+      closePreviewModal();
+    }
+  }
+});
+
+document.getElementById('mediaPreviewModal')?.addEventListener('click', (e) => {
+  if (e.target.id === 'mediaPreviewModal') {
+    closePreviewModal();
+  }
+});
 
 function openUploadModal() {
   document.getElementById('uploadModal').classList.remove('hidden');

@@ -2884,39 +2884,49 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Accept-Ranges', 'bytes');
 
-    const isAudio = ext === '.mp3' || ext === '.wav' || ext === '.m4a' || ext === '.aac' || ext === '.flac' || ext === '.ogg';
     const isImage = ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp' || ext === '.gif';
 
     if (range && !isImage) {
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
-      
-      // Bounded chunk streaming window (4MB for video, 2MB for audio) to start playback in < 50ms
-      const maxChunkWindow = isAudio ? (2 * 1024 * 1024) : (4 * 1024 * 1024);
-      let end = parts[1] ? parseInt(parts[1], 10) : (start + maxChunkWindow - 1);
-      if (end >= fileSize) end = fileSize - 1;
-      
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunkSize = (end - start) + 1;
-      const fileStream = fs.createReadStream(videoPath, { start, end, highWaterMark: 128 * 1024 });
+      const fileStream = fs.createReadStream(videoPath, { start, end, highWaterMark: 256 * 1024 });
       
+      req.on('close', () => {
+        try { fileStream.destroy(); } catch (e) {}
+      });
+      req.on('aborted', () => {
+        try { fileStream.destroy(); } catch (e) {}
+      });
+
       res.writeHead(206, {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Content-Length': chunkSize,
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=3600'
+        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400'
       });
       fileStream.pipe(res);
     } else {
+      const fileStream = fs.createReadStream(videoPath, { highWaterMark: 256 * 1024 });
+      
+      req.on('close', () => {
+        try { fileStream.destroy(); } catch (e) {}
+      });
+      req.on('aborted', () => {
+        try { fileStream.destroy(); } catch (e) {}
+      });
+
       res.writeHead(200, {
         'Content-Length': fileSize,
         'Content-Type': contentType,
-        'Cache-Control': isImage ? 'public, max-age=604800, immutable' : 'public, max-age=3600'
+        'Cache-Control': isImage ? 'public, max-age=604800, immutable' : 'public, max-age=3600, stale-while-revalidate=86400'
       });
-      fs.createReadStream(videoPath, { highWaterMark: 128 * 1024 }).pipe(res);
+      fileStream.pipe(res);
     }
   } catch (error) {
     console.error('Streaming error:', error);
-    if (!res.headersSent) res.status(500).send('Error streaming video');
+    if (!res.headersSent) res.status(500).send('Error streaming media');
   }
 });
 app.get('/api/settings/gdrive-status', isAuthenticated, async (req, res) => {
