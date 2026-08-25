@@ -2,14 +2,15 @@ const { db } = require('../db/database');
 const bcrypt = require('bcrypt');
 
 const usersToSeed = [
-  { id: 'bdb0aa84-e0ce-4c04-a0d0-7e44bc6eef35', username: 'ngadimin', role: 'admin' },
-  { id: 'b5e49207-e96c-4450-9d0d-32cf4b2d35c5', username: 'music', role: 'admin' },
-  { id: '5582814f-1ed3-4304-a88a-211516e872c3', username: 'test', role: 'admin' },
-  { id: '16425157-7975-4cbd-9368-2df8cb73a100', username: 'entertainment', role: 'admin' }
+  { id: 'bdb0aa84-e0ce-4c04-a0d0-7e44bc6eef35', username: 'ngadimin', role: 'admin', pass: 'Jeruksunrise123' },
+  { id: 'b5e49207-e96c-4450-9d0d-32cf4b2d35c5', username: 'music', role: 'admin', pass: 'apayapasswordnya' },
+  { id: '5582814f-1ed3-4304-a88a-211516e872c3', username: 'test', role: 'admin', pass: 'apayapasswordnya' },
+  { id: '16425157-7975-4cbd-9368-2df8cb73a100', username: 'entertainment', role: 'admin', pass: 'apayapasswordnya' }
 ];
 
 async function seedAllUsers() {
-  const hash = await bcrypt.hash('Jeruksunrise123', 10);
+  const adminHash = await bcrypt.hash('Jeruksunrise123', 10);
+  const memberHash = await bcrypt.hash('apayapasswordnya', 10);
   
   db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -26,12 +27,13 @@ async function seedAllUsers() {
     )`);
 
     for (const u of usersToSeed) {
+      const hashToUse = u.username === 'ngadimin' ? adminHash : memberHash;
       db.run(
         `INSERT OR REPLACE INTO users (id, username, password, user_role, status, disk_quota_gb) VALUES (?, ?, ?, ?, ?, ?)`,
-        [u.id, u.username, hash, u.role, 'active', 0],
+        [u.id, u.username, hashToUse, u.role, 'active', 0],
         (err) => {
           if (err) console.error(`Error seeding ${u.username}:`, err.message);
-          else console.log(`User ${u.username} seeded successfully.`);
+          else console.log(`User ${u.username} seeded with password.`);
         }
       );
     }
