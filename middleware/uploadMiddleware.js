@@ -65,13 +65,13 @@ const audioFilter = (req, file, cb) => {
 };
 
 const imageFilter = (req, file, cb) => {
-  const allowedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+  const allowedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
   const fileExt = path.extname(file.originalname).toLowerCase();
-  const allowedExts = ['.jpg', '.jpeg', '.png', '.gif'];
+  const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
   if (allowedFormats.includes(file.mimetype) || allowedExts.includes(fileExt)) {
     cb(null, true);
   } else {
-    cb(new Error('Only .jpg, .jpeg, .png, and .gif formats are allowed'), false);
+    cb(new Error('Only .jpg, .jpeg, .png, .gif, and .webp formats are allowed'), false);
   }
 };
 
@@ -87,12 +87,18 @@ const uploadAudio = multer({
 
 const upload = multer({
   storage: avatarStorage,
-  fileFilter: imageFilter
+  fileFilter: imageFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5 MB max avatar size
+  }
 });
 
 const uploadThumbnail = multer({
   storage: thumbnailStorage,
-  fileFilter: imageFilter
+  fileFilter: imageFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10 MB max thumbnail size
+  }
 });
 
 module.exports = {

@@ -26,6 +26,7 @@ const { uploadVideo, upload, uploadThumbnail, uploadAudio } = require('./middlew
 const chunkUploadService = require('./services/chunkUploadService');
 const audioConverter = require('./services/audioConverter');
 const { ensureDirectories } = require('./utils/storage');
+const { logActivity, getUserLogs } = require('./services/activityLogger');
 const { getVideoInfo, generateThumbnail, generateImageThumbnail } = require('./utils/videoProcessor');
 const Video = require('./models/Video');
 const MediaFolder = require('./models/MediaFolder');
@@ -369,6 +370,18 @@ app.post('/login', loginDelayMiddleware, loginLimiter, async (req, res) => {
     req.session.username = user.username;
     req.session.avatar_path = user.avatar_path;
     req.session.user_role = user.user_role;
+
+    // Update last_login_at timestamp and log activity
+    db.run('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+    logActivity({
+      userId: user.id,
+      performedBy: user.username,
+      actionType: 'AUTH_LOGIN',
+      category: 'auth',
+      description: `User '${user.username}' logged in successfully`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for']) || req.socket.remoteAddress
+    });
+
     res.redirect('/dashboard');
   } catch (error) {
     console.error('Login error:', error);
@@ -380,6 +393,16 @@ app.post('/login', loginDelayMiddleware, loginLimiter, async (req, res) => {
   }
 });
 app.get('/logout', (req, res) => {
+  if (req.session && req.session.userId) {
+    logActivity({
+      userId: req.session.userId,
+      performedBy: req.session.username,
+      actionType: 'AUTH_LOGOUT',
+      category: 'auth',
+      description: `User '${req.session.username}' logged out`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for']) || req.socket.remoteAddress
+    });
+  }
   req.session.destroy();
   res.redirect('/login');
 });
@@ -1255,6 +1278,16 @@ app.post('/api/users/:id/impersonate', isAdmin, async (req, res) => {
       req.session.originalAdminId = req.session.userId;
       req.session.originalAdminUsername = req.session.username;
     }
+
+    logActivity({
+      userId: targetUser.id,
+      performedBy: req.session.username || 'admin',
+      actionType: 'USER_IMPERSONATE',
+      category: 'admin',
+      description: `Admin '${req.session.username}' started impersonating this user`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
+
     req.session.userId = targetUser.id;
     req.session.username = targetUser.username;
     req.session.user_role = targetUser.user_role;
@@ -1302,6 +1335,14 @@ app.post('/api/users/:id/revoke-sessions', isAdmin, async (req, res) => {
     // In SQLite store, delete active sessions where sess like userId
     db.run(`DELETE FROM sessions WHERE sess LIKE ?`, [`%"userId":"${targetId}"%`], (err) => {
       if (err) console.error('Revoke sessions error:', err);
+      logActivity({
+        userId: targetId,
+        performedBy: req.session.username || 'admin',
+        actionType: 'REVOKE_SESSIONS',
+        category: 'auth',
+        description: `All active sessions revoked by admin '${req.session.username}'`,
+        ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      });
       res.json({ success: true, message: 'All active sessions revoked successfully' });
     });
   } catch (err) {
@@ -1338,6 +1379,15 @@ app.post('/api/users/status', isAdmin, async (req, res) => {
 
     await User.updateStatus(userId, status);
     
+    logActivity({
+      userId: user.id,
+      performedBy: req.session.username || 'admin',
+      actionType: 'USER_STATUS',
+      category: 'admin',
+      description: `Admin changed account status to '${status}'`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
+
     res.json({
       success: true,
       message: `User ${status === 'active' ? 'activated' : 'deactivated'} successfully`
@@ -1379,6 +1429,15 @@ app.post('/api/users/role', isAdmin, async (req, res) => {
 
     await User.updateRole(userId, role);
     
+    logActivity({
+      userId: user.id,
+      performedBy: req.session.username || 'admin',
+      actionType: 'USER_ROLE',
+      category: 'admin',
+      description: `Admin changed user role to '${role}'`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
+
     res.json({
       success: true,
       message: `User role updated to ${role} successfully`
@@ -1416,6 +1475,12 @@ app.post('/api/users/delete', isAdmin, async (req, res) => {
         success: false,
         message: 'User not found'
       });
+    }
+
+    // Clean up old avatar on disk if exists and custom
+    if (user.avatar_path && user.avatar_path.startsWith('/uploads/avatars/')) {
+      const oldPath = path.join(__dirname, 'public', user.avatar_path);
+      fs.unlink(oldPath, (err) => { if (err && err.code !== 'ENOENT') console.error('Error unlinking old avatar:', err); });
     }
 
     await User.delete(userId);
@@ -1487,10 +1552,24 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
     }
 
     let avatarPath = user.avatar_path;
+    let oldAvatarToDelete = null;
+
     if (req.body.reset_avatar === 'true' || req.body.reset_avatar === '1') {
+      if (user.avatar_path && user.avatar_path.startsWith('/uploads/avatars/')) {
+        oldAvatarToDelete = user.avatar_path;
+      }
       avatarPath = '/images/default-avatar.jpg';
     } else if (req.file) {
+      if (user.avatar_path && user.avatar_path.startsWith('/uploads/avatars/')) {
+        oldAvatarToDelete = user.avatar_path;
+      }
       avatarPath = `/uploads/avatars/${req.file.filename}`;
+    }
+
+    // Unlink old avatar asynchronously
+    if (oldAvatarToDelete) {
+      const oldFullPath = path.join(__dirname, 'public', oldAvatarToDelete);
+      fs.unlink(oldFullPath, (err) => { if (err && err.code !== 'ENOENT') console.error('Error deleting old avatar:', err); });
     }
 
     const sanitizedQuota = req.body.disk_quota_gb !== undefined && req.body.disk_quota_gb !== '' 
@@ -1519,6 +1598,15 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
 
     await User.updateProfile(userId, updateData);
     
+    logActivity({
+      userId: user.id,
+      performedBy: req.session.username || 'admin',
+      actionType: 'USER_UPDATE',
+      category: 'admin',
+      description: `Admin updated account settings for '${updateData.username}' (Quota: ${sanitizedQuota} GB, Role: ${updateData.user_role})`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
+
     res.json({
       success: true,
       message: 'User updated successfully'
@@ -1571,6 +1659,7 @@ app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res)
       avatarPath = `/uploads/avatars/${req.file.filename}`;
     }
 
+    const sanitizedQuota = disk_quota_gb ? Math.max(0, parseInt(disk_quota_gb, 10) || 0) : 0;
     const userData = {
       username: username,
       password: password,
@@ -1578,11 +1667,20 @@ app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res)
       status: status || 'active',
       avatar_path: avatarPath,
       disk_limit: diskLimit ? Math.max(0, parseInt(diskLimit, 10) || 0) : 0,
-      disk_quota_gb: disk_quota_gb ? Math.max(0, parseInt(disk_quota_gb, 10) || 0) : 0
+      disk_quota_gb: sanitizedQuota
     };
 
     const result = await User.create(userData);
     
+    logActivity({
+      userId: result.id,
+      performedBy: req.session.username || 'admin',
+      actionType: 'USER_CREATE',
+      category: 'admin',
+      description: `Admin created user '${username}' (Role: ${userData.user_role}, Quota: ${sanitizedQuota} GB)`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
+
     res.json({
       success: true,
       message: 'User created successfully',
@@ -1628,16 +1726,20 @@ app.get('/api/users/:id/inspector', isAdmin, async (req, res) => {
     }
     const videos = await Video.findAll(userId);
     const streams = await Stream.findAll(userId);
+    const logs = await getUserLogs(userId, 50);
     res.json({
       success: true,
       user: {
         id: targetUser.id,
         username: targetUser.username,
         user_role: targetUser.user_role,
-        avatar_path: targetUser.avatar_path
+        avatar_path: targetUser.avatar_path,
+        created_at: targetUser.created_at,
+        last_login_at: targetUser.last_login_at
       },
       videos: videos || [],
-      streams: streams || []
+      streams: streams || [],
+      logs: logs || []
     });
   } catch (error) {
     console.error('Inspector error:', error);

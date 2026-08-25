@@ -180,8 +180,26 @@ function createTables() {
       });
 
       db.run(`ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`, (err) => {});
+      db.run(`ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP`, (err) => {});
       db.run(`ALTER TABLE users ADD COLUMN disk_quota_gb INTEGER DEFAULT 0`, (err) => {});
       db.run(`ALTER TABLE videos ADD COLUMN file_size INTEGER`, (err) => {});
+
+      db.run(`CREATE TABLE IF NOT EXISTS user_activity_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        performed_by TEXT,
+        action_type TEXT NOT NULL,
+        category TEXT DEFAULT 'general',
+        description TEXT NOT NULL,
+        details TEXT,
+        ip_address TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )`, (err) => {
+        if (err && !err.message.includes('already exists')) {
+          console.error('Error creating user_activity_logs table:', err.message);
+        }
+      });
 
       db.run(`ALTER TABLE users ADD COLUMN youtube_channel_name TEXT`, (err) => {
         if (err && !err.message.includes('duplicate column name')) {
