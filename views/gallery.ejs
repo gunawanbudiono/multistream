@@ -525,7 +525,11 @@ function detectMediaType(item) {
             <p class="text-xs text-gray-400">Download YouTube videos & Shorts in high-fidelity quality</p>
           </div>
         </div>
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-2">
+          <div id="ytCookieStatusPill" onclick="openYouTubeCookieModal()" class="cursor-pointer px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 transition-colors bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600">
+            <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+            <span>Checking...</span>
+          </div>
           <button type="button" onclick="openYouTubeCookieModal()" title="YouTube Cookie Settings" class="text-gray-400 hover:text-amber-400 p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
             <i class="ti ti-cookie text-xl"></i>
           </button>
@@ -542,8 +546,8 @@ function detectMediaType(item) {
           <div class="flex items-center gap-2.5 text-amber-300">
             <i class="ti ti-cookie text-lg text-amber-400 shrink-0"></i>
             <div>
-              <span class="font-semibold block text-amber-200">YouTube Cookie Setup</span>
-              <span class="text-[11px] text-amber-300/80">Required to download copyright-protected or official music videos.</span>
+              <span id="ytCookieBannerTitle" class="font-semibold block text-amber-200">YouTube Cookie Setup</span>
+              <span id="ytCookieBannerDesc" class="text-[11px] text-amber-300/80">Required to download copyright-protected or official music videos.</span>
             </div>
           </div>
           <button type="button" onclick="openYouTubeCookieModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs rounded-lg transition-colors shrink-0 shadow flex items-center gap-1">
@@ -1357,12 +1361,14 @@ async function checkYouTubeCookieStatus() {
   try {
     const res = await fetch('/api/youtube/cookie-status');
     const data = await res.json();
-    const banner = document.getElementById('ytCookieAlertBanner');
-    if (banner) {
+    const pill = document.getElementById('ytCookieStatusPill');
+    if (pill) {
       if (data.configured) {
-        banner.classList.add('hidden');
+        pill.className = 'cursor-pointer px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 transition-colors bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20';
+        pill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>Cookie Active</span>';
       } else {
-        banner.classList.remove('hidden');
+        pill.className = 'cursor-pointer px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 transition-colors bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20';
+        pill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span><span>Setup Cookie</span>';
       }
     }
     return data.configured;
@@ -1601,12 +1607,32 @@ async function handleScanYouTubeUrl() {
     input.value = '';
     renderYtQueue();
     showToast('success', `Added "${meta.title.slice(0, 30)}..." to queue`);
+
+    // Check if YouTube SABR downgraded formats to 360p
+    const maxVideoHeight = Math.max(...(meta.resolutions || []).filter(r => typeof r.height === 'number').map(r => r.height), 0);
+    const banner = document.getElementById('ytCookieAlertBanner');
+    if (maxVideoHeight > 0 && maxVideoHeight <= 360) {
+      if (banner) {
+        banner.classList.remove('hidden');
+        const titleEl = document.getElementById('ytCookieBannerTitle');
+        const descEl = document.getElementById('ytCookieBannerDesc');
+        if (titleEl) titleEl.textContent = 'YouTube SABR Stream Detected (360p Cap)';
+        if (descEl) descEl.textContent = 'YouTube restricted this video to 360p. Update cookies via Incognito robots.txt method to unlock Full HD (1080p/4K).';
+      }
+    } else {
+      if (banner) banner.classList.add('hidden');
+    }
   } catch (error) {
     console.error('YouTube scan error:', error);
     const msg = error.message || 'Failed to scan video';
     showToast('error', msg);
-    if (msg.includes('bot') || msg.includes('Sign in') || msg.includes('cookies') || msg.includes('403')) {
-      document.getElementById('ytCookieAlertBanner')?.classList.remove('hidden');
+    const banner = document.getElementById('ytCookieAlertBanner');
+    if (banner) {
+      banner.classList.remove('hidden');
+      const titleEl = document.getElementById('ytCookieBannerTitle');
+      const descEl = document.getElementById('ytCookieBannerDesc');
+      if (titleEl) titleEl.textContent = 'YouTube Authentication / Bot Check Required';
+      if (descEl) descEl.textContent = 'Google requires fresh session cookies to scan this video. Please update cookies via Incognito robots.txt.';
     }
   } finally {
     scanBtn.disabled = false;
