@@ -3625,21 +3625,45 @@ function normalizeNetscapeCookies(raw) {
 
   for (let line of lines) {
     line = line.trim();
-    if (!line || line.startsWith('#')) continue;
-    
-    const tokens = line.split(/\s+/);
+    if (!line) continue;
+    if (line.startsWith('#') && !line.startsWith('#HttpOnly_')) continue;
+
+    let isHttpOnly = false;
+    if (line.startsWith('#HttpOnly_')) {
+      isHttpOnly = true;
+      line = line.replace(/^#HttpOnly_/, '');
+    }
+
+    // Split either by tab or multiple spaces
+    let tokens = line.split('\t');
+    if (tokens.length < 7) {
+      tokens = line.split(/\s+/);
+    }
+
     if (tokens.length >= 7) {
-      let domain = tokens[0];
-      if (!domain.startsWith('.') && domain.includes('.')) {
+      let domain = tokens[0].trim();
+      if (!domain.startsWith('.') && (domain.includes('youtube.') || domain.includes('google.'))) {
         domain = '.' + domain;
       }
+      // Only keep relevant YouTube and Google cookies to prevent garbage bloat
+      if (!domain.includes('youtube.') && !domain.includes('google.')) {
+        continue;
+      }
+
       const flag = tokens[1].toUpperCase() === 'FALSE' ? 'FALSE' : 'TRUE';
-      const p = tokens[2];
+      const path = tokens[2].trim() || '/';
       const secure = tokens[3].toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE';
-      const expiry = tokens[4];
-      const name = tokens[5];
-      const value = tokens.slice(6).join(' ');
-      out.push([domain, flag, p, secure, expiry, name, value].join('\t'));
+      let expiry = parseInt(tokens[4], 10);
+      if (isNaN(expiry) || expiry <= 0) {
+        expiry = Math.round(Date.now() / 1000) + 86400 * 365;
+      }
+      const name = tokens[5].trim();
+      const value = tokens.slice(6).join(' ').trim();
+
+      if (name && value) {
+        const prefix = isHttpOnly ? '#HttpOnly_' : '';
+        out.push(`${prefix}${domain}\t${flag}\t${path}\t${secure}\t${expiry}\t${name}\t${value}`);
+      }
     }
   }
 
