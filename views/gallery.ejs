@@ -465,6 +465,8 @@ function detectMediaType(item) {
       <div id="cloudModalBody"></div>
     </div>
   </div>
+</div>
+
 <!-- Pre-rendered Persistent Media Preview Modal (Instant 0ms Open) -->
 <div id="mediaPreviewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden modal-overlay overflow-y-auto">
   <div class="flex min-h-screen items-center justify-center p-4">
@@ -2197,8 +2199,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let filteredListItems = [];
 
   function syncGalleryCollections() {
-    gridItems = Array.from(document.querySelectorAll('.gallery-grid-item'));
-    listItems = Array.from(document.querySelectorAll('.gallery-list-item'));
+    gridItems = Array.from(document.querySelectorAll('#gridView > .gallery-grid-item'));
+    listItems = Array.from(document.querySelectorAll('#listView tbody > .gallery-list-item'));
   }
 
   function getItemData(item) {
