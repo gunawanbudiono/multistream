@@ -95,7 +95,15 @@ Sebelum AI melaporkan bahwa suatu tugas selesai, AI **WAJIB** menjalankan 3 peng
 
 ---
 
-## 🧠 11. COMMUNICATION & BEHAVIORAL STYLE
+## 🧠 11. COMMUNICATION & COPYWRITING PROTOCOL
 
-- **Language**: Clear, concise, professional Bahasa Indonesia.
-- **Strict Compliance**: Follow original Streamflow base design 100%. No unauthorized UI modifications.
+1. 🌐 **WEB UI COPYWRITING**: Seluruh teks antarmuka web aplikasi (Button labels, Modal headers, Table columns, Badges, Toast notifications, Error messages) **WAJIB 100% menggunakan Bahasa Inggris profesional** demi konsistensi sistem.
+2. 💬 **ASSISTANT CHAT LANGUAGE**: Komunikasi di dalam kolom chat percakapan ini **WAJIB menggunakan Bahasa Indonesia** yang jelas, ringkas, dan berstandar profesional.
+
+---
+
+## 🎨 12. UI/UX STYLING & CUSTOM MODAL STANDARDS
+
+1. 🚫 **NO NATIVE BROWSER POPUPS**: Dilarang keras menggunakan pop-up bawaan browser (`window.alert()`, `window.confirm()`, `window.prompt()`).
+2. ✨ **CUSTOM SLEEK MODALS & TOASTS**: Seluruh dialog konfirmasi, peringatan, dan detail modal WAJIB menggunakan custom modal overlay Tailwind CSS yang konsisten dengan tema gelap aplikasi (`bg-dark-800`, `border-[#27272a]`, `rounded-2xl`, `backdrop-blur-sm`).
+3. 🎯 **DESIGN FIDELITY**: Mengikuti estetika desain gelap, modern, dan rapi yang telah ada pada Streamflow.
