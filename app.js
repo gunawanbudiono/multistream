@@ -2233,8 +2233,9 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
 
         await new Promise((resolve) => {
           ffmpeg.ffprobe(fullFilePath, (probeErr, metadata) => {
+            let videoStream = null;
             if (!probeErr && metadata) {
-              const videoStream = metadata.streams && metadata.streams.find(s => s.codec_type === 'video');
+              videoStream = metadata.streams && metadata.streams.find(s => s.codec_type === 'video');
               duration = metadata.format && metadata.format.duration ? Math.round(metadata.format.duration) : 0;
               format = (metadata.format && metadata.format.format_name) ? metadata.format.format_name.split(',')[0] : format;
               if (videoStream) {
@@ -2251,16 +2252,16 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
               }
             }
 
-              const isPortrait = videoStream && videoStream.height && videoStream.width && (videoStream.height > videoStream.width);
-              const thumbSize = isPortrait ? '480x?' : '854x?';
+            const isPortrait = videoStream && videoStream.height && videoStream.width && (videoStream.height > videoStream.width);
+            const thumbSize = isPortrait ? '480x?' : '854x?';
 
-              ffmpeg(fullFilePath)
-                .screenshots({
-                  timestamps: ['10%'],
-                  filename: thumbnailFilename,
-                  folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
-                  size: thumbSize
-                })
+            ffmpeg(fullFilePath)
+              .screenshots({
+                timestamps: ['10%'],
+                filename: thumbnailFilename,
+                folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
+                size: thumbSize
+              })
               .on('end', () => resolve())
               .on('error', () => resolve());
           });
