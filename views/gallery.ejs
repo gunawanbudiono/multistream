@@ -1626,6 +1626,7 @@ document.addEventListener('DOMContentLoaded', function() {
       selectedFiles.forEach((_, idx) => fileLoadedBytesMap.set(idx, 0));
       
       let success = 0, failed = [];
+      const cancelledIndexes = new Set();
       uploadFilesList.innerHTML = '';
       selectedFiles.forEach((f, idx) => {
         const category = getFileCategory(f);
@@ -1634,28 +1635,49 @@ document.addEventListener('DOMContentLoaded', function() {
         if (category === 'image') icon = 'ti-photo text-green-400';
         
         const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-2.5 rounded-lg bg-dark-700/60 border border-gray-700/50';
+        div.className = 'flex items-center justify-between p-2.5 rounded-lg bg-dark-700/60 border border-gray-700/50 gap-2';
         div.id = `upload-queue-item-${idx}`;
         div.innerHTML = `
-          <div class="flex items-center gap-3 min-w-0">
+          <div class="flex items-center gap-3 min-w-0 flex-1">
             <div class="w-7 h-7 rounded bg-dark-600 flex items-center justify-center shrink-0">
               <i class="ti ${icon} text-sm"></i>
             </div>
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <p class="text-xs text-gray-200 truncate max-w-sm font-medium">${f.name}</p>
               <p class="text-[10px] text-gray-500 file-substatus">Waiting in queue (${formatFileSize(f.size)})</p>
             </div>
           </div>
-          <span class="file-status text-xs text-gray-400 font-semibold shrink-0">Waiting</span>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="file-status text-xs text-gray-400 font-semibold">Waiting</span>
+            <button type="button" class="file-cancel-btn text-gray-500 hover:text-red-400 p-1 rounded hover:bg-dark-600 transition-colors" data-idx="${idx}" title="Cancel item">
+              <i class="ti ti-x text-sm"></i>
+            </button>
+          </div>
         `;
+
+        div.querySelector('.file-cancel-btn').onclick = (e) => {
+          e.stopPropagation();
+          cancelledIndexes.add(idx);
+          const st = div.querySelector('.file-status');
+          const sub = div.querySelector('.file-substatus');
+          if (st) { st.textContent = 'Cancelled'; st.className = 'file-status text-xs text-gray-500 font-semibold'; }
+          if (sub) { sub.textContent = 'Skipped by user'; }
+          div.querySelector('.file-cancel-btn')?.remove();
+        };
+
         uploadFilesList.appendChild(div);
       });
 
       updateBatchMetrics(0, selectedFiles[0].name);
 
       for (let i = 0; i < selectedFiles.length; i++) {
+        if (cancelledIndexes.has(i)) continue;
         const file = selectedFiles[i];
         const category = getFileCategory(file);
+        
+        const activeCancelBtn = document.querySelector(`#upload-queue-item-${i} .file-cancel-btn`);
+        if (activeCancelBtn) activeCancelBtn.remove();
+
         uploadProgressStatus.textContent = `Uploading (${i + 1}/${selectedFiles.length}): ${file.name}`;
         updateFileProgress(i, 'uploading', 0, 0, file.size);
         

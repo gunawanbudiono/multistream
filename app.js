@@ -199,9 +199,14 @@ app.get('/sw.js', (req, res) => {
 });
 
 app.use('/uploads', function (req, res, next) {
-  res.header('Cache-Control', 'no-cache');
-  res.header('Pragma', 'no-cache');
-  res.header('Expires', '0');
+  const p = (req.path || '').toLowerCase();
+  if (p.startsWith('/thumbnails/') || p.endsWith('.png') || p.endsWith('.jpg') || p.endsWith('.jpeg') || p.endsWith('.webp') || p.endsWith('.svg') || p.endsWith('.ico')) {
+    res.header('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+  } else {
+    res.header('Cache-Control', 'no-cache');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+  }
   next();
 });
 app.use(express.urlencoded({ extended: true, limit: '50gb' }));
@@ -2320,13 +2325,26 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
 
       } else if (imageExts.includes(ext) || file.mimetype.startsWith('image/')) {
         const relativeFilePath = `/uploads/videos/${file.filename}`;
-        const thumbnailFilename = `thumb-${path.parse(file.filename).name}${ext}`;
+        const thumbnailFilename = `thumb-${path.parse(file.filename).name}.jpg`;
         const thumbnailRelativePath = `/uploads/thumbnails/${thumbnailFilename}`;
         const fullThumbPath = path.join(__dirname, 'public', thumbnailRelativePath);
 
         try {
-          fs.copyFileSync(fullFilePath, fullThumbPath);
-        } catch (copyErr) {}
+          await new Promise((resolveThumb) => {
+            ffmpeg(fullFilePath)
+              .output(fullThumbPath)
+              .size('640x?')
+              .outputOptions(['-q:v 3'])
+              .on('end', resolveThumb)
+              .on('error', () => {
+                try { fs.copyFileSync(fullFilePath, fullThumbPath); } catch (e) {}
+                resolveThumb();
+              })
+              .run();
+          });
+        } catch (copyErr) {
+          try { fs.copyFileSync(fullFilePath, fullThumbPath); } catch (e) {}
+        }
 
         const imageRecord = await Video.create({
           title: rawTitle,
