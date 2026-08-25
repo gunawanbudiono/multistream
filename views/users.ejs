@@ -210,7 +210,7 @@
                 <%= user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '--' %>
               </td>
 
-              <!-- Actions -->
+              <!-- Actions (Replaced gear & delete with Impersonate & Detail) -->
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
                 <div class="flex items-center justify-end gap-2">
                   <!-- Impersonate Button (Gold) -->
@@ -223,21 +223,13 @@
                     </button>
                   <% } %>
 
-                  <!-- Edit / Details Button -->
+                  <!-- Detail Button (Opens comprehensive User Details modal with Delete inside) -->
                   <button onclick="editUser('<%= user.id %>', '<%= user.username %>', '<%= user.user_role %>', '<%= user.status %>', '<%= user.avatar_path || '' %>', '<%= user.disk_quota_gb || 0 %>')" 
-                    class="p-1.5 text-gray-400 hover:text-white bg-dark-900 border border-[#27272a] rounded-lg hover:border-gray-600 transition-colors" 
-                    title="User Settings">
-                    <i class="ti ti-settings text-base"></i>
+                    class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-dark-900 text-gray-300 border border-[#27272a] hover:text-white hover:border-gray-500 transition-colors flex items-center gap-1.5" 
+                    title="User Details & Settings">
+                    <i class="ti ti-adjustments text-sm"></i>
+                    <span>Detail</span>
                   </button>
-
-                  <!-- Delete User Button -->
-                  <% if (user.id !== req.session.userId) { %>
-                    <button onclick="deleteUser('<%= user.id %>', '<%= user.username %>')" 
-                      class="p-1.5 text-red-400 hover:text-red-300 bg-dark-900 border border-[#27272a] rounded-lg hover:border-red-900/50 transition-colors" 
-                      title="Delete User">
-                      <i class="ti ti-trash text-base"></i>
-                    </button>
-                  <% } %>
                 </div>
               </td>
             </tr>
@@ -257,99 +249,175 @@
 </div>
 
 <!-- ========================================== -->
-<!-- MODAL: EDIT USER & DETAILS -->
+<!-- MODAL: USER DETAILS & SETTINGS (HIGH FIDELITY) -->
 <!-- ========================================== -->
-<div id="editModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
-  <div id="editModalContent" class="bg-dark-800 border border-[#27272a] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-[#27272a]">
-      <h3 class="text-lg font-bold text-white flex items-center gap-2">
-        <i class="ti ti-user-cog text-blue-400"></i>
-        <span>User Settings & Details</span>
-      </h3>
-      <button onclick="closeEditModal()" class="text-gray-400 hover:text-white transition-colors">
+<div id="editModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+  <div id="editModalContent" class="bg-[#18181b] border border-[#27272a] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200 flex flex-col max-h-[92vh]">
+    
+    <!-- Modal Header -->
+    <div class="flex items-start justify-between px-6 pt-5 pb-3 border-b border-[#27272a]/60 flex-shrink-0">
+      <div>
+        <h3 class="text-lg font-bold text-white">User Details & Settings</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Edit user profile, avatar logo, password, or disk quota (GB)</p>
+      </div>
+      <button onclick="closeEditModal()" class="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-dark-800">
         <i class="ti ti-x text-lg"></i>
       </button>
     </div>
 
-    <form id="editUserForm" class="p-6 space-y-4">
+    <!-- Modal Form Body (Scrollable) -->
+    <form id="editUserForm" class="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
       <input type="hidden" id="editUserId" name="userId">
       
-      <!-- Avatar Section -->
-      <div class="flex items-center gap-4 pb-2 border-b border-[#27272a]">
-        <div class="w-16 h-16 rounded-2xl overflow-hidden bg-dark-900 border border-[#27272a] flex-shrink-0">
-          <img id="editUserAvatar" src="/images/default-avatar.jpg" alt="Avatar" class="w-full h-full object-cover">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Profile Photo</label>
-          <label for="editAvatarInput" class="px-3 py-1.5 bg-dark-900 border border-[#27272a] hover:border-gray-600 text-xs font-medium text-white rounded-lg cursor-pointer transition-colors inline-block">
-            Choose Image
+      <!-- Profile Photo / Avatar Logo Section -->
+      <div>
+        <label class="block text-xs font-medium text-gray-300 mb-1.5">Profile Photo / Avatar Logo</label>
+        <div class="flex items-center gap-3 bg-dark-900 border border-[#27272a] rounded-xl p-2.5">
+          <div class="w-10 h-10 rounded-full overflow-hidden bg-dark-800 border border-[#27272a] flex-shrink-0">
+            <img id="editUserAvatar" src="/images/default-avatar.jpg" alt="Avatar" class="w-full h-full object-cover">
+          </div>
+          <label for="editAvatarInput" class="px-3 py-1.5 bg-primary hover:bg-blue-600 text-xs font-semibold text-white rounded-lg cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-sm flex-shrink-0">
+            Choose File
           </label>
+          <span id="editAvatarFileName" class="text-xs text-gray-400 truncate flex-1">No file chosen</span>
           <input type="file" id="editAvatarInput" name="avatar" accept="image/*" class="hidden">
         </div>
       </div>
 
-      <!-- Username & Role -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Username</label>
-          <input type="text" id="editUsername" name="username" required
-            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Role</label>
-          <select id="editRole" name="role"
-            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
-            <option value="admin">Admin</option>
-            <option value="member">Member</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Status & Quota Limit -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Account Status</label>
-          <select id="editStatus" name="status"
-            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Disk Quota Limit (GB)</label>
-          <input type="number" id="editDiskQuotaGb" name="disk_quota_gb" min="0" placeholder="0 = Unlimited"
-            class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
-          <span class="text-[11px] text-gray-500 mt-1 block">Set 0 for unlimited storage pool.</span>
-        </div>
-      </div>
-
-      <!-- Password Reset -->
+      <!-- Username -->
       <div>
-        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Reset Password (Optional)</label>
-        <input type="password" id="editPassword" name="password" placeholder="Leave blank to keep current password"
-          class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
+        <label class="block text-xs font-medium text-gray-300 mb-1.5">Username</label>
+        <input type="text" id="editUsername" name="username" required
+          class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors">
       </div>
 
-      <!-- Revoke Session Action -->
-      <div class="pt-2 pb-2 border-t border-[#27272a] flex items-center justify-between">
-        <div>
-          <p class="text-xs font-medium text-white">Active Login Sessions</p>
-          <p class="text-[11px] text-gray-500">Force logout this user from all connected devices.</p>
+      <!-- New Password with Eye Toggle & Strength Meter -->
+      <div>
+        <label class="block text-xs font-medium text-gray-300 mb-1.5">
+          New Password <span class="text-gray-500 font-normal">(Leave blank to keep current)</span>
+        </label>
+        <div class="relative">
+          <input type="password" id="editPassword" name="password" placeholder="Enter new password"
+            class="w-full bg-dark-900 border border-[#27272a] rounded-xl pl-3.5 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors">
+          <button type="button" onclick="togglePasswordVisibility('editPassword', 'editPasswordToggleIcon')" 
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1">
+            <i id="editPasswordToggleIcon" class="ti ti-eye-off text-base"></i>
+          </button>
         </div>
-        <button type="button" onclick="revokeUserSessions()" 
-          class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors">
-          <i class="ti ti-logout mr-1"></i> Revoke Sessions
-        </button>
+        <div id="passwordStrengthContainer" class="mt-2 hidden">
+          <div class="w-full bg-dark-950 rounded-full h-1.5 overflow-hidden">
+            <div id="passwordStrengthBar" class="h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p id="passwordStrengthText" class="text-[11px] font-semibold mt-1"></p>
+        </div>
+      </div>
+
+      <!-- Role & Status Selects -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1.5">Role</label>
+          <div class="relative">
+            <select id="editRole" name="role"
+              class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white appearance-none focus:outline-none focus:border-primary pr-8 transition-colors">
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+            <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1.5">Status</label>
+          <div class="relative">
+            <select id="editStatus" name="status"
+              class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2.5 text-sm text-white appearance-none focus:outline-none focus:border-primary pr-8 transition-colors">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Server Storage Overview Card -->
+      <div class="bg-dark-900/70 border border-[#27272a] rounded-xl p-4 space-y-2.5">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-gray-300 font-semibold flex items-center gap-1.5">
+            <i class="ti ti-database text-blue-400"></i> Server Storage Overview
+          </span>
+          <span class="text-gray-400">
+            <strong class="text-emerald-400 font-bold"><%= globalStats ? globalStats.diskFree : '469.00 GB' %> Free</strong> / 489.61 GB Total
+          </span>
+        </div>
+        <div class="w-full bg-dark-950 rounded-full h-2 overflow-hidden border border-gray-800">
+          <div class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full" style="width: 25%"></div>
+        </div>
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="text-gray-400">Allocated (Member Users): <strong class="text-white font-semibold" id="overviewAllocated">0 GB</strong></span>
+          <span class="text-emerald-400 font-semibold" id="overviewUnallocated">Unallocated Pool: 469 GB Available</span>
+        </div>
+      </div>
+
+      <!-- Disk Quota Limit (GB) -->
+      <div>
+        <label class="block text-xs font-medium text-gray-300 mb-1.5">
+          Disk Quota Limit (GB) <span class="text-gray-500 font-normal">(e.g. 50 for 50 GB, 0 = Unlimited)</span>
+        </label>
+        <div class="relative flex items-center">
+          <input type="number" id="editDiskQuotaGb" name="disk_quota_gb" min="0" placeholder="0"
+            class="w-full bg-dark-900 border border-[#27272a] rounded-xl pl-3.5 pr-14 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors">
+          <span class="absolute right-3 px-2 py-0.5 rounded bg-dark-800 text-xs font-semibold text-blue-400 border border-[#27272a]">GB</span>
+        </div>
+        <p class="text-[11px] text-emerald-400/90 mt-1.5 flex items-center gap-1">
+          <i class="ti ti-info-circle"></i> Quota limit setting in Gigabytes (GB)
+        </p>
+      </div>
+
+      <!-- Security & Session Control / Account Status Box -->
+      <div class="bg-dark-900/70 border border-[#27272a] rounded-xl p-4 space-y-3.5">
+        <!-- Revoke Sessions -->
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs font-semibold text-white">Security & Session Control</p>
+            <p class="text-[11px] text-gray-400 mt-0.5">Revoke active login sessions across devices</p>
+          </div>
+          <button type="button" onclick="revokeUserSessions()" 
+            class="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#2b2010] text-[#fcd34d] border border-[#78350f] hover:bg-[#3d2e16] transition-colors flex items-center gap-1.5 flex-shrink-0">
+            <i class="ti ti-logout text-sm"></i>
+            <span>Revoke Sessions</span>
+          </button>
+        </div>
+
+        <div class="h-px bg-[#27272a]"></div>
+
+        <!-- Account Status (Suspend & Delete) -->
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs font-semibold text-white">Account Status</p>
+            <p class="text-[11px] text-gray-400 mt-0.5">Suspend access or delete user</p>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button type="button" id="suspendUserBtn" onclick="toggleUserSuspend()" 
+              class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex items-center gap-1">
+              <i class="ti ti-ban text-sm"></i>
+              <span id="suspendBtnText">Suspend</span>
+            </button>
+            <button type="button" id="deleteUserBtn" onclick="deleteUserFromModal()" 
+              class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors flex items-center gap-1">
+              <i class="ti ti-trash text-sm"></i>
+              <span>Delete</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Modal Footer -->
-      <div class="pt-4 border-t border-[#27272a] flex items-center justify-end gap-3">
+      <div class="pt-3 pb-1 flex items-center justify-end gap-3 flex-shrink-0 border-t border-[#27272a]">
         <button type="button" onclick="closeEditModal()" 
-          class="px-4 py-2 text-sm text-gray-400 hover:text-white bg-dark-900 border border-[#27272a] rounded-xl transition-colors">
+          class="px-5 py-2.5 text-sm text-gray-300 hover:text-white bg-dark-900 border border-[#27272a] rounded-xl transition-colors">
           Cancel
         </button>
         <button type="submit" 
-          class="px-4 py-2 text-sm bg-primary hover:bg-blue-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-blue-500/20">
+          class="px-5 py-2.5 text-sm bg-primary hover:bg-blue-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-blue-500/20">
           Save Changes
         </button>
       </div>
@@ -360,14 +428,14 @@
 <!-- ========================================== -->
 <!-- MODAL: CREATE USER -->
 <!-- ========================================== -->
-<div id="createModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
-  <div id="createModalContent" class="bg-dark-800 border border-[#27272a] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200">
+<div id="createModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+  <div id="createModalContent" class="bg-[#18181b] border border-[#27272a] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200">
     <div class="flex items-center justify-between px-6 py-4 border-b border-[#27272a]">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="ti ti-user-plus text-blue-400"></i>
         <span>Create New User</span>
       </h3>
-      <button onclick="closeCreateModal()" class="text-gray-400 hover:text-white transition-colors">
+      <button onclick="closeCreateModal()" class="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-dark-800">
         <i class="ti ti-x text-lg"></i>
       </button>
     </div>
@@ -391,8 +459,8 @@
           <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Role</label>
           <select id="createRole" name="role"
             class="w-full bg-dark-900 border border-[#27272a] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-primary">
-            <option value="admin">Admin</option>
             <option value="member" selected>Member</option>
+            <option value="admin">Admin</option>
           </select>
         </div>
         <div>
@@ -428,8 +496,8 @@
 <!-- ========================================== -->
 <!-- CUSTOM CONFIRMATION MODAL -->
 <!-- ========================================== -->
-<div id="confirmModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
-  <div id="confirmModalContent" class="bg-dark-800 border border-[#27272a] rounded-2xl w-full max-w-md p-6 shadow-2xl transform scale-95 opacity-0 transition-all duration-200 text-center">
+<div id="confirmModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+  <div id="confirmModalContent" class="bg-[#18181b] border border-[#27272a] rounded-2xl w-full max-w-md p-6 shadow-2xl transform scale-95 opacity-0 transition-all duration-200 text-center">
     <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-2xl mx-auto mb-4">
       <i class="ti ti-alert-triangle"></i>
     </div>
@@ -451,6 +519,10 @@
 
 <!-- JavaScript Logic -->
 <script>
+  let currentActiveEditUserId = null;
+  let currentActiveEditUsername = null;
+  let currentActiveEditStatus = 'active';
+
   function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
@@ -503,14 +575,79 @@
     };
   }
 
+  function togglePasswordVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'ti ti-eye text-base text-blue-400';
+    } else {
+      input.type = 'password';
+      icon.className = 'ti ti-eye-off text-base text-gray-400';
+    }
+  }
+
+  // Real-time password strength meter
+  document.getElementById('editPassword').addEventListener('input', function() {
+    const val = this.value;
+    const container = document.getElementById('passwordStrengthContainer');
+    const bar = document.getElementById('passwordStrengthBar');
+    const text = document.getElementById('passwordStrengthText');
+
+    if (!val) {
+      container.classList.add('hidden');
+      return;
+    }
+
+    container.classList.remove('hidden');
+    let strength = 0;
+    if (val.length >= 6) strength += 25;
+    if (val.length >= 10) strength += 25;
+    if (/[A-Z]/.test(val) && /[a-z]/.test(val)) strength += 25;
+    if (/[0-9]/.test(val) || /[^A-Za-z0-9]/.test(val)) strength += 25;
+
+    if (strength <= 25) {
+      bar.style.width = '25%';
+      bar.className = 'h-1.5 rounded-full bg-rose-500';
+      text.innerText = 'Password Strength: Weak';
+      text.className = 'text-[11px] font-semibold mt-1 text-rose-400';
+    } else if (strength <= 75) {
+      bar.style.width = '60%';
+      bar.className = 'h-1.5 rounded-full bg-amber-500';
+      text.innerText = 'Password Strength: Medium';
+      text.className = 'text-[11px] font-semibold mt-1 text-amber-400';
+    } else {
+      bar.style.width = '100%';
+      bar.className = 'h-1.5 rounded-full bg-emerald-500';
+      text.innerText = 'Password Strength: Strong';
+      text.className = 'text-[11px] font-semibold mt-1 text-emerald-400';
+    }
+  });
+
   function openEditModal(userId, username, role, status, avatar, diskQuotaGb) {
+    currentActiveEditUserId = userId;
+    currentActiveEditUsername = username;
+    currentActiveEditStatus = status;
+
     document.getElementById('editUserId').value = userId;
     document.getElementById('editUsername').value = username;
     document.getElementById('editRole').value = role;
     document.getElementById('editStatus').value = status;
     document.getElementById('editDiskQuotaGb').value = diskQuotaGb || 0;
     document.getElementById('editPassword').value = '';
+    document.getElementById('editPassword').type = 'password';
+    document.getElementById('editPasswordToggleIcon').className = 'ti ti-eye-off text-base text-gray-400';
+    document.getElementById('passwordStrengthContainer').classList.add('hidden');
     document.getElementById('editUserAvatar').src = avatar || '/images/default-avatar.jpg';
+    document.getElementById('editAvatarFileName').innerText = 'No file chosen';
+
+    // Update Suspend button text
+    const suspendText = document.getElementById('suspendBtnText');
+    if (status === 'inactive') {
+      suspendText.innerText = 'Activate';
+    } else {
+      suspendText.innerText = 'Suspend';
+    }
 
     const modal = document.getElementById('editModal');
     const content = document.getElementById('editModalContent');
@@ -574,7 +711,7 @@
   }
 
   function revokeUserSessions() {
-    const userId = document.getElementById('editUserId').value;
+    const userId = currentActiveEditUserId || document.getElementById('editUserId').value;
     if (!userId) return;
     showConfirmModal(
       'Revoke Active Sessions',
@@ -595,10 +732,46 @@
     );
   }
 
-  function deleteUser(userId, username) {
+  function toggleUserSuspend() {
+    const userId = currentActiveEditUserId;
+    if (!userId) return;
+    const currentStatus = document.getElementById('editStatus').value;
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const actionLabel = newStatus === 'active' ? 'activate' : 'suspend';
+
     showConfirmModal(
-      'Delete User',
-      `Are you sure you want to delete user "${username}"? All associated videos and streams will be removed.`,
+      `${actionLabel === 'suspend' ? 'Suspend' : 'Activate'} User`,
+      `Are you sure you want to ${actionLabel} user "${currentActiveEditUsername}"?`,
+      async () => {
+        try {
+          const res = await fetch('/api/users/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, status: newStatus })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast(`User ${actionLabel}ed successfully`, 'success');
+            closeEditModal();
+            setTimeout(() => location.reload(), 1000);
+          } else {
+            showToast('Error: ' + data.message, 'error');
+          }
+        } catch (e) {
+          showToast(`Failed to ${actionLabel} user`, 'error');
+        }
+      }
+    );
+  }
+
+  function deleteUserFromModal() {
+    const userId = currentActiveEditUserId;
+    const username = currentActiveEditUsername;
+    if (!userId) return;
+
+    showConfirmModal(
+      'Delete User Account',
+      `Are you sure you want to permanently delete user "${username}"? All associated media files, playlists, and streams will be removed.`,
       async () => {
         try {
           const res = await fetch('/api/users/delete', {
@@ -609,6 +782,7 @@
           const data = await res.json();
           if (data.success) {
             showToast('User deleted successfully', 'success');
+            closeEditModal();
             setTimeout(() => location.reload(), 1000);
           } else {
             showToast('Error: ' + data.message, 'error');
@@ -623,6 +797,7 @@
   document.getElementById('editAvatarInput').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
+      document.getElementById('editAvatarFileName').innerText = file.name;
       const reader = new FileReader();
       reader.onload = (e) => document.getElementById('editUserAvatar').src = e.target.result;
       reader.readAsDataURL(file);
