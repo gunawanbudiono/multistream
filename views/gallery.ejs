@@ -1170,11 +1170,11 @@ async function inspectMediaFile(file) {
           meta.width = img.naturalWidth;
           meta.height = img.naturalHeight;
           if (meta.width && meta.height) {
-            meta.resolutionLabel = `${meta.width}×${meta.height}`;
-            if (meta.width >= 3840) meta.resolutionLabel += ' (4K UHD)';
-            else if (meta.width >= 2560) meta.resolutionLabel += ' (2K QHD)';
-            else if (meta.width >= 1920) meta.resolutionLabel += ' (1080p FHD)';
-            else if (meta.width >= 1280) meta.resolutionLabel += ' (720p HD)';
+            let aspect = '';
+            if (meta.width > meta.height) aspect = ' (Landscape)';
+            else if (meta.height > meta.width) aspect = ' (Portrait)';
+            else aspect = ' (1:1 Square)';
+            meta.resolutionLabel = `${meta.width}×${meta.height} px${aspect}`;
           }
           resolve();
         };
@@ -1285,7 +1285,17 @@ async function inspectMediaFile(file) {
           meta.durationFormatted = formatDuration(meta.duration);
           if (meta.duration > 0 && file.size > 0) {
             const kbps = Math.round((file.size * 8) / meta.duration / 1000);
-            meta.bitrateLabel = `${kbps} kbps`;
+            if (kbps >= 1000) {
+              meta.bitrateLabel = `${kbps} kbps (Lossless/WAV)`;
+            } else if (kbps >= 320) {
+              meta.bitrateLabel = `${kbps} kbps (Studio HQ)`;
+            } else if (kbps >= 192) {
+              meta.bitrateLabel = `${kbps} kbps (High Quality)`;
+            } else if (kbps >= 128) {
+              meta.bitrateLabel = `${kbps} kbps (Standard)`;
+            } else {
+              meta.bitrateLabel = `${kbps} kbps`;
+            }
           }
           clearTimeout(timeout);
           URL.revokeObjectURL(objUrl);
@@ -1674,25 +1684,39 @@ document.addEventListener('DOMContentLoaded', function() {
     uploadDropzone.addEventListener('click', (e) => {
       if (!e.target.closest('label')) mediaFileInput.click();
     });
-    uploadDropzone.addEventListener('dragenter', (e) => {
+  }
+
+  const uploadModalContent = document.getElementById('uploadModalContent');
+  const dropTargets = [uploadDropzone, selectedFileInfo, uploadModalContent];
+
+  dropTargets.forEach(target => {
+    if (!target) return;
+    target.addEventListener('dragenter', (e) => {
       e.preventDefault();
-      uploadDropzone.classList.add('border-primary', 'bg-primary/5');
+      e.stopPropagation();
+      if (uploadDropzone) uploadDropzone.classList.add('border-primary', 'bg-primary/10');
+      if (selectedFileInfo) selectedFileInfo.classList.add('ring-2', 'ring-primary', 'bg-primary/5');
     });
-    uploadDropzone.addEventListener('dragover', (e) => {
+    target.addEventListener('dragover', (e) => {
       e.preventDefault();
+      e.stopPropagation();
     });
-    uploadDropzone.addEventListener('dragleave', (e) => {
+    target.addEventListener('dragleave', (e) => {
       e.preventDefault();
-      uploadDropzone.classList.remove('border-primary', 'bg-primary/5');
+      e.stopPropagation();
+      if (uploadDropzone) uploadDropzone.classList.remove('border-primary', 'bg-primary/10');
+      if (selectedFileInfo) selectedFileInfo.classList.remove('ring-2', 'ring-primary', 'bg-primary/5');
     });
-    uploadDropzone.addEventListener('drop', (e) => {
+    target.addEventListener('drop', (e) => {
       e.preventDefault();
-      uploadDropzone.classList.remove('border-primary', 'bg-primary/5');
-      if (e.dataTransfer && e.dataTransfer.files) {
+      e.stopPropagation();
+      if (uploadDropzone) uploadDropzone.classList.remove('border-primary', 'bg-primary/10');
+      if (selectedFileInfo) selectedFileInfo.classList.remove('ring-2', 'ring-primary', 'bg-primary/5');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         handleFilesSelected(Array.from(e.dataTransfer.files));
       }
     });
-  }
+  });
 
   function escapeHtml(value) {
     return String(value ?? '')
