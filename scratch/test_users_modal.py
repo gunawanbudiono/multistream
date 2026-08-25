@@ -4,14 +4,20 @@ s = requests.Session()
 login_res = s.post('http://192.168.18.2:7575/login', data={'username':'ngadimin', 'password':'Jeruksunrise123'})
 print('1. LOGIN ADMIN:', login_res.status_code == 200)
 
+r_users = s.get('http://192.168.18.2:7575/users')
+print('2. GET /users STATUS CODE:', r_users.status_code == 200)
+
+# Check for category filter buttons
+has_filters = all(k in r_users.text for k in ['logFilterAll', 'logFilterAuth', 'logFilterStream', 'logFilterMedia', 'logFilterAdmin'])
+print('3. LOG CATEGORY FILTER PILLS PRESENT:', has_filters)
+
+# Check for parseDbDate helper in users page
+print('4. PARSE_DB_DATE HELPER PRESENT:', 'parseDbDate' in r_users.text)
+
+# Check inspector endpoint
 admin_id = 'bdb0aa84-e0ce-4c04-a0d0-7e44bc6eef35'
 insp_res = s.get(f'http://192.168.18.2:7575/api/users/{admin_id}/inspector')
 insp_data = insp_res.json()
-logs = insp_data.get('logs', [])
-print(f'2. ADMIN LOGS COUNT: {len(logs)}')
-if len(logs) > 0:
-    for i, l in enumerate(logs[:3]):
-        print(f"   [{i+1}] {l.get('category').upper()}: {l.get('description')} ({l.get('created_at')})")
-
-time_res = s.get('http://192.168.18.2:7575/api/server-time').json()
-print(f"3. SERVER TIME (WIB): {time_res.get('formattedTime')}")
+print('5. INSPECTOR LOGS LOADED:', len(insp_data.get('logs', [])) > 0)
+if len(insp_data.get('logs', [])) > 0:
+    print(f"   -> Top log: {insp_data['logs'][0].get('description')}")

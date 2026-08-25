@@ -221,21 +221,58 @@ const csrfProtection = function (req, res, next) {
   }
   next();
 };
-const isAuthenticated = (req, res, next) => {
-  if (req.session.userId) {
-    return next();
+const isAuthenticated = async (req, res, next) => {
+  if (!req.session.userId) {
+    if (req.xhr || (req.headers.accept && req.headers.accept.includes('json')) || req.path.startsWith('/api/')) {
+      return res.status(401).json({ success: false, error: 'Unauthorized. Please log in.' });
+    }
+    return res.redirect('/login');
   }
-  res.redirect('/login');
+
+  try {
+    const user = await User.findById(req.session.userId);
+    if (!user) {
+      req.session.destroy(() => {
+        if (req.xhr || (req.headers.accept && req.headers.accept.includes('json')) || req.path.startsWith('/api/')) {
+          return res.status(401).json({ success: false, error: 'Account not found. Please log in again.' });
+        }
+        res.redirect('/login?error=' + encodeURIComponent('Account no longer exists.'));
+      });
+      return;
+    }
+
+    if (user.status === 'inactive') {
+      req.session.destroy(() => {
+        if (req.xhr || (req.headers.accept && req.headers.accept.includes('json')) || req.path.startsWith('/api/')) {
+          return res.status(403).json({ success: false, error: 'Account suspended. Contact administrator.' });
+        }
+        res.redirect('/login?error=' + encodeURIComponent('Your account has been suspended. Please contact administrator.'));
+      });
+      return;
+    }
+
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error('Authentication check error:', err);
+    res.redirect('/login');
+  }
 };
 
 const isAdmin = async (req, res, next) => {
   try {
     if (!req.session.userId) {
+      if (req.xhr || (req.headers.accept && req.headers.accept.includes('json')) || req.path.startsWith('/api/')) {
+        return res.status(401).json({ success: false, error: 'Unauthorized.' });
+      }
       return res.redirect('/login');
     }
     
-    const user = await User.findById(req.session.userId);
-    if (!user || user.user_role !== 'admin') {
+    const user = req.user || await User.findById(req.session.userId);
+    if (!user || user.user_role !== 'admin' || user.status === 'inactive') {
+      if (req.xhr || (req.headers.accept && req.headers.accept.includes('json')) || req.path.startsWith('/api/')) {
+        return res.status(403).json({ success: false, error: 'Access denied: Admin privileges required.' });
+      }
       return res.redirect('/dashboard');
     }
     
@@ -264,6 +301,7 @@ app.use('/uploads/avatars', (req, res, next) => {
     if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
     else if (ext === '.png') contentType = 'image/png';
     else if (ext === '.gif') contentType = 'image/gif';
+    else if (ext === '.webp') contentType = 'image/webp';
     res.header('Content-Type', contentType);
     res.header('Cache-Control', 'max-age=60, must-revalidate');
     fs.createReadStream(file).pipe(res);
@@ -1233,7 +1271,13 @@ app.get('/users', isAdmin, async (req, res) => {
       if (diskInfo) systemDiskStats = diskInfo;
     } catch (e) {}
 
-    const totalServerCapacityGB = 489.61;
+    let totalServerCapacityGB = 489.61;
+    if (systemDiskStats && systemDiskStats.total) {
+      const parsed = parseFloat(systemDiskStats.total);
+      if (!isNaN(parsed) && parsed > 0) {
+        totalServerCapacityGB = parsed;
+      }
+    }
     const unallocatedPoolGB = Math.max(0, (totalServerCapacityGB - totalAllocatedGB)).toFixed(2);
     const allocatedPercent = Math.min(100, Math.max(2, Math.round((totalAllocatedGB / totalServerCapacityGB) * 100)));
     const offlineStreamsAll = Math.max(0, totalStreamsAll - totalActiveStreamsAll);
