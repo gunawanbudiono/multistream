@@ -3549,6 +3549,37 @@ app.post('/api/youtube/inspect', isAuthenticated, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid YouTube URL' });
     }
     const metadata = await youtubeDownloadService.inspectVideo(cleanUrl);
+
+    // Smart Duplicate Check for current user
+    try {
+      const { db } = require('./db/database');
+      const userId = req.session.userId;
+      const titleSearch = metadata.title ? metadata.title.slice(0, 35) : '';
+      const existingVideo = await new Promise((resolve) => {
+        db.get(
+          `SELECT id, title, resolution, format, duration FROM videos 
+           WHERE user_id = ? AND (title = ? OR (duration > 0 AND ABS(duration - ?) <= 2 AND title LIKE ?)) 
+           LIMIT 1`,
+          [userId, metadata.title, metadata.duration || 0, `%${titleSearch}%`],
+          (err, row) => resolve(row || null)
+        );
+      });
+
+      if (existingVideo) {
+        metadata.alreadyInGallery = {
+          exists: true,
+          id: existingVideo.id,
+          title: existingVideo.title,
+          resolution: existingVideo.resolution || existingVideo.format || 'Saved'
+        };
+      } else {
+        metadata.alreadyInGallery = null;
+      }
+    } catch (dbErr) {
+      console.warn('Duplicate check warning:', dbErr.message);
+      metadata.alreadyInGallery = null;
+    }
+
     res.json({ success: true, metadata });
   } catch (error) {
     console.error('YouTube inspect error:', error);
