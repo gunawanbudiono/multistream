@@ -29,22 +29,35 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const args = [
-    '-m', 'yt_dlp',
-    '-F',
-    '--cookies', '/app/db/cookies.txt',
-    '--remote-components', 'ejs:github',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
-    'https://www.youtube.com/watch?v=LXb3EKWsInQ'
+  const tests = [
+    { name: 'android without POT', args: ['--extractor-args', 'youtube:player_client=android'] },
+    { name: 'web without POT', args: ['--extractor-args', 'youtube:player_client=web'] },
+    { name: 'android with POT', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=android'] },
+    { name: 'web with POT and cookies', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'] }
   ];
 
-  await new Promise((resolve) => {
-    execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      console.log('STDOUT:\n', stdout);
-      if (err) console.log('STDERR:\n', stderr);
-      resolve();
+  for (const t of tests) {
+    const args = [
+      '-m', 'yt_dlp',
+      '-F',
+      '--remote-components', 'ejs:github',
+      ...t.args,
+      'https://www.youtube.com/watch?v=LXb3EKWsInQ'
+    ];
+
+    await new Promise((resolve) => {
+      execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+        console.log(`=== TEST: ${t.name} ===`);
+        if (err) {
+          console.log('ERROR:', stderr.slice(0, 100) || err.message);
+        } else {
+          const lines = stdout.split('\n').filter(l => l.includes('mp4') || l.includes('webm') || l.includes('m4a'));
+          console.log(lines.slice(0, 8).join('\n'));
+        }
+        resolve();
+      });
     });
-  });
+  }
 }
 
 run();
