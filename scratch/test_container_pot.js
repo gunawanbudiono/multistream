@@ -32,13 +32,12 @@ async function run() {
   const args = [
     '-m', 'yt_dlp',
     '-v',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
-    '--extractor-args', 'youtube:player_client=web_safari',
-    '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+    '--cookies', '/app/db/test_user_cookie.txt',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=tv,mweb,web',
     '--dump-single-json',
     '--no-warnings',
     '--skip-download',
-    'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
   ];
 
   await new Promise((resolve) => {
