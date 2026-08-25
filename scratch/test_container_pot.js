@@ -29,18 +29,17 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  // First, let's install yt-dlp-ytse inside python environment
+  // Install yt-dlp-ytse with --break-system-packages
   await new Promise((resolve) => {
-    execFile('pip', ['install', '-U', 'yt-dlp-ytse'], (err, stdout, stderr) => {
-      console.log('PIP INSTALL YT-DLP-YTSE:', stdout || stderr || 'done');
+    execFile('pip', ['install', '--break-system-packages', '-U', 'yt-dlp-ytse'], (err, stdout, stderr) => {
+      console.log('PIP INSTALL YT-DLP-YTSE:\n', stdout || stderr);
       resolve();
     });
   });
 
   const testArgs = [
-    { name: 'formats=sabr with POT', args: ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:formats=sabr'] },
     { name: 'formats=sabr with Cookies + POT', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:formats=sabr'] },
-    { name: 'formats=sabr without POT', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtube:formats=sabr'] }
+    { name: 'formats=sabr,missing_pot with Cookies + POT', args: ['--cookies', '/app/db/cookies.txt', '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:formats=sabr,missing_pot'] }
   ];
 
   for (const t of testArgs) {
