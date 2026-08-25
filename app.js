@@ -1227,7 +1227,10 @@ app.post('/api/users/:id/impersonate', isAdmin, async (req, res) => {
     req.session.user_role = targetUser.user_role;
     req.session.avatar_path = targetUser.avatar_path;
     req.session.isImpersonating = true;
-    res.json({ success: true, message: `Successfully impersonating ${targetUser.username}` });
+    req.session.save((err) => {
+      if (err) console.error('Error saving impersonation session:', err);
+      res.json({ success: true, message: `Successfully impersonating ${targetUser.username}` });
+    });
   } catch (err) {
     console.error('Impersonate error:', err);
     res.status(500).json({ success: false, error: 'Failed to impersonate user' });
@@ -1250,7 +1253,10 @@ app.post('/api/users/exit-impersonate', isAuthenticated, async (req, res) => {
     delete req.session.isImpersonating;
     delete req.session.originalAdminId;
     delete req.session.originalAdminUsername;
-    res.json({ success: true, message: 'Returned to admin session' });
+    req.session.save((err) => {
+      if (err) console.error('Error saving reverted admin session:', err);
+      res.json({ success: true, message: 'Returned to admin session' });
+    });
   } catch (err) {
     console.error('Exit impersonate error:', err);
     res.status(500).json({ success: false, error: 'Failed to exit impersonation' });

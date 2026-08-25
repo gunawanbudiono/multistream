@@ -70,31 +70,7 @@
      }
    </script>
 </head>
-<body class="bg-dark-900 text-white font-inter <%= locals.isImpersonating ? 'pt-10' : '' %>">
-  <% if (locals.isImpersonating) { %>
-  <div class="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white px-4 py-2 flex items-center justify-between shadow-lg text-sm font-medium">
-    <div class="flex items-center gap-2">
-      <i class="ti ti-user-exclamation text-lg"></i>
-      <span>Impersonating <strong><%= req.session.username %></strong> (Logged in as <%= locals.originalAdminUsername %>)</span>
-    </div>
-    <button onclick="exitImpersonation()" class="px-3 py-1 bg-black/40 hover:bg-black/60 rounded-md transition-colors text-xs font-semibold flex items-center gap-1 border border-white/20">
-      <i class="ti ti-arrow-back-up"></i>
-      <span>Exit Impersonation</span>
-    </button>
-  </div>
-  <script>
-    async function exitImpersonation() {
-      try {
-        const res = await fetch('/api/users/exit-impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-        const data = await res.json();
-        if (data.success) window.location.href = '/users';
-        else alert(data.error || 'Failed to exit impersonation');
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  </script>
-  <% } %>
+<body class="bg-dark-900 text-white font-inter">
   <div
     class="lg:hidden fixed top-0 left-0 right-0 h-16 bg-dark-800 shadow-lg flex items-center justify-between px-6 z-30">
     <div class="flex items-center">
@@ -107,10 +83,6 @@
         <span id="mobile-server-clock" class="tabular-nums">--:--:--</span>
       </div>
       <div id="mobile-separator" class="hidden h-4 w-px bg-gray-600 mr-1"></div>
-      <a href="https://donate.youtube101.id/" target="_blank" 
-         class="p-2 text-gray-400 hover:text-white transition-colors">
-        <i class="ti ti-gift text-lg"></i>
-      </a>
       <div class="relative">
         <button id="mobile-notification-btn" class="p-2 text-gray-400 hover:text-white transition-colors relative">
           <i class="ti ti-bell text-lg"></i>
@@ -193,18 +165,54 @@
       </a>
     </div>
     <div class="w-full lg:ml-20 flex flex-col min-h-screen">
+      <% if (locals.isImpersonating) { %>
+      <div class="fixed top-0 right-0 left-0 lg:left-20 h-14 bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white px-6 flex items-center justify-between shadow-xl z-50">
+        <div class="flex items-center gap-2.5 text-sm font-semibold">
+          <span class="p-1 rounded-lg bg-black/20 text-amber-200"><i class="ti ti-user-exclamation text-lg"></i></span>
+          <span>Impersonating: <strong class="underline decoration-amber-300 font-bold"><%= req.session.username %></strong></span>
+          <span class="hidden sm:inline text-xs font-normal opacity-85 text-amber-100">(Logged in as <%= locals.originalAdminUsername %>)</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="exitImpersonation()" class="px-4 py-1.5 bg-black/40 hover:bg-black/60 rounded-xl transition-all duration-200 text-xs font-bold flex items-center gap-1.5 border border-white/30 shadow-md">
+            <i class="ti ti-arrow-back-up text-sm"></i>
+            <span>Exit Impersonation</span>
+          </button>
+        </div>
+      </div>
+      <script>
+        async function exitImpersonation() {
+          try {
+            const res = await fetch('/api/users/exit-impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const data = await res.json();
+            if (data.success) window.location.href = '/users';
+            else alert(data.error || 'Failed to exit impersonation');
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      </script>
+      <% } %>
+
       <div
-        class="hidden lg:fixed lg:flex top-0 right-0 left-20 items-center justify-end h-14 px-6 bg-dark-800 shadow-md z-10">
+        class="hidden lg:fixed lg:flex top-0 right-0 left-20 items-center justify-end h-14 px-6 bg-dark-800 shadow-md z-10 <%= locals.isImpersonating ? 'hidden' : '' %>">
         <div id="server-time-display" class="flex items-center gap-1.5 text-gray-400 text-sm mr-4">
           <span id="server-date">--</span>
           <span class="text-gray-600">•</span>
           <span id="server-clock" class="tabular-nums">--:--:--</span>
         </div>
         <div class="h-4 w-px bg-gray-600 mr-4"></div>
-        <a href="https://github.com/bangtutorial/streamflow" target="_blank"
-          class="p-2 text-gray-400 hover:text-white transition-colors mr-2">
-          <i class="ti ti-brand-github text-lg"></i>
-        </a>
+        
+        <!-- Logged-in User Profile Badge (Replaced GitHub icon) -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-700/60 border border-[#27272a] text-xs font-semibold text-white mr-3">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span><%= helpers.getUsername(req) %></span>
+          <% if (req.session && req.session.user_role === 'admin') { %>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-medium uppercase">Admin</span>
+          <% } else { %>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium uppercase">Member</span>
+          <% } %>
+        </div>
+
         <div class="relative">
           <button id="notification-btn" class="p-2 text-gray-400 hover:text-white transition-colors relative">
             <i class="ti ti-bell text-lg"></i>
@@ -224,23 +232,9 @@
         <%- body %>
       </div>
       <div class="hidden lg:flex justify-end pr-6 py-4">
-        <div class="flex items-center gap-2">
-          <div class="text-xs text-gray-500">
-            StreamFlow <span class="text-xs font-medium bg-gray-700 px-1 rounded">v<%= appVersion %></span>
-          </div>
-          <div class="h-3 w-px bg-gray-700"></div>
-          <a href="https://youtube.com/@bangtutorial" target="_blank" class="text-xs text-gray-500 hover:underline">by
-            Bang Tutorial</a>
-          <a href="https://saweria.co/fitrieffendi" target="_blank" class="saweria-button relative ml-1">
-            <span class="relative z-10 flex items-center gap-1.5 text-gray-800 font-medium px-2.5 py-1 text-xs">
-              <img src="/images/saweria.svg" alt="Saweria" class="w-3.5 h-3.5">
-              <span>Donate</span>
-            </span>
-            <div class="saweria-tooltip px-3 py-2 bg-white text-gray-800 text-xs rounded-lg shadow-lg whitespace-nowrap">
-              Terima kasih sudah bantu support 🙏
-              <div class="tooltip-arrow"></div>
-            </div>
-          </a>
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <span>StreamFlow</span>
+          <span class="text-xs font-medium bg-dark-700 px-1.5 py-0.5 rounded text-gray-400">v<%= appVersion %></span>
         </div>
       </div>
     </div>
