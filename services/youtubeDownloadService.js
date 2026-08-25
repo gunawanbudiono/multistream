@@ -251,7 +251,7 @@ async function processJobQueue(jobId, queueItems) {
       ...formatArg,
       '--no-colors',
       '--newline',
-      '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
+      '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s',
       '--geo-bypass',
       ...getPotArgs(),
       ...getCookieArgs(),
@@ -279,6 +279,11 @@ async function processJobQueue(jobId, queueItems) {
               }
               if (parts[2] && parts[2].trim() !== 'Unknown' && parts[2].trim() !== 'NA') {
                 job.eta = parts[2].trim();
+              }
+              if (parts[3] && parts[4] && parts[3].trim() !== 'NA' && parts[4].trim() !== 'NA') {
+                job.sizeProgress = `${parts[3].trim()} / ${parts[4].trim()}`;
+              } else if (parts[3] && parts[3].trim() !== 'NA') {
+                job.sizeProgress = parts[3].trim();
               }
               
               const overall = Math.round(((i + (job.currentProgress / 100)) / queueItems.length) * 100);
@@ -440,6 +445,7 @@ function getJobStatus(jobId) {
     currentItemTitle: job.currentItemTitle,
     speed: job.speed,
     eta: job.eta,
+    sizeProgress: job.sizeProgress || '',
     filesCount: job.downloadedFiles.length,
     error: job.error
   };
