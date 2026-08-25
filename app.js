@@ -3594,6 +3594,53 @@ app.post('/api/youtube/cancel/:jobId', isAuthenticated, async (req, res) => {
   }
 });
 
+app.get('/api/youtube/cookie-status', isAuthenticated, async (req, res) => {
+  try {
+    const cookiePath = path.join(__dirname, 'db', 'cookies.txt');
+    const exists = fs.existsSync(cookiePath);
+    let configured = false;
+    let lastUpdated = null;
+    let size = 0;
+    if (exists) {
+      const stats = fs.statSync(cookiePath);
+      size = stats.size;
+      configured = size > 50;
+      lastUpdated = stats.mtime.toISOString();
+    }
+    res.json({ success: true, configured, lastUpdated, size });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/youtube/upload-cookie', isAuthenticated, async (req, res) => {
+  try {
+    const { cookieContent } = req.body;
+    if (!cookieContent || typeof cookieContent !== 'string' || cookieContent.trim().length < 20) {
+      return res.status(400).json({ success: false, error: 'Invalid cookie content provided' });
+    }
+    const cookiePath = path.join(__dirname, 'db', 'cookies.txt');
+    fs.ensureDirSync(path.dirname(cookiePath));
+    fs.writeFileSync(cookiePath, cookieContent.trim(), 'utf8');
+    res.json({ success: true, message: 'YouTube cookies saved successfully' });
+  } catch (error) {
+    console.error('Save cookie error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to save cookies' });
+  }
+});
+
+app.delete('/api/youtube/delete-cookie', isAuthenticated, async (req, res) => {
+  try {
+    const cookiePath = path.join(__dirname, 'db', 'cookies.txt');
+    if (fs.existsSync(cookiePath)) {
+      fs.unlinkSync(cookiePath);
+    }
+    res.json({ success: true, message: 'Cookies cleared successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/api/videos/import-status/:jobId', isAuthenticated, async (req, res) => {
   const jobId = req.params.jobId;
   if (!importJobs[jobId]) {

@@ -69,12 +69,15 @@ function getPotArgs() {
 
 function getCookieArgs() {
   const cookiePaths = [
+    path.join(__dirname, '..', 'db', 'cookies.txt'),
     path.join(__dirname, '..', 'cookies.txt'),
-    path.join(__dirname, '..', 'youtube_cookies.txt'),
-    path.join(__dirname, '..', 'db', 'cookies.txt')
+    path.join(__dirname, '..', 'youtube_cookies.txt')
   ];
   for (const cp of cookiePaths) {
-    if (fs.existsSync(cp)) return ['--cookies', cp];
+    if (fs.existsSync(cp)) {
+      const stats = fs.statSync(cp);
+      if (stats.size > 50) return ['--cookies', cp];
+    }
   }
   return [];
 }

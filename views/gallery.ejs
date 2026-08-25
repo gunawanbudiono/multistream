@@ -521,10 +521,7 @@ function detectMediaType(item) {
             <i class="ti ti-brand-youtube text-2xl"></i>
           </div>
           <div>
-            <h3 class="text-base font-bold text-white flex items-center gap-2">
-              YouTube Downloader
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-semibold border border-red-500/30">Auto 4K Mux</span>
-            </h3>
+            <h3 class="text-base font-bold text-white">YouTube Downloader</h3>
             <p class="text-xs text-gray-400">Download YouTube videos & Shorts in high-fidelity quality</p>
           </div>
         </div>
@@ -535,6 +532,21 @@ function detectMediaType(item) {
 
       <!-- Modal Body (Scrollable) -->
       <div class="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+        <!-- Smart Conditional Cookie Alert Banner (Hidden by default, shown only if needed) -->
+        <div id="ytCookieAlertBanner" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 flex items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2.5 text-amber-300">
+            <i class="ti ti-cookie text-lg text-amber-400 shrink-0"></i>
+            <div>
+              <span class="font-semibold block text-amber-200">YouTube Cookie Setup</span>
+              <span class="text-[11px] text-amber-300/80">Required to download copyright-protected or official music videos.</span>
+            </div>
+          </div>
+          <button type="button" onclick="openYouTubeCookieModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs rounded-lg transition-colors shrink-0 shadow flex items-center gap-1">
+            <i class="ti ti-settings text-sm"></i>
+            <span>Setup Cookie</span>
+          </button>
+        </div>
+
         <!-- Input Box for Link -->
         <div class="space-y-1.5">
           <label class="text-xs font-semibold text-gray-300 flex items-center justify-between">
@@ -596,17 +608,85 @@ function detectMediaType(item) {
       </div>
 
       <!-- Modal Footer -->
-      <div class="p-4 px-5 border-t border-gray-700 bg-dark-800/80 flex items-center justify-between shrink-0">
-        <div class="text-xs text-gray-400 truncate max-w-[200px]">
-          Target: <span class="text-gray-300 font-medium"><%= currentFolder ? currentFolder.name : 'Root Gallery' %></span>
+      <div class="p-4 px-5 border-t border-gray-700 bg-dark-800/80 flex items-center justify-end gap-2.5 shrink-0">
+        <button type="button" onclick="closeYouTubeDownloadModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 font-medium text-sm rounded-xl transition-colors">Close</button>
+        <button type="button" id="ytDownloadSubmitBtn" onclick="startYtDownloadQueue()" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-xl transition-all shadow-lg shadow-red-600/25 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+          <i class="ti ti-download"></i>
+          <span id="ytDownloadSubmitText">Start Download (0)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- YouTube Cookie Setup Modal with 3-Step Guide -->
+<div id="ytCookieModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden modal-overlay overflow-y-auto">
+  <div class="flex min-h-screen items-center justify-center p-4">
+    <div class="bg-dark-800 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 overflow-hidden flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-5 border-b border-gray-700 bg-dark-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
+            <i class="ti ti-cookie text-2xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">YouTube Cookie Setup</h3>
+            <p class="text-xs text-gray-400">One-time setup for protected & official music videos</p>
+          </div>
         </div>
-        <div class="flex items-center gap-2.5">
-          <button type="button" onclick="closeYouTubeDownloadModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 font-medium text-sm rounded-xl transition-colors">Close</button>
-          <button type="button" id="ytDownloadSubmitBtn" onclick="startYtDownloadQueue()" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-xl transition-all shadow-lg shadow-red-600/25 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-            <i class="ti ti-download"></i>
-            <span id="ytDownloadSubmitText">Start Download (0)</span>
-          </button>
+        <button type="button" onclick="closeYouTubeCookieModal()" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
+          <i class="ti ti-x text-xl"></i>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-5 space-y-4 text-xs">
+        <!-- Steps -->
+        <div class="space-y-2.5 bg-dark-900 border border-gray-700/80 rounded-xl p-4">
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0 text-[11px]">1</span>
+            <div class="text-gray-300">
+              Install Chrome extension: 
+              <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener" class="text-amber-400 hover:underline font-semibold inline-flex items-center gap-0.5">
+                Get cookies.txt locally <i class="ti ti-external-link text-xs"></i>
+              </a>
+            </div>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0 text-[11px]">2</span>
+            <div class="text-gray-300">
+              Open <a href="https://www.youtube.com" target="_blank" rel="noopener" class="text-red-400 hover:underline font-semibold">youtube.com</a> in a new tab while logged in.
+            </div>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0 text-[11px]">3</span>
+            <div class="text-gray-300">
+              Click the extension icon &rarr; click <strong class="text-white">Export</strong> &rarr; paste the content below or upload file.
+            </div>
+          </div>
         </div>
+
+        <!-- Paste / Drop area -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-semibold text-gray-300">Paste cookies.txt Content</label>
+            <label class="cursor-pointer text-amber-400 hover:text-amber-300 font-medium inline-flex items-center gap-1">
+              <i class="ti ti-upload"></i> Upload File
+              <input type="file" id="ytCookieFileInput" accept=".txt" class="hidden" onchange="handleCookieFileSelect(event)">
+            </label>
+          </div>
+          <textarea id="ytCookieTextInput" rows="5" placeholder="# Netscape HTTP Cookie File&#10;.youtube.com	TRUE	/	TRUE	...	SID	..."
+            class="w-full bg-dark-900 border border-gray-700 rounded-xl p-3 font-mono text-[11px] text-gray-200 focus:outline-none focus:border-amber-500 transition-colors custom-scrollbar placeholder-gray-600"></textarea>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-4 px-5 border-t border-gray-700 bg-dark-800/80 flex items-center justify-end gap-2.5">
+        <button type="button" onclick="closeYouTubeCookieModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 font-medium text-xs rounded-xl transition-colors">Cancel</button>
+        <button type="button" id="ytSaveCookieBtn" onclick="saveYouTubeCookie()" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center gap-1.5">
+          <i class="ti ti-check text-sm"></i>
+          <span>Save & Activate</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1206,6 +1286,8 @@ function openYouTubeDownloadModal() {
     document.getElementById('ytProgressContainer')?.classList.add('hidden');
   }
 
+  checkYouTubeCookieStatus();
+
   modal.classList.remove('hidden');
   document.body.classList.add('overflow-hidden');
 
@@ -1222,6 +1304,91 @@ function closeYouTubeDownloadModal() {
 
 const ytModalEl = document.getElementById('youtubeDownloadModal');
 if (ytModalEl) makeModalDismissible(ytModalEl, closeYouTubeDownloadModal);
+
+async function checkYouTubeCookieStatus() {
+  try {
+    const res = await fetch('/api/youtube/cookie-status');
+    const data = await res.json();
+    const banner = document.getElementById('ytCookieAlertBanner');
+    if (banner) {
+      if (data.configured) {
+        banner.classList.add('hidden');
+      } else {
+        banner.classList.remove('hidden');
+      }
+    }
+    return data.configured;
+  } catch (e) {
+    return false;
+  }
+}
+
+function openYouTubeCookieModal() {
+  const modal = document.getElementById('ytCookieModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+  }
+}
+
+function closeYouTubeCookieModal() {
+  const modal = document.getElementById('ytCookieModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+const ytCookieModalEl = document.getElementById('ytCookieModal');
+if (ytCookieModalEl) makeModalDismissible(ytCookieModalEl, closeYouTubeCookieModal);
+
+function handleCookieFileSelect(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const text = ev.target.result;
+    const input = document.getElementById('ytCookieTextInput');
+    if (input) input.value = text;
+  };
+  reader.readAsText(file);
+}
+
+async function saveYouTubeCookie() {
+  const textarea = document.getElementById('ytCookieTextInput');
+  const content = textarea?.value.trim();
+  if (!content) {
+    showToast('error', 'Please paste or upload your cookies.txt content');
+    return;
+  }
+
+  const btn = document.getElementById('ytSaveCookieBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/youtube/upload-cookie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cookieContent: content })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed to save cookies');
+
+    showToast('success', 'YouTube cookie activated successfully!');
+    closeYouTubeCookieModal();
+    document.getElementById('ytCookieAlertBanner')?.classList.add('hidden');
+    if (textarea) textarea.value = '';
+
+    const urlInput = document.getElementById('ytUrlInput');
+    if (urlInput && urlInput.value.trim()) {
+      handleScanYouTubeUrl();
+    }
+  } catch (err) {
+    console.error('Save cookie error:', err);
+    showToast('error', err.message || 'Failed to save cookies');
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 function focusYtUrlInput() {
   const input = document.getElementById('ytUrlInput');
@@ -1324,7 +1491,11 @@ async function handleScanYouTubeUrl() {
     showToast('success', `Added "${meta.title.slice(0, 30)}..." to queue`);
   } catch (error) {
     console.error('YouTube scan error:', error);
-    showToast('error', error.message || 'Failed to scan video');
+    const msg = error.message || 'Failed to scan video';
+    showToast('error', msg);
+    if (msg.includes('bot') || msg.includes('Sign in') || msg.includes('cookies') || msg.includes('403')) {
+      document.getElementById('ytCookieAlertBanner')?.classList.remove('hidden');
+    }
   } finally {
     scanBtn.disabled = false;
     scanIcon.className = 'ti ti-search text-base';
