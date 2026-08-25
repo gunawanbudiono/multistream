@@ -1,3 +1,5 @@
+FROM mwader/static-ffmpeg:7.1 AS ffmpeg-source
+
 # Gunakan base image Node.js versi 20 dengan Debian Bookworm
 FROM node:20-bookworm
 
@@ -5,10 +7,13 @@ FROM node:20-bookworm
 ENV TZ=Asia/Jakarta
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Install dependency sistem yang dibutuhkan (ffmpeg untuk video, yt-dlp untuk YouTube downloader, build tools untuk native module seperti sqlite3, tzdata)
+# Copy FFmpeg 7.1 and FFprobe 7.1 static binaries with Enhanced RTMP support
+COPY --from=ffmpeg-source /ffmpeg /usr/local/bin/
+COPY --from=ffmpeg-source /ffprobe /usr/local/bin/
+
+# Install dependency sistem yang dibutuhkan
 RUN apt-get update && apt-get install -y \
     tzdata \
-    ffmpeg \
     python3 \
     curl \
     make \

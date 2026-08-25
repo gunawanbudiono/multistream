@@ -38,7 +38,10 @@ const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 const streamingService = require('./services/streamingService');
 const schedulerService = require('./services/schedulerService');
 const packageJson = require('./package.json');
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+const systemFfmpegPath = fs.existsSync('/usr/local/bin/ffmpeg')
+  ? '/usr/local/bin/ffmpeg'
+  : (fs.existsSync('/usr/bin/ffmpeg') ? '/usr/bin/ffmpeg' : ffmpegInstaller.path);
+ffmpeg.setFfmpegPath(systemFfmpegPath);
 process.on('unhandledRejection', (reason, promise) => {
   console.error('-----------------------------------');
   console.error('UNHANDLED REJECTION AT:', promise);
