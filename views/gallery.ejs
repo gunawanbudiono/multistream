@@ -1244,9 +1244,32 @@ document.getElementById('ytUrlInput')?.addEventListener('keydown', (e) => {
   }
 });
 
+function cleanClientYouTubeUrl(raw) {
+  if (!raw) return '';
+  try {
+    const trimmed = raw.trim();
+    if (trimmed.includes('youtube.com') || trimmed.includes('youtu.be')) {
+      const parsed = new URL(trimmed);
+      const v = parsed.searchParams.get('v');
+      if (v) return `https://www.youtube.com/watch?v=${v}`;
+      if (parsed.pathname.startsWith('/shorts/')) {
+        const id = parsed.pathname.split('/shorts/')[1]?.split('?')[0]?.split('/')[0];
+        if (id) return `https://www.youtube.com/watch?v=${id}`;
+      }
+      if (parsed.hostname === 'youtu.be') {
+        const id = parsed.pathname.replace(/^\//, '').split('?')[0];
+        if (id) return `https://www.youtube.com/watch?v=${id}`;
+      }
+    }
+    return trimmed;
+  } catch (e) {
+    return raw.trim();
+  }
+}
+
 async function handleScanYouTubeUrl() {
   const input = document.getElementById('ytUrlInput');
-  const url = input?.value.trim();
+  const url = cleanClientYouTubeUrl(input?.value);
   if (!url) {
     showToast('error', 'Please enter a valid YouTube URL');
     return;

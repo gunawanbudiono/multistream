@@ -40,6 +40,36 @@ function sanitizeFilename(title) {
     .slice(0, 80);
 }
 
+function cleanYoutubeUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  try {
+    const trimmed = url.trim();
+    if (trimmed.includes('youtube.com') || trimmed.includes('youtu.be')) {
+      const parsed = new URL(trimmed);
+      const v = parsed.searchParams.get('v');
+      if (v) return `https://www.youtube.com/watch?v=${v}`;
+      if (parsed.pathname.startsWith('/shorts/')) {
+        const id = parsed.pathname.split('/shorts/')[1]?.split('?')[0]?.split('/')[0];
+        if (id) return `https://www.youtube.com/watch?v=${id}`;
+      }
+      if (parsed.hostname === 'youtu.be') {
+        const id = parsed.pathname.replace(/^\//, '').split('?')[0];
+        if (id) return `https://www.youtube.com/watch?v=${id}`;
+      }
+    }
+    return trimmed;
+  } catch (e) {
+    return url.trim();
+  }
+}
+
+function getPotArgs() {
+  return [
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://172.17.0.1:4416',
+    '--extractor-args', 'youtube:player_client=android,web,tv'
+  ];
+}
+
 function getCookieArgs() {
   const cookiePaths = [
     path.join(__dirname, '..', 'cookies.txt'),
@@ -55,7 +85,8 @@ function getCookieArgs() {
 /**
  * Inspects a YouTube URL and extracts rich metadata and available resolutions.
  */
-async function inspectVideo(url) {
+async function inspectVideo(rawUrl) {
+  const url = cleanYoutubeUrl(rawUrl);
   const ytDlp = getYtDlpPath();
   return new Promise((resolve, reject) => {
     const args = [
@@ -64,6 +95,7 @@ async function inspectVideo(url) {
       '--skip-download',
       '--no-playlist',
       '--geo-bypass',
+      ...getPotArgs(),
       ...getCookieArgs(),
       url
     ];
@@ -210,14 +242,16 @@ async function processJobQueue(jobId, queueItems) {
       ];
     }
 
+    const cleanedUrl = cleanYoutubeUrl(item.url);
     const args = [
       ...formatArg,
       '--newline',
       '--progress-template', '%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
       '--geo-bypass',
+      ...getPotArgs(),
       ...getCookieArgs(),
       '-o', finalFilePath,
-      item.url
+      cleanedUrl
     ];
 
     await new Promise((resolve, reject) => {
