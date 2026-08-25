@@ -962,6 +962,19 @@ async function handleCloudImport(e, provider) {
   }
 }
 
+function makeModalDismissible(modal, closeCallback) {
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeCallback();
+  });
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      document.removeEventListener('keydown', onKey);
+      closeCallback();
+    }
+  };
+  document.addEventListener('keydown', onKey);
+}
+
 function showRenameDialog(id, currentTitle) {
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4';
@@ -981,6 +994,7 @@ function showRenameDialog(id, currentTitle) {
   input.select();
   
   const close = () => modal.remove();
+  makeModalDismissible(modal, close);
   document.getElementById('cancelRenameBtn').onclick = close;
   document.getElementById('confirmRenameBtn').onclick = async () => {
     const title = input.value.trim();
@@ -1023,6 +1037,7 @@ function showDeleteDialog(id, title) {
   `;
   document.body.appendChild(modal);
   const close = () => modal.remove();
+  makeModalDismissible(modal, close);
   document.getElementById('cancelDeleteBtn').onclick = close;
   document.getElementById('confirmDeleteBtn').onclick = async () => {
     try {
@@ -1059,6 +1074,7 @@ function openCreateFolderDialog() {
   const input = document.getElementById('newFolderName');
   input.focus();
   const close = () => modal.remove();
+  makeModalDismissible(modal, close);
   document.getElementById('cancelFolderBtn').onclick = close;
   document.getElementById('confirmFolderBtn').onclick = async () => {
     const name = input.value.trim();
@@ -1101,6 +1117,7 @@ function showRenameFolderDialog(id, currentName) {
   input.focus();
   input.select();
   const close = () => modal.remove();
+  makeModalDismissible(modal, close);
   document.getElementById('cancelRenameFolderBtn').onclick = close;
   document.getElementById('confirmRenameFolderBtn').onclick = async () => {
     const name = input.value.trim();
@@ -1143,6 +1160,7 @@ function showDeleteFolderDialog(id, name) {
   `;
   document.body.appendChild(modal);
   const close = () => modal.remove();
+  makeModalDismissible(modal, close);
   document.getElementById('cancelDeleteFolderBtn').onclick = close;
   document.getElementById('confirmDeleteFolderBtn').onclick = async () => {
     try {
@@ -2513,6 +2531,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalItems = filteredGridItems.length;
     const info = document.getElementById('paginationInfo');
     if (info) info.textContent = totalItems > 0 ? `Showing ${start + 1}-${Math.min(end, totalItems)} of ${totalItems} items` : 'No items found';
+
+    const existingEmpty = document.getElementById('galleryEmptySearchState');
+    if (totalItems === 0 && (gridItems.length > 0 || listItems.length > 0)) {
+      if (!existingEmpty) {
+        const d = document.createElement('div');
+        d.id = 'galleryEmptySearchState';
+        d.className = 'col-span-full text-center py-16 text-gray-400 bg-dark-800/40 border border-dashed border-gray-700 rounded-xl my-4';
+        d.innerHTML = `
+          <div class="w-12 h-12 rounded-full bg-dark-700 flex items-center justify-center mx-auto mb-3 text-gray-500">
+            <i class="ti ti-search text-2xl"></i>
+          </div>
+          <h4 class="text-sm font-medium text-gray-300">No media matches your search</h4>
+          <p class="text-xs text-gray-500 mt-1">Try adjusting your keyword or category filter</p>
+        `;
+        document.getElementById('gridView')?.appendChild(d);
+      }
+    } else if (existingEmpty) {
+      existingEmpty.remove();
+    }
     
     renderPagination();
   }
