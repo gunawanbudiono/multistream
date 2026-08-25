@@ -16,7 +16,7 @@ async function run() {
   console.log('2. PING 172.18.0.1:4416:', await checkPing('http://172.18.0.1:4416/ping'));
 
   const args = [
-    '-c', 'import yt_dlp_plugins.extractor; print("EXTRACTOR PLUGINS:", dir(yt_dlp_plugins.extractor)); import yt_dlp_plugins.extractor.youtube_pot_bgutil; print("BGUTIL EXPORT:", dir(yt_dlp_plugins.extractor.youtube_pot_bgutil))'
+    '-c', 'import yt_dlp_plugins.extractor, os; print("EXTRACTOR DIR:", os.listdir(yt_dlp_plugins.extractor.__path__[0]))'
   ];
 
   await new Promise((resolve) => {
