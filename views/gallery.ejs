@@ -184,10 +184,10 @@ function detectMediaType(item) {
             <i class="ti ti-folder text-3xl"></i>
           </div>
           <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button class="text-gray-400 hover:text-white p-1" onclick="event.preventDefault(); event.stopPropagation(); showRenameFolderDialog('<%= folder.id %>', '<%= folder.name %>')">
+            <button class="text-gray-400 hover:text-white p-1" onclick="event.preventDefault(); event.stopPropagation(); showRenameFolderDialog('<%= folder.id %>', this.closest('.gallery-grid-item').getAttribute('data-title'))">
               <i class="ti ti-pencil text-sm"></i>
             </button>
-            <button class="text-gray-400 hover:text-red-400 p-1" onclick="event.preventDefault(); event.stopPropagation(); showDeleteFolderDialog('<%= folder.id %>', '<%= folder.name %>')">
+            <button class="text-gray-400 hover:text-red-400 p-1" onclick="event.preventDefault(); event.stopPropagation(); showDeleteFolderDialog('<%= folder.id %>', this.closest('.gallery-grid-item').getAttribute('data-title'))">
               <i class="ti ti-trash text-sm"></i>
             </button>
           </div>
@@ -210,7 +210,7 @@ function detectMediaType(item) {
       <div class="gallery-grid-item file-item group bg-dark-700 rounded-lg overflow-hidden border border-transparent hover:border-gray-600 hover:bg-dark-600 transition-all cursor-pointer flex flex-col justify-between"
         data-id="<%= video.id %>" data-kind="file" data-title="<%= video.title %>" data-date="<%= video.upload_date %>" data-size="<%= video.file_size %>" data-type="<%= mediaType %>"
         draggable="true"
-        onclick="playMedia('<%= video.id %>', '<%= video.title %>', '<%= mediaType %>')">
+        onclick="playMedia('<%= video.id %>', this.getAttribute('data-title'), '<%= mediaType %>')">
         <div>
           <div class="aspect-video relative overflow-hidden bg-dark-950 flex items-center justify-center">
             <% if (mediaType === 'audio') { %>
@@ -278,10 +278,10 @@ function detectMediaType(item) {
           <div class="flex items-center justify-between pt-2 border-t border-gray-700/50">
             <span class="text-xs text-gray-400 font-mono"><%= formatFileSize(video.file_size) %></span>
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button class="text-gray-400 hover:text-white p-1" onclick="event.stopPropagation(); showRenameDialog('<%= video.id %>', '<%= video.title %>')">
+              <button class="text-gray-400 hover:text-white p-1" onclick="event.stopPropagation(); showRenameDialog('<%= video.id %>', this.closest('.file-item').getAttribute('data-title'))">
                 <i class="ti ti-pencil text-sm"></i>
               </button>
-              <button class="text-gray-400 hover:text-red-400 p-1" onclick="event.stopPropagation(); showDeleteDialog('<%= video.id %>', '<%= video.title %>')">
+              <button class="text-gray-400 hover:text-red-400 p-1" onclick="event.stopPropagation(); showDeleteDialog('<%= video.id %>', this.closest('.file-item').getAttribute('data-title'))">
                 <i class="ti ti-trash text-sm"></i>
               </button>
             </div>
@@ -325,11 +325,11 @@ function detectMediaType(item) {
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-1">
                   <button class="p-1.5 hover:bg-dark-600 rounded text-gray-400 hover:text-white transition-colors"
-                    onclick="event.preventDefault(); event.stopPropagation(); showRenameFolderDialog('<%= folder.id %>', '<%= folder.name %>')">
+                    onclick="event.preventDefault(); event.stopPropagation(); showRenameFolderDialog('<%= folder.id %>', this.closest('.gallery-list-item').getAttribute('data-title'))">
                     <i class="ti ti-pencil text-sm"></i>
                   </button>
                   <button class="p-1.5 hover:bg-dark-600 rounded text-gray-400 hover:text-red-400 transition-colors"
-                    onclick="event.preventDefault(); event.stopPropagation(); showDeleteFolderDialog('<%= folder.id %>', '<%= folder.name %>')">
+                    onclick="event.preventDefault(); event.stopPropagation(); showDeleteFolderDialog('<%= folder.id %>', this.closest('.gallery-list-item').getAttribute('data-title'))">
                     <i class="ti ti-trash text-sm"></i>
                   </button>
                 </div>
@@ -360,7 +360,7 @@ function detectMediaType(item) {
             <tr class="gallery-list-item file-item-row group hover:bg-dark-700 transition-colors cursor-pointer"
               data-id="<%= video.id %>" data-kind="file" data-title="<%= video.title %>" data-date="<%= video.upload_date %>" data-size="<%= video.file_size %>" data-type="<%= mediaType %>"
               draggable="true"
-              onclick="playMedia('<%= video.id %>', '<%= video.title %>', '<%= mediaType %>')">
+              onclick="playMedia('<%= video.id %>', this.getAttribute('data-title'), '<%= mediaType %>')">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
                   <div class="w-12 h-8 rounded overflow-hidden bg-dark-950 flex-shrink-0 relative flex items-center justify-center">
@@ -391,11 +391,11 @@ function detectMediaType(item) {
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-1">
                   <button class="p-1.5 hover:bg-dark-600 rounded text-gray-400 hover:text-white transition-colors"
-                    onclick="event.stopPropagation(); showRenameDialog('<%= video.id %>', '<%= video.title %>')">
+                    onclick="event.stopPropagation(); showRenameDialog('<%= video.id %>', this.closest('.file-item-row').getAttribute('data-title'))">
                     <i class="ti ti-pencil text-sm"></i>
                   </button>
                   <button class="p-1.5 hover:bg-dark-600 rounded text-gray-400 hover:text-red-400 transition-colors"
-                    onclick="event.stopPropagation(); showDeleteDialog('<%= video.id %>', '<%= video.title %>')">
+                    onclick="event.stopPropagation(); showDeleteDialog('<%= video.id %>', this.closest('.file-item-row').getAttribute('data-title'))">
                     <i class="ti ti-trash text-sm"></i>
                   </button>
                 </div>
