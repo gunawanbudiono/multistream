@@ -103,17 +103,26 @@ class MediaFolder {
 
   static delete(id, userId) {
     return new Promise((resolve, reject) => {
-      db.run(
-        'DELETE FROM media_folders WHERE id = ? AND user_id = ?',
-        [id, userId],
-        function(err) {
-          if (err) {
-            console.error('Error deleting media folder:', err.message);
-            return reject(err);
+      db.serialize(() => {
+        db.run(
+          'UPDATE videos SET folder_id = NULL WHERE folder_id = ? AND user_id = ?',
+          [id, userId],
+          function(uErr) {
+            if (uErr) console.error('Error unassigning media folder items:', uErr.message);
           }
-          resolve({ success: true, id });
-        }
-      );
+        );
+        db.run(
+          'DELETE FROM media_folders WHERE id = ? AND user_id = ?',
+          [id, userId],
+          function(err) {
+            if (err) {
+              console.error('Error deleting media folder:', err.message);
+              return reject(err);
+            }
+            resolve({ success: true, id });
+          }
+        );
+      });
     });
   }
 }

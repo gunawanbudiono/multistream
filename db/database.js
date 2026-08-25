@@ -10,6 +10,14 @@ const dbPath = path.join(dbDir, 'streamflow.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error connecting to database:', err.message);
+  } else {
+    db.serialize(() => {
+      db.run('PRAGMA journal_mode = WAL;');
+      db.run('PRAGMA busy_timeout = 10000;');
+      db.run('PRAGMA synchronous = NORMAL;');
+      db.run('PRAGMA cache_size = -64000;');
+      db.run('PRAGMA foreign_keys = ON;');
+    });
   }
 });
 

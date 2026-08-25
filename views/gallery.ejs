@@ -793,7 +793,21 @@ function closeUploadModal() {
   resetUploadForm();
 }
 
+const activeObjectUrls = new Set();
+function createTrackedObjectURL(blob) {
+  const url = URL.createObjectURL(blob);
+  activeObjectUrls.add(url);
+  return url;
+}
+function revokeAllTrackedObjectURLs() {
+  activeObjectUrls.forEach(url => {
+    try { URL.revokeObjectURL(url); } catch (e) {}
+  });
+  activeObjectUrls.clear();
+}
+
 function resetUploadForm() {
+  revokeAllTrackedObjectURLs();
   selectedFiles = [];
   const form = document.getElementById('videoUploadForm');
   if (form) form.reset();
@@ -1254,7 +1268,7 @@ async function inspectMediaFile(file) {
 
   if (category === 'image') {
     try {
-      const objUrl = URL.createObjectURL(file);
+      const objUrl = createTrackedObjectURL(file);
       meta.thumbnailUrl = objUrl;
       const img = new Image();
       await new Promise((resolve) => {
@@ -1276,7 +1290,7 @@ async function inspectMediaFile(file) {
     } catch (e) {}
   } else if (category === 'video') {
     try {
-      const objUrl = URL.createObjectURL(file);
+      const objUrl = createTrackedObjectURL(file);
       const video = document.createElement('video');
       video.preload = 'auto';
       video.muted = true;

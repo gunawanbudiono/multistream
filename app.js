@@ -2747,26 +2747,56 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
     const result = await chunkUploadService.mergeChunks(uploadId);
     const title = path.parse(info.filename).name;
     const fullFilePath = result.fullPath;
-    const videoData = await new Promise((resolve, reject) => {
+    const videoData = await new Promise((resolve) => {
       ffmpeg.ffprobe(fullFilePath, (err, metadata) => {
-        if (err) {
-          console.error('Error extracting metadata:', err);
-          return reject(err);
-        }
-        const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
-        const duration = metadata.format.duration || 0;
-        const format = metadata.format.format_name || '';
-        const resolution = videoStream ? `${videoStream.width}x${videoStream.height}` : '';
-        const bitrate = metadata.format.bit_rate ? Math.round(parseInt(metadata.format.bit_rate) / 1000) : null;
+        let duration = 0;
+        let format = path.extname(result.filename).replace('.', '') || '';
+        let resolution = '';
+        let bitrate = null;
         let fps = null;
-        if (videoStream && videoStream.avg_frame_rate) {
-          const fpsRatio = videoStream.avg_frame_rate.split('/');
-          if (fpsRatio.length === 2 && parseInt(fpsRatio[1]) !== 0) {
-            fps = Math.round((parseInt(fpsRatio[0]) / parseInt(fpsRatio[1]) * 100)) / 100;
-          } else {
-            fps = parseInt(fpsRatio[0]) || null;
+        let videoStream = null;
+
+        if (!err && metadata) {
+          duration = metadata.format && metadata.format.duration ? Math.round(metadata.format.duration) : 0;
+          format = (metadata.format && metadata.format.format_name) ? metadata.format.format_name.split(',')[0] : format;
+          if (metadata.format && metadata.format.bit_rate) {
+            bitrate = Math.round(parseInt(metadata.format.bit_rate) / 1000);
+          }
+          if (Array.isArray(metadata.streams)) {
+            videoStream = metadata.streams.find(s => s.codec_type === 'video');
+            if (videoStream) {
+              resolution = `${videoStream.width}x${videoStream.height}`;
+              if (videoStream.avg_frame_rate) {
+                const fpsRatio = videoStream.avg_frame_rate.split('/');
+                if (fpsRatio.length === 2 && parseInt(fpsRatio[1]) !== 0) {
+                  fps = Math.round((parseInt(fpsRatio[0]) / parseInt(fpsRatio[1]) * 100)) / 100;
+                } else {
+                  fps = parseInt(fpsRatio[0]) || null;
+                }
+              }
+            }
           }
         }
+
+        const ext = path.extname(result.filename).toLowerCase();
+        const isAudioOnly = ['.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac'].includes(ext) || (!videoStream && !resolution);
+
+        if (isAudioOnly) {
+          return resolve({
+            title,
+            filepath: result.filepath,
+            thumbnail_path: '/images/default-video-thumbnail.svg',
+            file_size: result.fileSize,
+            duration,
+            format: format || ext.replace('.', ''),
+            resolution: '',
+            bitrate,
+            fps: null,
+            user_id: req.session.userId,
+            folder_id: info.folderId || null
+          });
+        }
+
         const thumbnailFilename = `thumb-${path.parse(result.filename).name}.jpg`;
         const thumbnailPath = `/uploads/thumbnails/${thumbnailFilename}`;
         const isPortrait = videoStream && videoStream.height && videoStream.width && (videoStream.height > videoStream.width);
@@ -2779,7 +2809,7 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
             folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
             size: thumbSize
           })
-          .on('end', async () => {
+          .on('end', () => {
             resolve({
               title,
               filepath: result.filepath,
@@ -2794,9 +2824,20 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
               folder_id: info.folderId || null
             });
           })
-          .on('error', (err) => {
-            console.error('Error creating thumbnail:', err);
-            reject(err);
+          .on('error', () => {
+            resolve({
+              title,
+              filepath: result.filepath,
+              thumbnail_path: '/images/default-video-thumbnail.svg',
+              file_size: result.fileSize,
+              duration,
+              format,
+              resolution,
+              bitrate,
+              fps,
+              user_id: req.session.userId,
+              folder_id: info.folderId || null
+            });
           });
       });
     });
