@@ -1,4 +1,5 @@
 const http = require('http');
+const fs = require('fs-extra');
 const { execFile } = require('child_process');
 
 function checkPing(url) {
