@@ -16,7 +16,13 @@ async function run() {
   console.log('2. PING 172.18.0.1:4416:', await checkPing('http://172.18.0.1:4416/ping'));
 
   const args = [
-    '-c', 'import yt_dlp_plugins.extractor.getpot_bgutil_http; import yt_dlp.extractor.youtube.pot.provider as p; print("SUBCLASSES:", [c.__name__ for c in p.PoTokenProvider.__subclasses__()])'
+    '-c', 'import yt_dlp_plugins.extractor.getpot_bgutil_http; import yt_dlp; yt_dlp.main()',
+    '--',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
+    '--dump-single-json',
+    '--no-warnings',
+    '--skip-download',
+    'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
   ];
 
   await new Promise((resolve) => {
