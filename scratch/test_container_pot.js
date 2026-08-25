@@ -29,30 +29,22 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const clients = ['web', 'web_creator', 'android', 'android_vr', 'tv', 'web_safari'];
-  for (const c of clients) {
-    const args = [
-      '-m', 'yt_dlp',
-      '-F',
-      '--cookies', '/app/db/cookies.txt',
-      '--remote-components', 'ejs:github',
-      '--extractor-args', `youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=${c}`,
-      'https://www.youtube.com/watch?v=5oiuYD5lPIA'
-    ];
+  const args = [
+    '-m', 'yt_dlp',
+    '-F',
+    '--allow-unplayable-formats',
+    '--remote-components', 'ejs:github',
+    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416',
+    'https://www.youtube.com/watch?v=5oiuYD5lPIA'
+  ];
 
-    await new Promise((resolve) => {
-      execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-        console.log(`=== CLIENT: ${c} ===`);
-        if (err) {
-          console.log('ERROR:', stderr.slice(0, 150) || err.message);
-        } else {
-          const lines = stdout.split('\n').filter(l => l.includes('mp4') || l.includes('webm') || l.includes('m4a'));
-          console.log(lines.slice(0, 10).join('\n'));
-        }
-        resolve();
-      });
+  await new Promise((resolve) => {
+    execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      console.log('STDOUT:\n', stdout);
+      if (err) console.log('STDERR:\n', stderr);
+      resolve();
     });
-  }
+  });
 }
 
 run();
