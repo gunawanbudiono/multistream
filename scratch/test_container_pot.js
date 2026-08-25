@@ -29,43 +29,47 @@ async function run() {
 `;
   await fs.writeFile('/app/db/test_user_cookie.txt', rawCookie.trim(), 'utf8');
 
-  const args = [
-    '-m', 'yt_dlp',
-    '--cookies', '/app/db/cookies.txt',
-    '--remote-components', 'ejs:github',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=web,tv,mweb,android,ios',
-    '--dump-single-json',
-    '--no-warnings',
-    '--skip-download',
-    'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
+  const clients = [
+    'default',
+    'android,web',
+    'web_creator,android',
+    'tv_embedded,web',
+    'all'
   ];
 
-  await new Promise((resolve) => {
-    execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) {
-        console.log('ERROR:', stderr || err.message);
-      } else {
-        const info = JSON.parse(stdout);
-        const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
-        console.log('FOUND RESOLUTIONS (web,tv,mweb,android,ios):', heights);
-      }
-      resolve();
+  for (const c of clients) {
+    const extArgs = c === 'default' 
+      ? ['--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416']
+      : ['--extractor-args', `youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416;youtube:player_client=${c}`];
+
+    const args = [
+      '-m', 'yt_dlp',
+      '--cookies', '/app/db/cookies.txt',
+      '--remote-components', 'ejs:github',
+      ...extArgs,
+      '--dump-single-json',
+      '--no-warnings',
+      '--skip-download',
+      'https://www.youtube.com/watch?v=n7X2cbKzh-Q'
+    ];
+
+    await new Promise((resolve) => {
+      execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          console.log(`CLIENT [${c}] ERROR:`, stderr.slice(0, 120) || err.message);
+        } else {
+          try {
+            const info = JSON.parse(stdout);
+            const heights = [...new Set((info.formats || []).map(f => f.height).filter(Boolean))].sort((a, b) => b - a);
+            console.log(`CLIENT [${c}] RESOLUTIONS:`, heights);
+          } catch (e) {
+            console.log(`CLIENT [${c}] PARSE ERROR`);
+          }
+        }
+        resolve();
+      });
     });
-  });
-
-  const child = spawn(runner.cmd, args);
-  child.stdout.on('data', (d) => {
-    const raw = d.toString();
-    const lines = raw.split(/\r|\n/).filter(Boolean);
-    for (const line of lines) {
-      if (line.includes('|')) {
-        console.log('PROGRESS TICK:', line);
-      }
-    }
-  });
-
-  await new Promise(res => child.on('close', res));
-  console.log('TEST COMPLETE');
+  }
 }
 
 run();
