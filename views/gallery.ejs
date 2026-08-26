@@ -1026,9 +1026,13 @@ async function stopStreamFromUsageModal(streamId, videoId) {
   }
 
   try {
+    const csrfToken = document.querySelector('input[name="_csrf"]')?.value;
     const res = await fetch(`/api/streams/${streamId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+      },
       body: JSON.stringify({ status: 'offline' })
     });
     const data = await res.json();
@@ -4270,6 +4274,9 @@ document.addEventListener('DOMContentLoaded', function() {
       galleryVideosState = data.videos || [];
       galleryFoldersState = data.folders || [];
       galleryCurrentFolderState = data.currentFolder || null;
+      if (data.streamUsageMap) {
+        streamUsageMapState = data.streamUsageMap;
+      }
       currentPage = 1;
       renderGalleryContent();
       loadDiskUsage();

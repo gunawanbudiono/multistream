@@ -5550,9 +5550,7 @@ app.delete('/api/streams/:id', isAuthenticated, async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to delete stream' });
   }
 });
-app.post('/api/streams/:id/status', isAuthenticated, [
-  body('status').isIn(['live', 'offline', 'scheduled']).withMessage('Invalid status')
-], async (req, res) => {
+const handleStreamStatusUpdate = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -5656,7 +5654,13 @@ app.post('/api/streams/:id/status', isAuthenticated, [
     console.error('Error updating stream status:', error);
     res.status(500).json({ success: false, error: 'Failed to update stream status' });
   }
-});
+};
+app.post('/api/streams/:id/status', isAuthenticated, [
+  body('status').isIn(['live', 'offline', 'scheduled']).withMessage('Invalid status')
+], handleStreamStatusUpdate);
+app.put('/api/streams/:id/status', isAuthenticated, [
+  body('status').isIn(['live', 'offline', 'scheduled']).withMessage('Invalid status')
+], handleStreamStatusUpdate);
 app.get('/api/streams/check-key', isAuthenticated, async (req, res) => {
   try {
     const streamKey = req.query.key;
