@@ -5578,8 +5578,19 @@ app.delete('/api/streams/:id', isAuthenticated, async (req, res) => {
     if (stream.user_id !== req.session.userId) {
       return res.status(403).json({ success: false, error: 'Not authorized to delete this stream' });
     }
+    if (stream.status === 'live' || streamingService.isStreamActive(req.params.id)) {
+      await streamingService.stopStream(req.params.id);
+    }
     schedulerService.handleStreamStopped(req.params.id);
     await Stream.delete(req.params.id, req.session.userId);
+    logActivity({
+      userId: req.session.userId,
+      performedBy: req.session.username,
+      actionType: 'STREAM_DELETE',
+      category: 'stream',
+      description: `Deleted stream '${stream.title}'`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
     res.json({ success: true, message: 'Stream deleted successfully' });
   } catch (error) {
     console.error('Error deleting stream:', error);

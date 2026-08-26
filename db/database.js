@@ -109,9 +109,9 @@ function createTables() {
         use_advanced_settings BOOLEAN DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         user_id TEXT,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (stream_id) REFERENCES streams(id),
-        FOREIGN KEY (video_id) REFERENCES videos(id)
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (stream_id) REFERENCES streams(id) ON DELETE SET NULL,
+        FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE SET NULL
       )`);
 
       db.run(`CREATE TABLE IF NOT EXISTS playlists (

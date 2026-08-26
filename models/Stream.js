@@ -280,17 +280,24 @@ class Stream {
   }
   static delete(id, userId) {
     return new Promise((resolve, reject) => {
-      db.run(
-        'DELETE FROM streams WHERE id = ? AND user_id = ?',
-        [id, userId],
-        function (err) {
+      db.serialize(() => {
+        db.run('UPDATE stream_history SET stream_id = NULL WHERE stream_id = ?', [id], (err) => {
           if (err) {
-            console.error('Error deleting stream:', err.message);
-            return reject(err);
+            console.error('Error unlinking stream_history before stream delete:', err.message);
           }
-          resolve({ success: true, deleted: this.changes > 0 });
-        }
-      );
+          db.run(
+            'DELETE FROM streams WHERE id = ? AND user_id = ?',
+            [id, userId],
+            function (deleteErr) {
+              if (deleteErr) {
+                console.error('Error deleting stream:', deleteErr.message);
+                return reject(deleteErr);
+              }
+              resolve({ success: true, deleted: this.changes > 0 });
+            }
+          );
+        });
+      });
     });
   }
   static updateStatus(id, status, userId = null, options = {}) {

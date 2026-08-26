@@ -2524,10 +2524,12 @@
       });
       
       if (confirmed) {
+        const csrfToken = document.querySelector('input[name="_csrf"]')?.value;
         fetch(`/api/streams/${streamId}`, {
           method: 'DELETE',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
           }
         })
           .then(response => response.json())
