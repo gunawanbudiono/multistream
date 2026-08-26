@@ -28,8 +28,9 @@ WORKDIR /app
 # Copy package.json dan package-lock.json
 COPY package*.json ./
 
-# Install dependency production, lalu rebuild sqlite3 dari source agar kompatibel
-RUN npm install --omit=dev \
+# Install dependency production with BuildKit cache mount for instant builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --omit=dev \
     && npm rebuild sqlite3 --build-from-source
 
 # Copy seluruh source code

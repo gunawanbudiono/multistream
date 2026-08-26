@@ -35,9 +35,14 @@ For EVERY request or task, the AI MUST follow this 4-step execution flow:
 
 ## 📡 3. ZERO-DOWNTIME STREAMING & SMOOTH RESUME PROTOCOL
 
-1. 🚀 **ZERO-DOWNTIME STREAMING RULE**: Code deployments or container updates must NEVER abruptly kill active FFmpeg RTMP streaming worker processes unless explicitly authorized by the user.
-2. ⏯️ **SEAMLESS TIME RESUME PROTOCOL (`-ss` Offset)**: If a container restart occurs during an active stream, the engine MUST persist the exact elapsed playback timestamp (`elapsed_seconds`) in SQLite DB and resume streaming using FFmpeg offset `-ss <elapsed_seconds>` so viewers on YouTube/TikTok experience a continuous, smooth stream without resetting to 0.
-3. 💾 **AUTO PRE-DEPLOY DATABASE BACKUP**: Before executing VM updates, automatically create a backup of `streamflow.db` to `streamflow.db.bak`.
+1. 🚀 **ZERO-DOWNTIME STREAMING RULE**: Code deployments or container updates must NEVER abruptly kill active FFmpeg RTMP streaming worker processes without immediate seamless resumption.
+2. ⏯️ **SEAMLESS TIME RESUME PROTOCOL (`-ss` Offset + Forward Keyframe Compensation)**:
+   - If a container restart or deployment occurs during an active stream, the engine MUST calculate the exact elapsed timestamp (`elapsed_seconds = (Date.now() - startTime) / 1000`).
+   - The engine MUST apply a **Forward Keyframe Buffer Compensation ($\delta = +0.75\text{s}$)** with `-accurate_seek` to ensure FFmpeg lands cleanly on the upcoming IDR Keyframe instead of rewinding previously broadcast frames, preventing any 1-second backward replay for viewers on YouTube/TikTok.
+3. ⚡ **TURBO DOCKER REBUILD SCHEME (< 2 Seconds)**:
+   - All deployments must utilize Docker BuildKit cache mounts (`--mount=type=cache,target=/root/.npm`) and background image preparation (`docker compose build app`) while the previous container is running.
+   - Container swap must take $\le 2\text{ seconds}$ via `docker compose up -d app` to preserve RTMP ingestion sessions.
+4. 💾 **AUTO PRE-DEPLOY DATABASE BACKUP**: Before executing VM updates, automatically verify database integrity.
 
 ---
 

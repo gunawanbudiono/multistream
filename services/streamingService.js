@@ -438,7 +438,7 @@ async function buildFFmpegArgsForPlaylist(stream, playlist, resumeOffset = 0) {
   fs.writeFileSync(concatFile, content);
 
   const hasAudio = playlist.audios && playlist.audios.length > 0;
-  const seekArgs = resumeOffset > 0 ? ['-ss', String(resumeOffset)] : [];
+  const seekArgs = resumeOffset > 0 ? ['-ss', String(resumeOffset), '-accurate_seek'] : [];
 
   if (!hasAudio) {
     if (!stream.use_advanced_settings) {
@@ -618,7 +618,7 @@ async function buildFFmpegArgs(stream, resumeOffset = 0) {
 
   const rtmpUrl = `${stream.rtmp_url.replace(/\/$/, '')}/${stream.stream_key}`;
   const loopValue = stream.loop_video ? '-1' : '0';
-  const seekArgs = resumeOffset > 0 ? ['-ss', String(resumeOffset)] : [];
+  const seekArgs = resumeOffset > 0 ? ['-ss', String(resumeOffset), '-accurate_seek'] : [];
 
   if (!stream.use_advanced_settings) {
     const ext = path.extname(videoPath).toLowerCase();
@@ -1155,18 +1155,23 @@ async function syncStreamStatuses() {
           }
         }
 
-        // Seamless Auto-Resume on Server Startup / Restart with -ss offset
+        // Seamless Auto-Resume on Server Startup / Restart with Forward Keyframe Compensation
         if (stream.start_time) {
           try {
             const Video = require('../models/Video');
             const video = stream.video_id ? await Video.findById(stream.video_id) : null;
-            const videoDuration = (video && video.duration > 0) ? Math.floor(video.duration) : 3600;
-            const elapsedSeconds = Math.max(0, Math.floor((Date.now() - new Date(stream.start_time).getTime()) / 1000));
-            const resumeOffset = stream.loop_video ? (elapsedSeconds % videoDuration) : Math.min(elapsedSeconds, videoDuration);
+            const videoDuration = (video && video.duration > 0) ? Number(video.duration) : 3600;
+            const elapsedSeconds = Math.max(0, (Date.now() - new Date(stream.start_time).getTime()) / 1000);
+            // Forward Keyframe Buffer Compensation (+0.75s to +1.0s):
+            // In video streaming, FFmpeg -c:v copy seeks to the nearest preceding IDR keyframe (GOP boundary).
+            // Adding forward compensation prevents rewinding previously broadcast frames, providing a forward-continuous transition.
+            const compensatedSeconds = elapsedSeconds + 0.75;
+            const resumeOffset = stream.loop_video ? (compensatedSeconds % videoDuration) : Math.min(compensatedSeconds, videoDuration);
+            const formattedOffset = Number(resumeOffset.toFixed(2));
 
-            console.log(`[Auto-Resume] 🚀 Resuming live broadcast "${stream.title}" (${stream.id}) with offset: ${resumeOffset}s...`);
-            addStreamLog(stream.id, `[Auto-Resume] Resuming live broadcast after restart at offset ${resumeOffset}s...`);
-            await startStream(stream.id, false, null, resumeOffset);
+            console.log(`[Auto-Resume] 🚀 Resuming live broadcast "${stream.title}" (${stream.id}) with forward-aligned offset: ${formattedOffset}s...`);
+            addStreamLog(stream.id, `[Auto-Resume] Resuming live broadcast after restart at forward-aligned offset ${formattedOffset}s...`);
+            await startStream(stream.id, false, null, formattedOffset);
             continue;
           } catch (resumeErr) {
             console.error(`[Auto-Resume] Failed to resume stream ${stream.id}:`, resumeErr);
