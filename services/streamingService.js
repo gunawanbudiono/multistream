@@ -848,6 +848,8 @@ async function startStream(streamId, isRetry = false, baseUrl = null, resumeOffs
       startTime: startTimeIso,
       endTime: originalEndTime,
       pid: ffmpegProcess.pid,
+      resumeOffset: resumeOffset || 0,
+      lastPlaybackTime: resumeOffset || 0,
       lastActivity: Date.now()
     });
 
@@ -872,6 +874,25 @@ async function startStream(streamId, isRetry = false, baseUrl = null, resumeOffs
         if (isProgressLogLine(line)) {
           if (startupState.resolve) {
             startupState.resolve();
+          }
+          const timeMatch = line.match(/time=(\d+):(\d+):(\d+\.?\d*)/);
+          if (timeMatch) {
+            const h = parseInt(timeMatch[1], 10);
+            const m = parseInt(timeMatch[2], 10);
+            const s = parseFloat(timeMatch[3]);
+            const currentSeconds = h * 3600 + m * 60 + s;
+            const streamData = activeStreams.get(streamId);
+            if (streamData) {
+              const baseOffset = streamData.resumeOffset || 0;
+              streamData.lastPlaybackTime = baseOffset + currentSeconds;
+
+              const now = Date.now();
+              if (!streamData.lastCheckpointTime || (now - streamData.lastCheckpointTime > 5000)) {
+                streamData.lastCheckpointTime = now;
+                const { db } = require('../db/database');
+                db.run('UPDATE streams SET last_playback_offset = ? WHERE id = ?', [streamData.lastPlaybackTime, streamId], () => {});
+              }
+            }
           }
           continue;
         }
@@ -1072,6 +1093,8 @@ async function stopStream(streamId) {
 
       await saveStreamHistory(stream);
       await Stream.updateStatus(streamId, 'offline', stream.user_id);
+      const { db } = require('../db/database');
+      db.run('UPDATE streams SET last_playback_offset = 0 WHERE id = ?', [streamId], () => {});
     }
 
     if (schedulerService) {
@@ -1155,22 +1178,27 @@ async function syncStreamStatuses() {
           }
         }
 
-        // Seamless Auto-Resume on Server Startup / Restart with Forward Keyframe Compensation
+        // Seamless Auto-Resume on Server Startup / Restart with Exact Frame Checkpoint
         if (stream.start_time) {
           try {
             const Video = require('../models/Video');
             const video = stream.video_id ? await Video.findById(stream.video_id) : null;
             const videoDuration = (video && video.duration > 0) ? Number(video.duration) : 3600;
-            const elapsedSeconds = Math.max(0, (Date.now() - new Date(stream.start_time).getTime()) / 1000);
-            // Forward Keyframe Buffer Compensation (+0.75s to +1.0s):
-            // In video streaming, FFmpeg -c:v copy seeks to the nearest preceding IDR keyframe (GOP boundary).
-            // Adding forward compensation prevents rewinding previously broadcast frames, providing a forward-continuous transition.
-            const compensatedSeconds = elapsedSeconds + 0.75;
-            const resumeOffset = stream.loop_video ? (compensatedSeconds % videoDuration) : Math.min(compensatedSeconds, videoDuration);
+
+            let resumeOffset = 0;
+            if (stream.last_playback_offset && Number(stream.last_playback_offset) > 0) {
+              // Frame-Perfect Checkpoint: Resume exactly where FFmpeg left off without skipping video frames
+              resumeOffset = stream.loop_video ? (Number(stream.last_playback_offset) % videoDuration) : Math.min(Number(stream.last_playback_offset), videoDuration);
+              console.log(`[Auto-Resume] 🎯 Frame-perfect checkpoint found: ${resumeOffset}s for "${stream.title}"`);
+            } else {
+              // Fallback to wall-clock calculation if checkpoint not present
+              const elapsedSeconds = Math.max(0, (Date.now() - new Date(stream.start_time).getTime()) / 1000);
+              resumeOffset = stream.loop_video ? (elapsedSeconds % videoDuration) : Math.min(elapsedSeconds, videoDuration);
+            }
             const formattedOffset = Number(resumeOffset.toFixed(2));
 
-            console.log(`[Auto-Resume] 🚀 Resuming live broadcast "${stream.title}" (${stream.id}) with forward-aligned offset: ${formattedOffset}s...`);
-            addStreamLog(stream.id, `[Auto-Resume] Resuming live broadcast after restart at forward-aligned offset ${formattedOffset}s...`);
+            console.log(`[Auto-Resume] 🚀 Resuming live broadcast "${stream.title}" (${stream.id}) at exact frame offset: ${formattedOffset}s...`);
+            addStreamLog(stream.id, `[Auto-Resume] Resuming live broadcast after restart at exact frame offset ${formattedOffset}s...`);
             await startStream(stream.id, false, null, formattedOffset);
             continue;
           } catch (resumeErr) {
@@ -1347,6 +1375,12 @@ async function gracefulShutdown() {
   for (const streamId of streamIds) {
     try {
       const streamData = activeStreams.get(streamId);
+      if (streamData && streamData.lastPlaybackTime !== undefined && streamData.lastPlaybackTime > 0) {
+        await new Promise((resolve) => {
+          const { db } = require('../db/database');
+          db.run('UPDATE streams SET last_playback_offset = ? WHERE id = ?', [streamData.lastPlaybackTime, streamId], () => resolve());
+        });
+      }
 
       manuallyStoppingStreams.add(streamId);
       await killFFmpegProcess(streamId, streamData);

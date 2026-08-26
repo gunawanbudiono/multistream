@@ -278,6 +278,12 @@ function createTables() {
         }
       });
 
+      db.run(`ALTER TABLE streams ADD COLUMN last_playback_offset REAL DEFAULT 0`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('Error adding last_playback_offset column:', err.message);
+        }
+      });
+
       db.run(`CREATE TABLE IF NOT EXISTS stream_rotations (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
