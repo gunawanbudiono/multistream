@@ -5281,7 +5281,9 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
       if (req.body.scheduleStartTime) {
         const scheduleStartDate = parseScheduleDateTime(req.body.scheduleStartTime);
         updateData.schedule_time = scheduleStartDate.toISOString();
-        updateData.status = 'scheduled';
+        if (stream.status !== 'live') {
+          updateData.status = 'scheduled';
+        }
         
         if (req.body.scheduleEndTime) {
           const scheduleEndDate = parseScheduleDateTime(req.body.scheduleEndTime);
@@ -5291,12 +5293,19 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
         }
       } else if ('scheduleStartTime' in req.body && !req.body.scheduleStartTime) {
         updateData.schedule_time = null;
+        if (stream.status === 'scheduled') {
+          updateData.status = 'offline';
+        }
         if ('scheduleEndTime' in req.body && !req.body.scheduleEndTime) {
           updateData.end_time = null;
         } else if (req.body.scheduleEndTime) {
           const scheduleEndDate = parseScheduleDateTime(req.body.scheduleEndTime);
           updateData.end_time = scheduleEndDate.toISOString();
         }
+      }
+      
+      if (stream.status === 'live') {
+        delete updateData.status;
       }
       
       if (req.file) {
@@ -5428,8 +5437,16 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
         }
       }
       
-      await Stream.update(req.params.id, updateData);
-      return res.json({ success: true, message: 'Stream updated successfully' });
+      const updatedStream = await Stream.update(req.params.id, updateData);
+      if (streamingService.isStreamActive(req.params.id)) {
+        streamingService.updateActiveStreamSettings(req.params.id, {
+          title: updatedStream.title,
+          endTime: updatedStream.end_time,
+          loopVideo: updatedStream.loop_video
+        });
+      }
+      schedulerService.syncStreamSchedule(updatedStream);
+      return res.json({ success: true, message: 'Stream updated successfully', stream: updatedStream });
     }
     
     if (req.body.streamTitle) updateData.title = req.body.streamTitle;
@@ -5490,7 +5507,9 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
     if (req.body.scheduleStartTime) {
       const scheduleStartDate = parseLocalDateTime(req.body.scheduleStartTime);
       updateData.schedule_time = scheduleStartDate.toISOString();
-      updateData.status = 'scheduled';
+      if (stream.status !== 'live') {
+        updateData.status = 'scheduled';
+      }
       
       if (req.body.scheduleEndTime) {
         const scheduleEndDate = parseLocalDateTime(req.body.scheduleEndTime);
@@ -5512,7 +5531,9 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
       }
     } else if ('scheduleStartTime' in req.body && !req.body.scheduleStartTime) {
       updateData.schedule_time = null;
-      updateData.status = 'offline';
+      if (stream.status === 'scheduled') {
+        updateData.status = 'offline';
+      }
       
       if (req.body.scheduleEndTime) {
         const scheduleEndDate = parseLocalDateTime(req.body.scheduleEndTime);
@@ -5527,6 +5548,10 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
     } else if ('scheduleEndTime' in req.body && req.body.scheduleEndTime === '') {
       updateData.end_time = null;
       updateData.duration = null;
+    }
+
+    if (stream.status === 'live') {
+      delete updateData.status;
     }
     
     const updatedStream = await Stream.update(req.params.id, updateData);
