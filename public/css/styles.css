@@ -203,3 +203,14 @@ input:-webkit-autofill:active {
   box-shadow: 0 0 0 1000px #374151 inset !important;
   transition: background-color 5000s ease-in-out 0s !important;
 }
+
+/* Stream Key CSS Security Masking (Blocks Save Password Heuristics) */
+.masked-stream-key {
+  -webkit-text-security: disc !important;
+  text-security: disc !important;
+}
+
+.unmasked-stream-key {
+  -webkit-text-security: none !important;
+  text-security: none !important;
+}

@@ -308,9 +308,9 @@
 
                     <!-- Stream Key -->
                     <div class="relative">
-                      <input type="password" id="streamKey" name="streamKey"
-                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm"
-                        placeholder="Stream Key" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" required>
+                      <input type="text" id="streamKey" name="streamKey"
+                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm masked-stream-key"
+                        placeholder="Stream Key" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" required>
                       <i class="ti ti-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                       <button type="button" onclick="toggleStreamKeyVisibility()"
                         class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
@@ -771,9 +771,9 @@
 
                     <!-- Stream Key -->
                     <div class="relative">
-                      <input type="password" id="editStreamKey" name="streamKey"
-                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm"
-                        placeholder="Stream Key" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" required>
+                      <input type="text" id="editStreamKey" name="streamKey"
+                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm masked-stream-key"
+                        placeholder="Stream Key" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" required>
                       <i class="ti ti-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                       <button type="button" onclick="toggleEditStreamKeyVisibility()"
                         class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
@@ -3570,14 +3570,15 @@
     function toggleEditStreamKeyVisibility() {
       const keyInput = document.getElementById('editStreamKey');
       const eyeIcon = document.getElementById('editStreamKeyToggle');
-      if (keyInput.type === 'password') {
-        keyInput.type = 'text';
-        eyeIcon.classList.remove('ti-eye');
-        eyeIcon.classList.add('ti-eye-off');
+      if (!keyInput || !eyeIcon) return;
+      if (keyInput.classList.contains('masked-stream-key')) {
+        keyInput.classList.remove('masked-stream-key');
+        keyInput.classList.add('unmasked-stream-key');
+        eyeIcon.className = 'ti ti-eye-off';
       } else {
-        keyInput.type = 'password';
-        eyeIcon.classList.remove('ti-eye-off');
-        eyeIcon.classList.add('ti-eye');
+        keyInput.classList.remove('unmasked-stream-key');
+        keyInput.classList.add('masked-stream-key');
+        eyeIcon.className = 'ti ti-eye';
       }
     }
     document.addEventListener('DOMContentLoaded', function () {

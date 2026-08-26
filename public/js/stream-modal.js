@@ -289,8 +289,16 @@ document.addEventListener('DOMContentLoaded', () => {
 function toggleStreamKeyVisibility() {
   const streamKeyInput = document.getElementById('streamKey');
   const streamKeyToggle = document.getElementById('streamKeyToggle');
-  if (streamKeyInput.type === 'password') { streamKeyInput.type = 'text'; streamKeyToggle.className = 'ti ti-eye-off'; }
-  else { streamKeyInput.type = 'password'; streamKeyToggle.className = 'ti ti-eye'; }
+  if (!streamKeyInput || !streamKeyToggle) return;
+  if (streamKeyInput.classList.contains('masked-stream-key')) {
+    streamKeyInput.classList.remove('masked-stream-key');
+    streamKeyInput.classList.add('unmasked-stream-key');
+    streamKeyToggle.className = 'ti ti-eye-off';
+  } else {
+    streamKeyInput.classList.remove('unmasked-stream-key');
+    streamKeyInput.classList.add('masked-stream-key');
+    streamKeyToggle.className = 'ti ti-eye';
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
