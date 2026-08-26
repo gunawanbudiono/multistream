@@ -86,7 +86,7 @@ function cleanYoutubeUrl(url) {
 
 function getPotArgs() {
   return [
-    '--extractor-args', 'youtube:player_client=mweb,android,web'
+    '--remote-components', 'ejs:github'
   ];
 }
 

@@ -10,6 +10,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Copy FFmpeg 7.1 and FFprobe 7.1 static binaries with Enhanced RTMP support
 COPY --from=ffmpeg-source /ffmpeg /usr/local/bin/
 COPY --from=ffmpeg-source /ffprobe /usr/local/bin/
+COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 
 # Install dependency sistem yang dibutuhkan
 RUN apt-get update && apt-get install -y \
