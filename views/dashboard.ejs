@@ -750,7 +750,7 @@
                 <div class="relative">
                   <label class="text-sm font-medium text-white block mb-2">Select Video</label>
                   <div class="relative">
-                    <button type="button" onclick="toggleEditVideoSelector()"
+                    <button type="button" id="editVideoDropdownBtn" onclick="toggleEditVideoSelector()"
                       class="w-full flex items-center justify-between px-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-left">
                       <span class="text-sm text-gray-300" id="editSelectedVideo">Choose a video...</span>
                       <i class="ti ti-chevron-down text-gray-400"></i>
@@ -1030,7 +1030,7 @@
                   <div>
                     <label class="text-sm font-medium text-white block mb-2">Select Video</label>
                     <div class="relative">
-                      <button type="button" onclick="toggleEditYoutubeVideoSelector()"
+                      <button type="button" id="editYtVideoDropdownBtn" onclick="toggleEditYoutubeVideoSelector()"
                         class="w-full flex items-center justify-between px-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-left">
                         <span class="text-sm text-gray-300" id="editYtSelectedVideo">Choose a video...</span>
                         <i class="ti ti-chevron-down text-gray-400"></i>
@@ -3273,13 +3273,61 @@
         }
       }
       if (saveBtn) {
-        if (isLive) {
-          saveBtn.classList.add('hidden');
-        } else {
-          saveBtn.classList.remove('hidden', 'opacity-60', 'cursor-not-allowed');
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = 'Save Changes';
-        }
+        saveBtn.classList.remove('hidden', 'opacity-60', 'cursor-not-allowed');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Save Changes';
+      }
+
+      // Configure Read-Only / Locked elements during active Live
+      const manualVideoBtn = document.getElementById('editVideoDropdownBtn');
+      const ytVideoBtn = document.getElementById('editYtVideoDropdownBtn');
+      const editRtmpInput = document.getElementById('editRtmpUrl');
+      const editKeyInput = document.getElementById('editStreamKey');
+      const editPlatformSelect = document.getElementById('editPlatformSelect');
+      const editStartTimeInput = document.getElementById('editScheduleStartTime');
+      const editYtStartTimeInput = document.getElementById('editYtScheduleStart');
+      const editAdvCheckbox = document.getElementById('editAdvancedSettingsCheckbox');
+      const editAdvToggle = document.getElementById('editAdvancedSettingsToggle');
+
+      if (manualVideoBtn) {
+        manualVideoBtn.disabled = isLive;
+        if (isLive) manualVideoBtn.classList.add('opacity-60', 'cursor-not-allowed');
+        else manualVideoBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (ytVideoBtn) {
+        ytVideoBtn.disabled = isLive;
+        if (isLive) ytVideoBtn.classList.add('opacity-60', 'cursor-not-allowed');
+        else ytVideoBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editRtmpInput) {
+        editRtmpInput.readOnly = isLive;
+        if (isLive) editRtmpInput.classList.add('opacity-60', 'cursor-not-allowed');
+        else editRtmpInput.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editKeyInput) {
+        editKeyInput.readOnly = isLive;
+        if (isLive) editKeyInput.classList.add('opacity-60', 'cursor-not-allowed');
+        else editKeyInput.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editPlatformSelect) {
+        editPlatformSelect.disabled = isLive;
+        if (isLive) editPlatformSelect.classList.add('opacity-60', 'cursor-not-allowed');
+        else editPlatformSelect.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editStartTimeInput) {
+        editStartTimeInput.disabled = isLive;
+        if (isLive) editStartTimeInput.classList.add('opacity-60', 'cursor-not-allowed');
+        else editStartTimeInput.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editYtStartTimeInput) {
+        editYtStartTimeInput.disabled = isLive;
+        if (isLive) editYtStartTimeInput.classList.add('opacity-60', 'cursor-not-allowed');
+        else editYtStartTimeInput.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editAdvCheckbox) editAdvCheckbox.disabled = isLive;
+      if (editAdvToggle) {
+        if (isLive) editAdvToggle.classList.add('opacity-60', 'cursor-not-allowed');
+        else editAdvToggle.classList.remove('opacity-60', 'cursor-not-allowed');
       }
 
       const isYoutubeStream = stream.is_youtube_api === true || stream.is_youtube_api === 1;
@@ -3703,6 +3751,48 @@
         saveBtn.classList.remove('opacity-60', 'cursor-not-allowed');
         saveBtn.innerHTML = 'Save Changes';
       }
+
+      // Reset read-only & disabled controls
+      const manualVideoBtn = document.getElementById('editVideoDropdownBtn');
+      const ytVideoBtn = document.getElementById('editYtVideoDropdownBtn');
+      const editRtmpInput = document.getElementById('editRtmpUrl');
+      const editKeyInput = document.getElementById('editStreamKey');
+      const editPlatformSelect = document.getElementById('editPlatformSelect');
+      const editStartTimeInput = document.getElementById('editScheduleStartTime');
+      const editYtStartTimeInput = document.getElementById('editYtScheduleStart');
+      const editAdvCheckbox = document.getElementById('editAdvancedSettingsCheckbox');
+      const editAdvToggle = document.getElementById('editAdvancedSettingsToggle');
+
+      if (manualVideoBtn) {
+        manualVideoBtn.disabled = false;
+        manualVideoBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (ytVideoBtn) {
+        ytVideoBtn.disabled = false;
+        ytVideoBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editRtmpInput) {
+        editRtmpInput.readOnly = false;
+        editRtmpInput.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editKeyInput) {
+        editKeyInput.readOnly = false;
+        editKeyInput.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editPlatformSelect) {
+        editPlatformSelect.disabled = false;
+        editPlatformSelect.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editStartTimeInput) {
+        editStartTimeInput.disabled = false;
+        editStartTimeInput.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editYtStartTimeInput) {
+        editYtStartTimeInput.disabled = false;
+        editYtStartTimeInput.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+      if (editAdvCheckbox) editAdvCheckbox.disabled = false;
+      if (editAdvToggle) editAdvToggle.classList.remove('opacity-60', 'cursor-not-allowed');
     }
     function toggleEditVideoSelector() {
       const dropdown = document.getElementById('editVideoSelectorDropdown');

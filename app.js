@@ -5530,6 +5530,13 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
     }
     
     const updatedStream = await Stream.update(req.params.id, updateData);
+    if (streamingService.isStreamActive(req.params.id)) {
+      streamingService.updateActiveStreamSettings(req.params.id, {
+        title: updatedStream.title,
+        endTime: updatedStream.end_time,
+        loopVideo: updatedStream.loop_video
+      });
+    }
     schedulerService.syncStreamSchedule(updatedStream);
     res.json({ success: true, stream: updatedStream });
   } catch (error) {

@@ -847,14 +847,36 @@ async function startStream(streamId, isRetry = false, baseUrl = null, resumeOffs
       startTimeIso = new Date().toISOString();
     }
 
+    let videoDuration = 0;
+    try {
+      if (stream.video_type === 'playlist') {
+        const Playlist = require('../models/Playlist');
+        const playlist = await Playlist.findByIdWithVideos(stream.video_id);
+        if (playlist && Array.isArray(playlist.videos) && playlist.videos.length > 0) {
+          videoDuration = playlist.videos.reduce((sum, v) => sum + (Number(v.duration) || 0), 0);
+        }
+      } else if (stream.video_id) {
+        const Video = require('../models/Video');
+        const video = await Video.findById(stream.video_id);
+        if (video && Number(video.duration) > 0) {
+          videoDuration = Number(video.duration);
+        }
+      }
+    } catch (e) { }
+
     activeStreams.set(streamId, {
       process: ffmpegProcess,
       userId: stream.user_id,
+      title: stream.title,
       startTime: startTimeIso,
       endTime: originalEndTime,
       pid: ffmpegProcess.pid,
       resumeOffset: resumeOffset || 0,
       lastPlaybackTime: resumeOffset || 0,
+      videoDuration: videoDuration,
+      loopVideo: Boolean(stream.loop_video),
+      stopAtCycleEnd: false,
+      stopAtPlaybackTime: null,
       lastActivity: Date.now()
     });
 
@@ -890,6 +912,14 @@ async function startStream(streamId, isRetry = false, baseUrl = null, resumeOffs
             if (streamData) {
               const baseOffset = streamData.resumeOffset || 0;
               streamData.lastPlaybackTime = baseOffset + currentSeconds;
+
+              // Check if loop was disabled at runtime and current cycle has completed!
+              if (streamData.stopAtCycleEnd && streamData.stopAtPlaybackTime && streamData.lastPlaybackTime >= streamData.stopAtPlaybackTime) {
+                console.log(`[Stream ${streamId}] 🏁 Video playthrough finished (${streamData.lastPlaybackTime.toFixed(1)}s >= ${streamData.stopAtPlaybackTime.toFixed(1)}s). Stopping live broadcast cleanly.`);
+                addStreamLog(streamId, `[Finished] Putaran video selesai (Loop dinonaktifkan). Siaran live dihentikan otomatis.`);
+                stopStream(streamId);
+                return;
+              }
 
               const now = Date.now();
               if (!streamData.lastCheckpointTime || (now - streamData.lastCheckpointTime > 5000)) {
@@ -1378,6 +1408,48 @@ async function saveStreamHistory(stream) {
   }
 }
 
+function updateActiveStreamSettings(streamId, updates) {
+  const streamData = activeStreams.get(streamId);
+  if (!streamData) return false;
+
+  if ('title' in updates) {
+    streamData.title = updates.title;
+  }
+  if ('endTime' in updates) {
+    streamData.endTime = updates.endTime;
+  }
+  if ('loopVideo' in updates) {
+    const newLoop = Boolean(updates.loopVideo);
+    const oldLoop = streamData.loopVideo;
+    streamData.loopVideo = newLoop;
+
+    if (!newLoop && oldLoop) {
+      // Loop was turned OFF during live
+      const dur = streamData.videoDuration || 0;
+      const currentPlayback = streamData.lastPlaybackTime || 0;
+      if (dur > 0) {
+        const completedCycles = Math.floor(currentPlayback / dur);
+        const targetEndOffset = (completedCycles + 1) * dur;
+        streamData.stopAtPlaybackTime = targetEndOffset;
+        streamData.stopAtCycleEnd = true;
+        const remainingSeconds = Math.max(1, targetEndOffset - currentPlayback);
+        addStreamLog(streamId, `[Loop Disabled] Stream will automatically stop when current video playthrough finishes (in ~${Math.round(remainingSeconds)}s).`);
+        console.log(`[Stream ${streamId}] Loop disabled during live. Target stop at playback offset ${targetEndOffset}s (~${remainingSeconds}s remaining).`);
+      } else {
+        streamData.stopAtCycleEnd = true;
+      }
+    } else if (newLoop && !oldLoop) {
+      // Loop was turned back ON during live
+      streamData.stopAtCycleEnd = false;
+      streamData.stopAtPlaybackTime = null;
+      addStreamLog(streamId, `[Loop Enabled] Continuous looping re-enabled.`);
+      console.log(`[Stream ${streamId}] Loop re-enabled during live.`);
+    }
+  }
+
+  return true;
+}
+
 async function gracefulShutdown() {
   if (syncIntervalId) {
     clearInterval(syncIntervalId);
@@ -1430,6 +1502,7 @@ module.exports = {
   syncStreamStatuses,
   healthCheckStreams,
   saveStreamHistory,
+  updateActiveStreamSettings,
   gracefulShutdown,
   setSchedulerService
 };
