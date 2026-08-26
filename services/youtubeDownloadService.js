@@ -238,7 +238,7 @@ async function inspectVideo(rawUrl) {
 }
 
 /**
- * Starts a background batch download job for one or more YouTube videos.
+ * Starts a background batch download job for one or more YouTube videos (Concurrency = 2).
  */
 function startDownloadJob(userId, queueItems, folderId = null) {
   const jobId = uuidv4();
@@ -253,17 +253,19 @@ function startDownloadJob(userId, queueItems, folderId = null) {
     currentProgress: 0,
     speed: '',
     eta: '',
-    currentItemTitle: queueItems[0]?.title || 'Starting download...',
+    activeLabel: '',
     itemsStatus: queueItems.map((item, idx) => ({
       index: idx,
       title: item.title || `Video ${idx + 1}`,
-      status: idx === 0 ? 'downloading' : 'pending',
+      status: 'pending',
       progress: 0,
       sizeProgress: '',
-      speed: ''
+      speed: '',
+      rawSpeedBps: 0,
+      eta: ''
     })),
     downloadedFiles: [],
-    childProcess: null,
+    activeProcesses: new Set(),
     error: null,
     createdAt: Date.now()
   };
@@ -282,215 +284,284 @@ async function processJobQueue(jobId, queueItems) {
   const job = activeJobs.get(jobId);
   if (!job) return;
 
-  const runner = getYtDlpRunner();
+  const total = queueItems.length;
+  const concurrency = Math.min(2, total);
+  let nextIndex = 0;
 
-  for (let i = 0; i < queueItems.length; i++) {
-    if (job.status === 'cancelled') break;
+  function updateOverallProgress() {
+    if (!job || job.status === 'cancelled') return;
 
-    const item = queueItems[i];
-    job.currentIndex = i;
-    job.currentItemTitle = item.title || `Item ${i + 1}`;
-    job.currentProgress = 0;
-    job.speed = '';
-    job.sizeProgress = '';
-    if (job.itemsStatus && job.itemsStatus[i]) {
-      job.itemsStatus[i].status = 'downloading';
-    }
+    // Average progress across all items
+    const sumProgress = job.itemsStatus.reduce((sum, s) => sum + (s.progress || 0), 0);
+    job.progress = Math.min(99, Math.round(sumProgress / total));
 
-    const isAudio = item.resolution === 'audio' || item.resolution === 0 || item.resolution === '0';
-    const height = parseInt(item.resolution, 10) || 1080;
-    const baseName = sanitizeFilename(item.title);
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000000);
-    const ext = isAudio ? 'mp3' : 'mp4';
-    const finalFilename = `${baseName}-${timestamp}-${random}.${ext}`;
-    const finalFilePath = path.join(VIDEOS_DIR, finalFilename);
+    // Active downloading items
+    const activeDownloading = job.itemsStatus.filter(s => s.status === 'downloading');
+    const totalSpeedBps = activeDownloading.reduce((sum, s) => sum + (s.rawSpeedBps || 0), 0);
 
-    let formatArg;
-    if (isAudio) {
-      formatArg = [
-        '-x',
-        '--audio-format', 'mp3',
-        '--audio-quality', '0',
-        '--no-playlist'
-      ];
+    if (totalSpeedBps > 0) {
+      job.speed = `${formatBytes(totalSpeedBps)}/s`;
     } else {
-      formatArg = [
-        '-f', `bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`,
-        '--merge-output-format', 'mp4',
-        '--no-playlist'
-      ];
+      const speedStrs = activeDownloading.map(s => s.speed).filter(Boolean);
+      job.speed = speedStrs.length > 0 ? speedStrs[0] : '';
     }
 
-    const cleanedUrl = cleanYoutubeUrl(item.url);
-    const runner = getYtDlpRunner();
-    const args = [
-      ...runner.prefixArgs,
-      ...formatArg,
-      '--no-colors',
-      '--newline',
-      '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s',
-      '--geo-bypass',
-      ...getPotArgs(),
-      ...getCookieArgs(),
-      '-o', finalFilePath,
-      cleanedUrl
-    ];
-
-    let streamPhase = 0;
-    let lastRawPct = 0;
-    let videoStreamBytesStr = '';
-
-    await new Promise((resolve, reject) => {
-      const child = spawn(runner.cmd, args);
-      job.childProcess = child;
-
-      child.stdout.on('data', (data) => {
-        const raw = data.toString();
-        const lines = raw.split(/\r|\n/).filter(Boolean);
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.includes('|')) {
-            const parts = trimmed.split('|');
-            const pctStr = parts[0]?.replace('%', '').trim();
-            const pct = parseFloat(pctStr);
-            if (!isNaN(pct)) {
-              // Detect transition from Video stream (100%) to Audio stream (0%)
-              if (pct < lastRawPct && lastRawPct > 70 && !isAudio) {
-                streamPhase = 1;
-              }
-              lastRawPct = pct;
-
-              let itemPct = pct;
-              if (!isAudio) {
-                if (streamPhase === 0) {
-                  itemPct = Math.round(pct * 0.85);
-                } else {
-                  itemPct = Math.min(98, Math.round(85 + (pct * 0.13)));
-                }
-              }
-
-              job.currentProgress = Math.max(job.currentProgress || 0, Math.min(99, itemPct));
-              if (parts[1] && parts[1].trim() !== 'Unknown B/s') {
-                job.speed = cleanUnits(parts[1].trim());
-              }
-
-              const rawEta = parts[2]?.trim();
-              if (rawEta && rawEta !== 'Unknown' && rawEta !== 'NA' && rawEta !== 'N/A') {
-                if (rawEta === '00:00' && itemPct < 90 && job.eta && job.eta !== '00:00') {
-                  // Keep smoother ETA
-                } else {
-                  job.eta = rawEta;
-                }
-              }
-              
-              const downloadedRaw = parts[3]?.trim();
-              let totalRaw = parts[4]?.trim();
-
-              // Fallback to pre-calculated estimate if yt-dlp outputs N/A or empty
-              if (!totalRaw || totalRaw === 'NA' || totalRaw === 'N/A' || totalRaw === 'Unknown') {
-                if (item.filesizeFormatted) {
-                  totalRaw = item.filesizeFormatted;
-                }
-              }
-
-              if (downloadedRaw && downloadedRaw !== 'NA' && downloadedRaw !== 'N/A') {
-                if (streamPhase === 0) {
-                  videoStreamBytesStr = cleanUnits(downloadedRaw);
-                }
-                const cleanTotal = cleanUnits(totalRaw);
-                const cleanDownloaded = (streamPhase === 1 && videoStreamBytesStr)
-                  ? videoStreamBytesStr
-                  : cleanUnits(downloadedRaw);
-
-                if (cleanTotal && cleanTotal !== 'NA' && cleanTotal !== 'N/A') {
-                  job.sizeProgress = `${cleanDownloaded} / ${cleanTotal}`;
-                } else {
-                  job.sizeProgress = cleanDownloaded;
-                }
-              }
-
-              if (job.itemsStatus && job.itemsStatus[i]) {
-                job.itemsStatus[i].progress = itemPct;
-                job.itemsStatus[i].speed = job.speed;
-                job.itemsStatus[i].sizeProgress = job.sizeProgress;
-                if (itemPct >= 98 && !isAudio) {
-                  job.itemsStatus[i].status = 'merging';
-                } else {
-                  job.itemsStatus[i].status = 'downloading';
-                }
-              }
-              
-              const overall = Math.round(((i + (job.currentProgress / 100)) / queueItems.length) * 100);
-              job.progress = Math.max(job.progress || 0, Math.min(99, overall));
-            }
-          }
-        }
-      });
-
-      child.stderr.on('data', (data) => {});
-
-      child.on('close', (code) => {
-        job.childProcess = null;
-        if (code === 0) {
-          resolve();
-        } else {
-          if (job.status === 'cancelled') {
-            resolve();
-          } else {
-            reject(new Error(`yt-dlp exited with code ${code}`));
-          }
-        }
-      });
-
-      child.on('error', (err) => {
-        job.childProcess = null;
-        reject(err);
-      });
-    });
-
-    if (job.status === 'cancelled') {
-      try {
-        if (await fs.pathExists(finalFilePath)) await fs.remove(finalFilePath);
-      } catch (e) {}
-      break;
-    }
-
-    if (await fs.pathExists(finalFilePath)) {
-      const stat = await fs.stat(finalFilePath);
-      const thumbnailFilename = `thumb-${path.parse(finalFilename).name}.jpg`;
-      const thumbnailPath = `/uploads/thumbnails/${thumbnailFilename}`;
-      const thumbDiskPath = path.join(THUMBNAILS_DIR, thumbnailFilename);
-
-      const meta = await extractMetadata(finalFilePath, thumbDiskPath, isAudio);
-
-      const videoData = {
-        title: item.title || path.parse(finalFilename).name,
-        filepath: `/uploads/videos/${finalFilename}`,
-        thumbnail_path: meta.thumbnail_path || (isAudio ? '/images/default-video-thumbnail.svg' : thumbnailPath),
-        file_size: stat.size,
-        duration: meta.duration || item.duration || 0,
-        format: ext,
-        resolution: isAudio ? '' : (meta.resolution || `${height}p`),
-        bitrate: meta.bitrate || null,
-        fps: meta.fps || null,
-        user_id: job.userId,
-        folder_id: job.folderId || null
-      };
-
-      const createdVideo = await Video.create(videoData);
-      job.downloadedFiles.push(createdVideo);
-
-      if (job.itemsStatus && job.itemsStatus[i]) {
-        job.itemsStatus[i].status = 'completed';
-        job.itemsStatus[i].progress = 100;
+    // Active labels
+    const activeIndexes = activeDownloading.map(s => s.index + 1);
+    if (activeIndexes.length > 1) {
+      job.currentIndex = activeIndexes[0] - 1;
+      job.activeLabel = `Items ${activeIndexes.join(' & ')} of ${total}`;
+    } else if (activeIndexes.length === 1) {
+      job.currentIndex = activeIndexes[0] - 1;
+      job.activeLabel = `Item ${activeIndexes[0]} of ${total}`;
+    } else {
+      const pendingItems = job.itemsStatus.filter(s => s.status === 'pending');
+      const completedItems = job.itemsStatus.filter(s => s.status === 'completed');
+      if (completedItems.length > 0 && pendingItems.length === 0) {
+        job.activeLabel = `Completed ${completedItems.length} of ${total}`;
       }
+    }
+
+    // Pick first valid ETA among active downloads
+    const activeEtas = activeDownloading.map(s => s.eta).filter(e => e && e !== 'Unknown' && e !== 'NA' && e !== 'N/A');
+    if (activeEtas.length > 0) {
+      job.eta = activeEtas[0];
     }
   }
 
+  async function worker(workerId) {
+    while (nextIndex < total && job.status !== 'cancelled') {
+      const i = nextIndex++;
+      const item = queueItems[i];
+      if (!item) break;
+
+      job.itemsStatus[i].status = 'downloading';
+      updateOverallProgress();
+
+      try {
+        await downloadSingleItem(job, item, i, updateOverallProgress);
+      } catch (err) {
+        console.error(`[YouTubeDownloader Worker ${workerId}] Error downloading item ${i} (${item.title}):`, err);
+        if (job.status === 'cancelled') break;
+        if (job.itemsStatus[i]) {
+          job.itemsStatus[i].status = 'failed';
+          job.itemsStatus[i].error = err.message;
+        }
+      }
+      updateOverallProgress();
+    }
+  }
+
+  const workers = [];
+  for (let w = 0; w < concurrency; w++) {
+    workers.push(worker(w));
+  }
+
+  await Promise.all(workers);
+
   if (job.status !== 'cancelled') {
-    job.status = 'completed';
-    job.progress = 100;
+    const allFailed = job.itemsStatus.every(s => s.status === 'failed');
+    if (allFailed && total > 0) {
+      job.status = 'failed';
+      job.error = job.itemsStatus[0]?.error || 'All downloads failed';
+    } else {
+      job.status = 'completed';
+      job.progress = 100;
+    }
+  }
+}
+
+async function downloadSingleItem(job, item, i, onProgress) {
+  if (job.status === 'cancelled') return;
+
+  const isAudio = item.resolution === 'audio' || item.resolution === 0 || item.resolution === '0';
+  const height = parseInt(item.resolution, 10) || 1080;
+  const baseName = sanitizeFilename(item.title);
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000000);
+  const ext = isAudio ? 'mp3' : 'mp4';
+  const finalFilename = `${baseName}-${timestamp}-${random}.${ext}`;
+  const finalFilePath = path.join(VIDEOS_DIR, finalFilename);
+
+  let formatArg;
+  if (isAudio) {
+    formatArg = [
+      '-x',
+      '--audio-format', 'mp3',
+      '--audio-quality', '0',
+      '--no-playlist'
+    ];
+  } else {
+    formatArg = [
+      '-f', `bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`,
+      '--merge-output-format', 'mp4',
+      '--no-playlist'
+    ];
+  }
+
+  const cleanedUrl = cleanYoutubeUrl(item.url);
+  const runner = getYtDlpRunner();
+  const args = [
+    ...runner.prefixArgs,
+    ...formatArg,
+    '--no-colors',
+    '--newline',
+    '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s',
+    '--geo-bypass',
+    ...getPotArgs(),
+    ...getCookieArgs(),
+    '-o', finalFilePath,
+    cleanedUrl
+  ];
+
+  let streamPhase = 0;
+  let lastRawPct = 0;
+  let videoStreamBytesStr = '';
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(runner.cmd, args);
+    job.activeProcesses.add(child);
+
+    child.stdout.on('data', (data) => {
+      const raw = data.toString();
+      const lines = raw.split(/\r|\n/).filter(Boolean);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.includes('|')) {
+          const parts = trimmed.split('|');
+          const pctStr = parts[0]?.replace('%', '').trim();
+          const pct = parseFloat(pctStr);
+          if (!isNaN(pct)) {
+            if (pct < lastRawPct && lastRawPct > 70 && !isAudio) {
+              streamPhase = 1;
+            }
+            lastRawPct = pct;
+
+            let itemPct = pct;
+            if (!isAudio) {
+              if (streamPhase === 0) {
+                itemPct = Math.round(pct * 0.85);
+              } else {
+                itemPct = Math.min(98, Math.round(85 + (pct * 0.13)));
+              }
+            }
+
+            let speedText = '';
+            let speedBps = 0;
+            if (parts[1] && parts[1].trim() !== 'Unknown B/s') {
+              speedText = cleanUnits(parts[1].trim());
+              const spMatch = speedText.match(/([\d.]+)\s*([KMG]?B\/s)/i);
+              if (spMatch) {
+                const num = parseFloat(spMatch[1]);
+                const unit = spMatch[2].toUpperCase();
+                if (unit === 'MB/S' || unit === 'MIB/S') speedBps = num * 1024 * 1024;
+                else if (unit === 'KB/S' || unit === 'KIB/S') speedBps = num * 1024;
+                else if (unit === 'GB/S' || unit === 'GIB/S') speedBps = num * 1024 * 1024 * 1024;
+                else speedBps = num;
+              }
+            }
+
+            const rawEta = parts[2]?.trim();
+            const downloadedRaw = parts[3]?.trim();
+            let totalRaw = parts[4]?.trim();
+
+            if (!totalRaw || totalRaw === 'NA' || totalRaw === 'N/A' || totalRaw === 'Unknown') {
+              if (item.filesizeFormatted) {
+                totalRaw = item.filesizeFormatted;
+              }
+            }
+
+            let sizeProg = '';
+            if (downloadedRaw && downloadedRaw !== 'NA' && downloadedRaw !== 'N/A') {
+              if (streamPhase === 0) {
+                videoStreamBytesStr = cleanUnits(downloadedRaw);
+              }
+              const cleanTotal = cleanUnits(totalRaw);
+              const cleanDownloaded = (streamPhase === 1 && videoStreamBytesStr)
+                ? videoStreamBytesStr
+                : cleanUnits(downloadedRaw);
+
+              if (cleanTotal && cleanTotal !== 'NA' && cleanTotal !== 'N/A') {
+                sizeProg = `${cleanDownloaded} / ${cleanTotal}`;
+              } else {
+                sizeProg = cleanDownloaded;
+              }
+            }
+
+            if (job.itemsStatus && job.itemsStatus[i]) {
+              job.itemsStatus[i].progress = itemPct;
+              job.itemsStatus[i].speed = speedText;
+              job.itemsStatus[i].rawSpeedBps = speedBps;
+              job.itemsStatus[i].eta = (rawEta && rawEta !== 'Unknown' && rawEta !== 'NA' && rawEta !== 'N/A') ? rawEta : '';
+              job.itemsStatus[i].sizeProgress = sizeProg;
+              if (itemPct >= 98 && !isAudio) {
+                job.itemsStatus[i].status = 'merging';
+              } else {
+                job.itemsStatus[i].status = 'downloading';
+              }
+            }
+
+            if (typeof onProgress === 'function') onProgress();
+          }
+        }
+      }
+    });
+
+    child.stderr.on('data', () => {});
+
+    child.on('close', (code) => {
+      job.activeProcesses.delete(child);
+      if (code === 0 || job.status === 'cancelled') {
+        resolve();
+      } else {
+        reject(new Error(`yt-dlp exited with code ${code}`));
+      }
+    });
+
+    child.on('error', (err) => {
+      job.activeProcesses.delete(child);
+      reject(err);
+    });
+  });
+
+  if (job.status === 'cancelled') {
+    try {
+      if (await fs.pathExists(finalFilePath)) await fs.remove(finalFilePath);
+    } catch (e) {}
+    return;
+  }
+
+  if (await fs.pathExists(finalFilePath)) {
+    const stat = await fs.stat(finalFilePath);
+    const thumbnailFilename = `thumb-${path.parse(finalFilename).name}.jpg`;
+    const thumbnailPath = `/uploads/thumbnails/${thumbnailFilename}`;
+    const thumbDiskPath = path.join(THUMBNAILS_DIR, thumbnailFilename);
+
+    const meta = await extractMetadata(finalFilePath, thumbDiskPath, isAudio);
+
+    const videoData = {
+      title: item.title || path.parse(finalFilename).name,
+      filepath: `/uploads/videos/${finalFilename}`,
+      thumbnail_path: meta.thumbnail_path || (isAudio ? '/images/default-video-thumbnail.svg' : thumbnailPath),
+      file_size: stat.size,
+      duration: meta.duration || item.duration || 0,
+      format: ext,
+      resolution: isAudio ? '' : (meta.resolution || `${height}p`),
+      bitrate: meta.bitrate || null,
+      fps: meta.fps || null,
+      user_id: job.userId,
+      folder_id: job.folderId || null
+    };
+
+    const createdVideo = await Video.create(videoData);
+    job.downloadedFiles.push(createdVideo);
+
+    if (job.itemsStatus && job.itemsStatus[i]) {
+      job.itemsStatus[i].status = 'completed';
+      job.itemsStatus[i].progress = 100;
+      job.itemsStatus[i].speed = '';
+      job.itemsStatus[i].rawSpeedBps = 0;
+    }
   }
 }
 
@@ -582,6 +653,7 @@ function getJobStatus(jobId) {
     currentProgress: job.currentProgress,
     currentIndex: job.currentIndex,
     totalItems: job.totalItems,
+    activeLabel: job.activeLabel || '',
     currentItemTitle: job.currentItemTitle,
     speed: job.speed,
     eta: job.eta,
@@ -617,10 +689,13 @@ function cancelJob(jobId) {
   const job = activeJobs.get(jobId);
   if (!job) return false;
   job.status = 'cancelled';
-  if (job.childProcess) {
-    try {
-      job.childProcess.kill('SIGTERM');
-    } catch (e) {}
+  if (job.activeProcesses) {
+    for (const child of job.activeProcesses) {
+      try {
+        child.kill('SIGTERM');
+      } catch (e) {}
+    }
+    job.activeProcesses.clear();
   }
   return true;
 }

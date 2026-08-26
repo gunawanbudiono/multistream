@@ -2284,7 +2284,8 @@ async function startYtDownloadQueue() {
           if (job.progress >= 99 && completedCount === job.totalItems) {
             metricsHtml = '<span class="inline-flex items-center gap-1.5 text-emerald-300 font-medium"><i class="ti ti-circle-check text-xs text-emerald-400"></i> All downloads completed!</span>';
           } else {
-            metricsHtml = `<span class="inline-flex items-center gap-1 text-gray-300"><i class="ti ti-layers-subtract text-indigo-400"></i> Active: <strong class="text-white">Item ${job.currentIndex + 1} of ${job.totalItems}</strong></span>`;
+            const activeLabelText = job.activeLabel || `Item ${job.currentIndex + 1} of ${job.totalItems}`;
+            metricsHtml = `<span class="inline-flex items-center gap-1 text-gray-300"><i class="ti ti-layers-subtract text-indigo-400"></i> Active: <strong class="text-white">${activeLabelText}</strong></span>`;
             if (job.speed) {
               metricsHtml += `<span class="text-gray-600">•</span><span class="inline-flex items-center gap-1 text-gray-300"><i class="ti ti-bolt text-red-400"></i> <strong class="text-white">${job.speed}</strong></span>`;
             }
