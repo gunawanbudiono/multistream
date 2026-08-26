@@ -466,9 +466,9 @@ async function triggerVideoRender(context = 'new') {
 
   if (!videoId) {
     if (typeof showToast === 'function') {
-      showToast('Pilih video terlebih dahulu sebelum merender', 'error');
+      showToast('Please select a video before rendering', 'error');
     } else {
-      alert('Pilih video terlebih dahulu sebelum merender');
+      alert('Please select a video before rendering');
     }
     return;
   }
@@ -497,11 +497,11 @@ async function triggerVideoRender(context = 'new') {
     btn.disabled = true;
     btn.classList.add('opacity-75', 'cursor-not-allowed');
   }
-  if (btnText) btnText.textContent = 'Sedang Merender...';
+  if (btnText) btnText.textContent = 'Rendering Video...';
   if (btnIcon) btnIcon.className = 'ti ti-loader animate-spin text-amber-400';
   if (progressContainer) progressContainer.classList.remove('hidden');
   if (progressBar) progressBar.style.width = '5%';
-  if (statusText) statusText.textContent = 'Memulai proses render...';
+  if (statusText) statusText.textContent = 'Initializing render process...';
   if (percentText) percentText.textContent = '5%';
 
   try {
@@ -520,7 +520,7 @@ async function triggerVideoRender(context = 'new') {
 
     const data = await res.json();
     if (!data.success || !data.jobId) {
-      throw new Error(data.error || 'Gagal memulai render video');
+      throw new Error(data.error || 'Failed to start video rendering');
     }
 
     const jobId = data.jobId;
@@ -532,20 +532,20 @@ async function triggerVideoRender(context = 'new') {
 
         if (!pollData.success) {
           clearInterval(pollInterval);
-          throw new Error(pollData.error || 'Terjadi kesalahan saat memproses render');
+          throw new Error(pollData.error || 'An error occurred while processing render');
         }
 
         if (pollData.status === 'processing') {
           const pct = Math.max(5, pollData.progress || 0);
           if (progressBar) progressBar.style.width = `${pct}%`;
-          if (statusText) statusText.textContent = 'Memproses video...';
+          if (statusText) statusText.textContent = 'Processing video...';
           if (percentText) percentText.textContent = `${pct}%`;
         } else if (pollData.status === 'complete') {
           clearInterval(pollInterval);
           isRenderingVideo = false;
 
           if (progressBar) progressBar.style.width = '100%';
-          if (statusText) statusText.textContent = 'Render selesai!';
+          if (statusText) statusText.textContent = 'Render completed!';
           if (percentText) percentText.textContent = '100%';
 
           const renderedVideo = pollData.video;
@@ -560,7 +560,7 @@ async function triggerVideoRender(context = 'new') {
 
           loadGalleryVideos();
 
-          if (btnText) btnText.textContent = 'Video Berhasil Dirender & Terpilih!';
+          if (btnText) btnText.textContent = 'Video Rendered & Selected!';
           if (btnIcon) btnIcon.className = 'ti ti-check text-emerald-400';
           if (btn) {
             btn.classList.remove('bg-dark-600', 'hover:bg-dark-500');
@@ -568,7 +568,7 @@ async function triggerVideoRender(context = 'new') {
           }
 
           if (typeof showToast === 'function') {
-            showToast('Video berhasil dirender dan otomatis terpilih!', 'success');
+            showToast('Video successfully pre-rendered and selected!', 'success');
           }
 
           setTimeout(() => {
@@ -583,7 +583,7 @@ async function triggerVideoRender(context = 'new') {
           }, 4000);
         } else if (pollData.status === 'error') {
           clearInterval(pollInterval);
-          throw new Error(pollData.error || 'Gagal merender video');
+          throw new Error(pollData.error || 'Failed to render video');
         }
       } catch (pollErr) {
         clearInterval(pollInterval);
@@ -594,7 +594,7 @@ async function triggerVideoRender(context = 'new') {
         }
         if (btnText) btnText.textContent = 'Render Video';
         if (btnIcon) btnIcon.className = 'ti ti-bolt text-amber-400';
-        if (statusText) statusText.textContent = 'Gagal merender video';
+        if (statusText) statusText.textContent = 'Render failed';
         if (typeof showToast === 'function') {
           showToast(pollErr.message, 'error');
         } else {

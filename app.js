@@ -3079,17 +3079,17 @@ app.post('/api/videos/render', isAuthenticated, async (req, res) => {
   try {
     const { videoId, resolution, bitrate, fps, videoCodec, orientation } = req.body;
     if (!videoId) {
-      return res.status(400).json({ success: false, error: 'Video ID wajib dipilih' });
+      return res.status(400).json({ success: false, error: 'Video ID is required' });
     }
 
     const sourceVideo = await Video.findById(videoId);
     if (!sourceVideo || !sourceVideo.filepath) {
-      return res.status(404).json({ success: false, error: 'Video sumber tidak ditemukan' });
+      return res.status(404).json({ success: false, error: 'Source video not found' });
     }
 
     const sourceFullPath = path.join(__dirname, 'public', sourceVideo.filepath);
     if (!fs.existsSync(sourceFullPath)) {
-      return res.status(404).json({ success: false, error: 'File video fisik tidak ditemukan di disk' });
+      return res.status(404).json({ success: false, error: 'Source video file not found on disk' });
     }
 
     const jobId = uuidv4();
