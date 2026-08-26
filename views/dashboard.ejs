@@ -1967,6 +1967,9 @@
         durationDisplay = `${hours}:${minutes}:${seconds}`;
       }
       const scheduleDate = stream.schedule_time ? formatDate(new Date(stream.schedule_time)) : '';
+      const scheduleTime = stream.schedule_time ? formatTime(new Date(stream.schedule_time)) : '';
+      const endDate = stream.end_time ? formatDate(new Date(stream.end_time)) : '';
+      const endTime = stream.end_time ? formatTime(new Date(stream.end_time)) : '';
       const formatCodecName = (c) => {
         if (!c) return 'H.264';
         const str = String(c).toLowerCase();
@@ -2067,6 +2070,7 @@
         thumbnail = stream.youtube_thumbnail;
       }
       const startDate = stream.start_time ? new Date(stream.start_time) : null;
+      const scheduleDate = stream.schedule_time ? new Date(stream.schedule_time) : null;
       const formatCodecName = (c) => {
         if (!c) return 'H.264';
         const str = String(c).toLowerCase();
