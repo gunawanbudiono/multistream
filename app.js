@@ -2,6 +2,7 @@ process.env.TZ = 'Asia/Jakarta';
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+const http = require('http');
 const fs = require('fs');
 const dbDir = path.join(__dirname, 'db');
 if (!fs.existsSync(dbDir)) {
