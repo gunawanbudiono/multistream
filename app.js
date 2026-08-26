@@ -5878,6 +5878,36 @@ const server = app.listen(port, '0.0.0.0', async () => {
   } catch (error) {
     console.error('Failed to sync stream statuses:', error);
   }
+
+  // Background Auto-Sync: Probe missing video/audio codecs for existing gallery media
+  setTimeout(() => {
+    const { db } = require('./db/database');
+    db.all('SELECT id, filepath FROM videos WHERE codec IS NULL OR codec = ""', [], (err, rows) => {
+      if (err || !rows || rows.length === 0) return;
+      rows.forEach((row) => {
+        if (!row.filepath) return;
+        const fullPath = path.join(__dirname, 'public', row.filepath);
+        if (!fs.existsSync(fullPath)) return;
+        ffmpeg.ffprobe(fullPath, (probeErr, metadata) => {
+          if (probeErr || !metadata || !metadata.streams) return;
+          const vStream = metadata.streams.find(s => s.codec_type === 'video');
+          const aStream = metadata.streams.find(s => s.codec_type === 'audio');
+          const vCodec = vStream ? vStream.codec_name : null;
+          const aCodec = aStream ? aStream.codec_name : null;
+          let res = null;
+          if (vStream && vStream.width && vStream.height) {
+            res = `${vStream.width}x${vStream.height}`;
+          }
+          const bitRate = metadata.format && metadata.format.bit_rate ? Math.round(parseInt(metadata.format.bit_rate) / 1000) : null;
+          db.run(
+            'UPDATE videos SET codec = ?, audio_codec = ?, resolution = COALESCE(resolution, ?), bitrate = COALESCE(bitrate, ?) WHERE id = ?',
+            [vCodec, aCodec, res, bitRate, row.id],
+            () => {}
+          );
+        });
+      });
+    });
+  }, 2000);
 });
 
 server.timeout = 30 * 60 * 1000;

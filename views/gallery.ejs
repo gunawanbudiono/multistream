@@ -257,12 +257,13 @@ function detectMediaType(item) {
               let metaLine = '';
               if (mediaType === 'video') {
                 const parts = [];
-                parts.push(formatVideoResFps(video.resolution, video.fps));
-                parts.push(ext);
+                const resFps = formatVideoResFps(video.resolution, video.fps);
+                if (resFps) parts.push(resFps);
+                if (ext) parts.push(ext);
                 const br = formatBitrate(video.bitrate);
                 if (br) parts.push(br);
-                parts.push('2s KF');
-                parts.push('H.264');
+                if (video.codec) parts.push(video.codec.toUpperCase());
+                if (video.audio_codec) parts.push(video.audio_codec.toUpperCase());
                 metaLine = parts.join(' • ');
               } else if (mediaType === 'audio') {
                 const br = formatBitrate(video.bitrate);
@@ -343,12 +344,13 @@ function detectMediaType(item) {
               let metaLine = '';
               if (mediaType === 'video') {
                 const parts = [];
-                parts.push(formatVideoResFps(video.resolution, video.fps));
-                parts.push(ext);
+                const resFps = formatVideoResFps(video.resolution, video.fps);
+                if (resFps) parts.push(resFps);
+                if (ext) parts.push(ext);
                 const br = formatBitrate(video.bitrate);
                 if (br) parts.push(br);
-                parts.push('2s KF');
-                parts.push('H.264');
+                if (video.codec) parts.push(video.codec.toUpperCase());
+                if (video.audio_codec) parts.push(video.audio_codec.toUpperCase());
                 metaLine = parts.join(' • ');
               } else if (mediaType === 'audio') {
                 const br = formatBitrate(video.bitrate);
@@ -3502,12 +3504,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (mediaType === 'video') {
       const parts = [];
-      parts.push(formatVideoResFps(video.resolution, video.fps));
-      parts.push(ext);
+      const resFps = formatVideoResFps(video.resolution, video.fps);
+      if (resFps) parts.push(resFps);
+      if (ext) parts.push(ext);
       const br = formatBitrate(video.bitrate);
       if (br) parts.push(br);
-      parts.push('2s KF');
-      parts.push('H.264');
+      if (video.codec) parts.push(video.codec.toUpperCase());
+      if (video.audio_codec) parts.push(video.audio_codec.toUpperCase());
       metaLine = parts.join(' • ');
     } else if (mediaType === 'audio') {
       const br = formatBitrate(video.bitrate);
@@ -3599,12 +3602,13 @@ document.addEventListener('DOMContentLoaded', function() {
     let metaLine = '';
     if (mediaType === 'video') {
       const parts = [];
-      parts.push(formatVideoResFps(video.resolution, video.fps));
-      parts.push(ext);
+      const resFps = formatVideoResFps(video.resolution, video.fps);
+      if (resFps) parts.push(resFps);
+      if (ext) parts.push(ext);
       const br = formatBitrate(video.bitrate);
       if (br) parts.push(br);
-      parts.push('2s KF');
-      parts.push('H.264');
+      if (video.codec) parts.push(video.codec.toUpperCase());
+      if (video.audio_codec) parts.push(video.audio_codec.toUpperCase());
       metaLine = parts.join(' • ');
     } else if (mediaType === 'audio') {
       const br = formatBitrate(video.bitrate);

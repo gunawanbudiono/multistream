@@ -26,11 +26,13 @@ class Video {
         `INSERT INTO videos (
           id, title, filepath, thumbnail_path, file_size, 
           duration, format, resolution, bitrate, fps, user_id, folder_id,
+          codec, audio_codec,
           upload_date, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id, data.title, data.filepath, data.thumbnail_path, data.file_size,
           data.duration, data.format, data.resolution, data.bitrate, data.fps, data.user_id, data.folder_id || null,
+          data.codec || null, data.audio_codec || null,
           data.upload_date || now, now, now
         ],
         function (err) {

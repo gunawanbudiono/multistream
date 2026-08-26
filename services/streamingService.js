@@ -50,8 +50,8 @@ const HEALTH_CHECK_INTERVAL = 30000;
 const SYNC_INTERVAL = 60000;
 const STREAM_START_TIMEOUT = 15000;
 
-const YOUTUBE_COPY_ALLOWED_VIDEO_CODECS = new Set(['h264', 'hevc', 'h265']);
-const YOUTUBE_COPY_ALLOWED_AUDIO_CODECS = new Set(['aac', 'mp3']);
+const YOUTUBE_COPY_ALLOWED_VIDEO_CODECS = new Set(['h264', 'hevc', 'h265', 'av1', 'vp9']);
+const YOUTUBE_COPY_ALLOWED_AUDIO_CODECS = new Set(['aac', 'mp3', 'opus', 'flac', 'ac3', 'eac3', 'pcm_s16le', 'pcm_s24le', 'vorbis']);
 
 let schedulerService = null;
 let syncIntervalId = null;

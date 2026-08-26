@@ -379,6 +379,12 @@ function createTables() {
         }
       });
 
+      db.run(`ALTER TABLE videos ADD COLUMN codec TEXT`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('Error adding codec column to videos:', err.message);
+        }
+      });
+
       db.run(`ALTER TABLE videos ADD COLUMN audio_codec TEXT`, (err) => {
         if (err && !err.message.includes('duplicate column name')) {
           console.error('Error adding audio_codec column to videos:', err.message);
