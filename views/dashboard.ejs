@@ -3247,6 +3247,7 @@
         });
     }
     let editModalLiveTimerInterval = null;
+    let editModalStatusWatcherInterval = null;
 
     function startEditModalLiveTimer(startTimeStr) {
       stopEditModalLiveTimer();
@@ -3278,6 +3279,40 @@
       }
     }
 
+    function startEditModalStatusWatcher(streamId) {
+      stopEditModalStatusWatcher();
+      if (!streamId) return;
+
+      editModalStatusWatcherInterval = setInterval(async () => {
+        const modal = document.getElementById('editStreamModal');
+        if (!modal || modal.classList.contains('hidden')) {
+          stopEditModalStatusWatcher();
+          return;
+        }
+
+        try {
+          const res = await fetch(`/api/streams/${streamId}`);
+          const data = await res.json();
+          if (data.success && data.stream) {
+            if (data.stream.status !== 'live') {
+              stopEditModalStatusWatcher();
+              stopEditModalLiveTimer();
+              openEditStreamModal(data.stream);
+              if (typeof refreshStreamsView === 'function') refreshStreamsView();
+              showToast('info', 'Stream broadcast has ended.');
+            }
+          }
+        } catch (e) { }
+      }, 2500);
+    }
+
+    function stopEditModalStatusWatcher() {
+      if (editModalStatusWatcherInterval) {
+        clearInterval(editModalStatusWatcherInterval);
+        editModalStatusWatcherInterval = null;
+      }
+    }
+
     function openEditStreamModal(stream) {
       originalStreamKey = stream.stream_key;
       document.getElementById('editStreamId').value = stream.id;
@@ -3288,6 +3323,12 @@
       const saveBtn = document.getElementById('editModalSaveBtn') || document.querySelector('#editStreamModal button[type="submit"]');
       const stopLiveBtn = document.getElementById('editModalStopLiveBtn');
       const startStreamBtn = document.getElementById('editModalStartStreamBtn');
+
+      if (isLive) {
+        startEditModalStatusWatcher(stream.id);
+      } else {
+        stopEditModalStatusWatcher();
+      }
 
       if (modalTitle) modalTitle.innerText = isLive ? 'Live Stream Details' : 'Edit Stream';
       if (inspectorBadge) {
@@ -3594,6 +3635,7 @@
       
       modal.classList.remove('active');
       stopEditModalLiveTimer();
+      stopEditModalStatusWatcher();
       resetEditModalForm();
       
       const editDurationBadge = document.getElementById('editDurationBadge');
@@ -3643,6 +3685,7 @@
           if (data.success) {
             showToast('success', 'Live stream stopped successfully');
             stopEditModalLiveTimer();
+            stopEditModalStatusWatcher();
             if (btn) btn.classList.add('hidden');
             const startStreamBtn = document.getElementById('editModalStartStreamBtn');
             if (startStreamBtn) {
@@ -4661,6 +4704,15 @@
           }
         }, 200);
       }
+
+      // Periodically sync stream statuses in background (every 5 seconds)
+      setInterval(() => {
+        if (!document.hidden && !document.getElementById('streams-search')?.matches(':focus')) {
+          if (typeof fetchStreams === 'function') {
+            fetchStreams(currentPage, currentLimit, currentSearch);
+          }
+        }
+      }, 5000);
     });
   </script>
 
