@@ -276,15 +276,43 @@ function detectMediaType(item) {
           </div>
         </div>
         <div class="p-3 pt-0">
+          <% 
+            const gridUsage = (typeof streamUsageMap !== 'undefined' && streamUsageMap[video.id]) ? streamUsageMap[video.id] : null;
+            if (gridUsage && gridUsage.count > 0) { 
+          %>
+          <div class="mb-2">
+            <% if (gridUsage.liveCount > 0) { %>
+              <button type="button" onclick="event.stopPropagation(); openStreamUsageModal('<%= video.id %>')" 
+                class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 transition-all shadow-sm shadow-red-950/40"
+                title="Used in <%= gridUsage.count %> stream(s) • <%= gridUsage.liveCount %> Currently Broadcasting Live">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span><%= gridUsage.count %> Stream<%= gridUsage.count > 1 ? 's' : '' %> (<%= gridUsage.liveCount %> Live)</span>
+              </button>
+            <% } else { %>
+              <button type="button" onclick="event.stopPropagation(); openStreamUsageModal('<%= video.id %>')" 
+                class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-dark-600/80 text-gray-300 border border-gray-600/60 hover:border-gray-500 hover:text-white hover:bg-dark-500 transition-all"
+                title="Used in <%= gridUsage.count %> stream(s)">
+                <i class="ti ti-broadcast text-blue-400 text-xs"></i>
+                <span><%= gridUsage.count %> Stream<%= gridUsage.count > 1 ? 's' : '' %></span>
+              </button>
+            <% } %>
+          </div>
+          <% } %>
           <div class="flex items-center justify-between pt-2 border-t border-gray-700/50">
             <span class="text-xs text-gray-400 font-mono"><%= formatFileSize(video.file_size) %></span>
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button class="text-gray-400 hover:text-white p-1" onclick="event.stopPropagation(); showRenameDialog('<%= video.id %>', this.closest('.file-item').getAttribute('data-title'))">
                 <i class="ti ti-pencil text-sm"></i>
               </button>
+              <% if (gridUsage && gridUsage.liveCount > 0) { %>
+              <button class="text-gray-500 hover:text-red-400 p-1 cursor-not-allowed" onclick="event.stopPropagation(); handleBlockedDelete('<%= video.id %>', this.closest('.file-item').getAttribute('data-title'))" title="Cannot delete: Video is currently broadcasting live">
+                <i class="ti ti-lock text-sm text-red-400"></i>
+              </button>
+              <% } else { %>
               <button class="text-gray-400 hover:text-red-400 p-1" onclick="event.stopPropagation(); showDeleteDialog('<%= video.id %>', this.closest('.file-item').getAttribute('data-title'))">
                 <i class="ti ti-trash text-sm"></i>
               </button>
+              <% } %>
             </div>
           </div>
         </div>
@@ -383,6 +411,23 @@ function detectMediaType(item) {
                     <% } else if (mediaType === 'image') { %>
                     <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-medium capitalize shrink-0">Image</span>
                     <% } %>
+                    <% 
+                      const listUsage = (typeof streamUsageMap !== 'undefined' && streamUsageMap[video.id]) ? streamUsageMap[video.id] : null;
+                      if (listUsage && listUsage.count > 0) { 
+                        if (listUsage.liveCount > 0) {
+                    %>
+                      <button type="button" onclick="event.stopPropagation(); openStreamUsageModal('<%= video.id %>')" 
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 transition-all shrink-0 ml-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                        <span><%= listUsage.count %> (<%= listUsage.liveCount %> Live)</span>
+                      </button>
+                    <% } else { %>
+                      <button type="button" onclick="event.stopPropagation(); openStreamUsageModal('<%= video.id %>')" 
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-dark-600 text-gray-300 border border-gray-600 hover:bg-dark-500 hover:text-white transition-all shrink-0 ml-1">
+                        <i class="ti ti-broadcast text-blue-400 text-xs"></i>
+                        <span><%= listUsage.count %> Streams</span>
+                      </button>
+                    <% } } %>
                     <span class="text-[11px] text-gray-400 ml-2 font-mono truncate"><%= metaLine %></span>
                   </div>
                 </div>
@@ -396,10 +441,17 @@ function detectMediaType(item) {
                     onclick="event.stopPropagation(); showRenameDialog('<%= video.id %>', this.closest('.file-item-row').getAttribute('data-title'))">
                     <i class="ti ti-pencil text-sm"></i>
                   </button>
+                  <% if (listUsage && listUsage.liveCount > 0) { %>
+                  <button class="p-1.5 hover:bg-dark-600 rounded text-gray-500 hover:text-red-400 transition-colors cursor-not-allowed"
+                    onclick="event.stopPropagation(); handleBlockedDelete('<%= video.id %>', this.closest('.file-item-row').getAttribute('data-title'))" title="Cannot delete: Video is currently broadcasting live">
+                    <i class="ti ti-lock text-sm text-red-400"></i>
+                  </button>
+                  <% } else { %>
                   <button class="p-1.5 hover:bg-dark-600 rounded text-gray-400 hover:text-red-400 transition-colors"
                     onclick="event.stopPropagation(); showDeleteDialog('<%= video.id %>', this.closest('.file-item-row').getAttribute('data-title'))">
                     <i class="ti ti-trash text-sm"></i>
                   </button>
+                  <% } %>
                 </div>
               </td>
             </tr>
@@ -839,6 +891,37 @@ function detectMediaType(item) {
   </div>
 </div>
 
+<!-- Stream Usage Modal with Live Stop Action & Direct Shortcut -->
+<div id="streamUsageModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden modal-overlay overflow-y-auto">
+  <div class="flex min-h-screen items-center justify-center p-4">
+    <div class="bg-dark-800 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 overflow-hidden transform transition-all">
+      <div class="flex items-center justify-between p-4 px-6 border-b border-gray-700 bg-dark-800">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+            <i class="ti ti-broadcast text-lg"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-base font-semibold text-white truncate">Stream Usage Details</h3>
+            <p id="streamUsageVideoTitle" class="text-xs text-gray-400 truncate max-w-xs"></p>
+          </div>
+        </div>
+        <button type="button" onclick="closeStreamUsageModal()" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
+          <i class="ti ti-x text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="p-5 max-h-[60vh] overflow-y-auto space-y-3" id="streamUsageListContainer">
+        <!-- Dynamic list of streams -->
+      </div>
+      
+      <div class="flex items-center justify-between p-4 px-6 border-t border-gray-700 bg-dark-850 text-xs text-gray-400">
+        <span>Click <b>Stop Broadcast</b> to safely end active streams.</span>
+        <button type="button" onclick="closeStreamUsageModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg text-xs font-medium transition-colors">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 bg-dark-800 text-white px-4 py-3 rounded-lg shadow-lg z-[99999] hidden flex items-center">
   <i id="toast-icon" class="mr-2"></i>
   <span id="toast-message"></span>
@@ -852,6 +935,113 @@ const currentFolderId = <%- JSON.stringify(currentFolderId || '') %>;
 let galleryVideosState = <%- JSON.stringify(videos || []) %>;
 let galleryFoldersState = <%- JSON.stringify(folders || []) %>;
 let galleryCurrentFolderState = <%- JSON.stringify(currentFolder || null) %>;
+let streamUsageMapState = <%- JSON.stringify(typeof streamUsageMap !== 'undefined' ? streamUsageMap : {}) %>;
+
+function handleBlockedDelete(id, title) {
+  const usage = streamUsageMapState[id];
+  const liveCount = usage ? usage.liveCount : 1;
+  showToast('error', `Cannot delete "${title}": Video is actively broadcasting live in ${liveCount} stream(s).`);
+  openStreamUsageModal(id);
+}
+
+function openStreamUsageModal(videoId) {
+  const modal = document.getElementById('streamUsageModal');
+  const titleEl = document.getElementById('streamUsageVideoTitle');
+  const listEl = document.getElementById('streamUsageListContainer');
+  if (!modal || !listEl) return;
+
+  const video = galleryVideosState.find(v => v.id === videoId);
+  const videoTitle = video ? video.title : 'Selected Media';
+  if (titleEl) titleEl.textContent = videoTitle;
+
+  const usage = streamUsageMapState[videoId];
+  if (!usage || !usage.streams || usage.streams.length === 0) {
+    listEl.innerHTML = `
+      <div class="text-center py-6 text-gray-400">
+        <i class="ti ti-info-circle text-2xl mb-2 text-gray-500"></i>
+        <p class="text-sm">This video is not currently assigned to any stream.</p>
+      </div>
+    `;
+    modal.classList.remove('hidden');
+    return;
+  }
+
+  listEl.innerHTML = usage.streams.map(s => {
+    const isLive = (s.status === 'live');
+    const statusBadge = isLive 
+      ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-red-500/20 text-red-400 border border-red-500/30"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> LIVE</span>`
+      : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-700 text-gray-300">Offline</span>`;
+
+    const usageTypeLabel = s.usageType === 'playlist' 
+      ? `<span class="text-xs text-purple-400 flex items-center gap-1"><i class="ti ti-playlist text-xs"></i> Playlist: ${escapeHtml(s.playlistTitle || 'Playlist')}</span>`
+      : `<span class="text-xs text-blue-400 flex items-center gap-1"><i class="ti ti-video text-xs"></i> Direct Video Broadcast</span>`;
+
+    const stopButtonHtml = isLive 
+      ? `<button type="button" onclick="stopStreamFromUsageModal('${s.id}', '${videoId}')" id="stopBtn-${s.id}" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-md shadow-red-950/40 transition-all"><i class="ti ti-player-stop-filled text-xs"></i> Stop Broadcast</button>`
+      : '';
+
+    return `
+      <div class="bg-dark-900/90 border border-gray-700/80 rounded-xl p-3.5 flex items-center justify-between gap-3 hover:border-gray-600 transition-all">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 mb-1">
+            <h4 class="text-sm font-semibold text-white truncate" title="${escapeHtml(s.title)}">${escapeHtml(s.title)}</h4>
+            ${statusBadge}
+          </div>
+          ${usageTypeLabel}
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a href="/dashboard?streamId=${s.id}" class="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-gray-200 hover:text-white rounded-lg text-xs font-medium flex items-center gap-1 border border-gray-600 transition-all">
+            <i class="ti ti-external-link text-xs"></i> Details
+          </a>
+          ${stopButtonHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  modal.classList.remove('hidden');
+}
+
+function closeStreamUsageModal() {
+  const modal = document.getElementById('streamUsageModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function stopStreamFromUsageModal(streamId, videoId) {
+  const btn = document.getElementById(`stopBtn-${streamId}`);
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="ti ti-loader-2 animate-spin text-xs"></i> Stopping...`;
+  }
+
+  try {
+    const res = await fetch(`/api/streams/${streamId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'offline' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('success', 'Stream broadcast stopped successfully');
+      if (typeof window.refreshGalleryData === 'function') {
+        await window.refreshGalleryData();
+      }
+      openStreamUsageModal(videoId);
+    } else {
+      showToast('error', data.error || 'Failed to stop stream');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="ti ti-player-stop-filled text-xs"></i> Stop Broadcast`;
+      }
+    }
+  } catch (err) {
+    showToast('error', 'Failed to communicate with server');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="ti ti-player-stop-filled text-xs"></i> Stop Broadcast`;
+    }
+  }
+}
 
 async function loadDiskUsage() {
   try {
@@ -3509,6 +3699,52 @@ document.addEventListener('DOMContentLoaded', function() {
       metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext;
     }
 
+    const gridUsage = streamUsageMapState[video.id];
+    let usageBadgeHtml = '';
+    if (gridUsage && gridUsage.count > 0) {
+      if (gridUsage.liveCount > 0) {
+        usageBadgeHtml = `
+          <div class="mb-2">
+            <button type="button" onclick="event.stopPropagation(); openStreamUsageModal('${escapeHtml(video.id)}')" 
+              class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 transition-all shadow-sm shadow-red-950/40"
+              title="Used in ${gridUsage.count} stream(s) • ${gridUsage.liveCount} Currently Broadcasting Live">
+              <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              <span>${gridUsage.count} Stream${gridUsage.count > 1 ? 's' : ''} (${gridUsage.liveCount} Live)</span>
+            </button>
+          </div>
+        `;
+      } else {
+        usageBadgeHtml = `
+          <div class="mb-2">
+            <button type="button" onclick="event.stopPropagation(); openStreamUsageModal('${escapeHtml(video.id)}')" 
+              class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-dark-600/80 text-gray-300 border border-gray-600/60 hover:border-gray-500 hover:text-white hover:bg-dark-500 transition-all"
+              title="Used in ${gridUsage.count} stream(s)">
+              <i class="ti ti-broadcast text-blue-400 text-xs"></i>
+              <span>${gridUsage.count} Stream${gridUsage.count > 1 ? 's' : ''}</span>
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    let deleteBtnHtml = '';
+    if (gridUsage && gridUsage.liveCount > 0) {
+      deleteBtnHtml = `
+        <button class="file-delete-btn text-gray-500 hover:text-red-400 p-1 cursor-not-allowed" 
+          data-video-id="${escapeHtml(video.id)}" data-video-title="${title}" data-is-live="true"
+          title="Cannot delete: Video is currently broadcasting live in ${gridUsage.liveCount} stream(s)">
+          <i class="ti ti-lock text-sm text-red-400"></i>
+        </button>
+      `;
+    } else {
+      deleteBtnHtml = `
+        <button class="file-delete-btn text-gray-400 hover:text-red-400 p-1" 
+          data-video-id="${escapeHtml(video.id)}" data-video-title="${title}" data-is-live="false">
+          <i class="ti ti-trash text-sm"></i>
+        </button>
+      `;
+    }
+
     return `
       <div class="gallery-grid-item file-item gallery-playable group bg-dark-700 rounded-lg overflow-hidden border border-transparent hover:border-gray-600 hover:bg-dark-600 transition-all cursor-pointer flex flex-col justify-between"
         data-id="${escapeHtml(video.id)}" data-kind="file" data-title="${title}" data-date="${escapeHtml(video.upload_date || video.created_at || '')}" data-size="${Number(video.file_size || 0)}" data-type="${mediaType}"
@@ -3530,15 +3766,14 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="p-3 pt-0">
+          ${usageBadgeHtml}
           <div class="flex items-center justify-between pt-2 border-t border-gray-700/50">
             <span class="text-xs text-gray-400 font-mono">${formatFileSize(video.file_size || 0)}</span>
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button class="file-rename-btn text-gray-400 hover:text-white p-1" data-video-id="${escapeHtml(video.id)}" data-video-title="${title}">
                 <i class="ti ti-pencil text-sm"></i>
               </button>
-              <button class="file-delete-btn text-gray-400 hover:text-red-400 p-1" data-video-id="${escapeHtml(video.id)}" data-video-title="${title}">
-                <i class="ti ti-trash text-sm"></i>
-              </button>
+              ${deleteBtnHtml}
             </div>
           </div>
         </div>
@@ -3607,6 +3842,46 @@ document.addEventListener('DOMContentLoaded', function() {
       metaLine = (video.resolution ? video.resolution + ' • ' : '') + ext;
     }
 
+    const listUsage = streamUsageMapState[video.id];
+    let listUsageBadgeHtml = '';
+    if (listUsage && listUsage.count > 0) {
+      if (listUsage.liveCount > 0) {
+        listUsageBadgeHtml = `
+          <button type="button" onclick="event.stopPropagation(); openStreamUsageModal('${escapeHtml(video.id)}')" 
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 transition-all shrink-0 ml-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+            <span>${listUsage.count} (${listUsage.liveCount} Live)</span>
+          </button>
+        `;
+      } else {
+        listUsageBadgeHtml = `
+          <button type="button" onclick="event.stopPropagation(); openStreamUsageModal('${escapeHtml(video.id)}')" 
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-dark-600 text-gray-300 border border-gray-600 hover:bg-dark-500 hover:text-white transition-all shrink-0 ml-1">
+            <i class="ti ti-broadcast text-blue-400 text-xs"></i>
+            <span>${listUsage.count} Streams</span>
+          </button>
+        `;
+      }
+    }
+
+    let listDeleteBtnHtml = '';
+    if (listUsage && listUsage.liveCount > 0) {
+      listDeleteBtnHtml = `
+        <button class="file-delete-btn p-1.5 hover:bg-dark-600 rounded text-gray-500 hover:text-red-400 transition-colors cursor-not-allowed" 
+          data-video-id="${escapeHtml(video.id)}" data-video-title="${title}" data-is-live="true"
+          title="Cannot delete: Video is currently broadcasting live in ${listUsage.liveCount} stream(s)">
+          <i class="ti ti-lock text-sm text-red-400"></i>
+        </button>
+      `;
+    } else {
+      listDeleteBtnHtml = `
+        <button class="file-delete-btn p-1.5 hover:bg-dark-600 rounded text-gray-400 hover:text-red-400 transition-colors" 
+          data-video-id="${escapeHtml(video.id)}" data-video-title="${title}" data-is-live="false">
+          <i class="ti ti-trash text-sm"></i>
+        </button>
+      `;
+    }
+
     return `
       <tr class="gallery-list-item file-item-row gallery-playable group hover:bg-dark-700 transition-colors cursor-pointer"
         data-id="${escapeHtml(video.id)}" data-kind="file" data-title="${title}" data-date="${escapeHtml(video.upload_date || video.created_at || '')}" data-size="${Number(video.file_size || 0)}" data-type="${mediaType}"
@@ -3619,6 +3894,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="flex items-center gap-2 min-w-0">
               <span class="font-medium text-sm truncate max-w-xs text-white">${title}</span>
               ${typeBadge}
+              ${listUsageBadgeHtml}
               <span class="text-[11px] text-gray-400 ml-2 font-mono truncate">${metaLine}</span>
             </div>
           </div>
@@ -3631,9 +3907,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <button class="file-rename-btn p-1.5 hover:bg-dark-600 rounded text-gray-400 hover:text-white transition-colors" data-video-id="${escapeHtml(video.id)}" data-video-title="${title}">
               <i class="ti ti-pencil text-sm"></i>
             </button>
-            <button class="file-delete-btn p-1.5 hover:bg-dark-600 rounded text-gray-400 hover:text-red-400 transition-colors" data-video-id="${escapeHtml(video.id)}" data-video-title="${title}">
-              <i class="ti ti-trash text-sm"></i>
-            </button>
+            ${listDeleteBtnHtml}
           </div>
         </td>
       </tr>

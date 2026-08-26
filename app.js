@@ -955,6 +955,7 @@ app.get('/gallery', isAuthenticated, async (req, res) => {
     const currentUser = await User.findById(req.session.userId);
     const userDiskUsage = await User.getDiskUsage(req.session.userId);
     const userDiskLimit = currentUser ? (Number(currentUser.disk_quota_gb) > 0 ? Number(currentUser.disk_quota_gb) * 1024 * 1024 * 1024 : Number(currentUser.disk_limit) || 0) : 0;
+    const streamUsageMap = await Stream.getVideoUsageMap(req.session.userId);
 
     res.render('gallery', {
       title: 'Video Gallery',
@@ -965,7 +966,8 @@ app.get('/gallery', isAuthenticated, async (req, res) => {
       videos: videos,
       folders: folders,
       currentFolder: currentFolder,
-      currentFolderId: currentFolderId || ''
+      currentFolderId: currentFolderId || '',
+      streamUsageMap
     });
   } catch (error) {
     console.error('Gallery error:', error);
@@ -1006,12 +1008,15 @@ app.get('/api/gallery/data', isAuthenticated, async (req, res) => {
       }
     }
 
+    const streamUsageMap = await Stream.getVideoUsageMap(req.session.userId);
+
     res.json({
       success: true,
       videos,
       folders,
       currentFolder,
-      currentFolderId: currentFolderId || ''
+      currentFolderId: currentFolderId || '',
+      streamUsageMap
     });
   } catch (error) {
     console.error('Gallery data error:', error);

@@ -487,8 +487,91 @@ class Stream {
           console.error('Error checking stream key:', err.message);
           return reject(err);
         }
-        resolve(row.count > 0);
+        resolve(row ? row.count > 0 : false);
       });
+    });
+  }
+
+  static getVideoUsageMap(userId) {
+    return new Promise(async (resolve) => {
+      try {
+        const streams = await Stream.findAll(userId);
+        const playlistVideos = await new Promise((resPV, rejPV) => {
+          db.all(
+            `SELECT pv.playlist_id, pv.video_id, p.name as playlist_title 
+             FROM playlist_videos pv 
+             JOIN playlists p ON pv.playlist_id = p.id 
+             WHERE p.user_id = ?`,
+            [userId],
+            (err, rows) => {
+              if (err) return rejPV(err);
+              resPV(rows || []);
+            }
+          );
+        });
+
+        const playlistToVideos = new Map();
+        for (const pv of playlistVideos) {
+          if (!playlistToVideos.has(pv.playlist_id)) {
+            playlistToVideos.set(pv.playlist_id, []);
+          }
+          playlistToVideos.get(pv.playlist_id).push(pv);
+        }
+
+        const usageMap = {};
+
+        for (const s of streams) {
+          if (!s.video_id) continue;
+
+          const isDirect = (s.video_type !== 'playlist');
+          if (isDirect) {
+            const vId = s.video_id;
+            if (!usageMap[vId]) {
+              usageMap[vId] = { count: 0, liveCount: 0, streams: [] };
+            }
+            const isLive = (s.status === 'live');
+            usageMap[vId].count += 1;
+            if (isLive) usageMap[vId].liveCount += 1;
+            usageMap[vId].streams.push({
+              id: s.id,
+              title: s.title || 'Untitled Stream',
+              status: s.status,
+              isLive,
+              usageType: 'direct',
+              playlistTitle: null
+            });
+          } else {
+            const pId = s.video_id;
+            const pVideos = playlistToVideos.get(pId) || [];
+            const isLive = (s.status === 'live');
+            const seenVideoInThisStream = new Set();
+            for (const pv of pVideos) {
+              const vId = pv.video_id;
+              if (seenVideoInThisStream.has(vId)) continue;
+              seenVideoInThisStream.add(vId);
+
+              if (!usageMap[vId]) {
+                usageMap[vId] = { count: 0, liveCount: 0, streams: [] };
+              }
+              usageMap[vId].count += 1;
+              if (isLive) usageMap[vId].liveCount += 1;
+              usageMap[vId].streams.push({
+                id: s.id,
+                title: s.title || 'Untitled Stream',
+                status: s.status,
+                isLive,
+                usageType: 'playlist',
+                playlistTitle: pv.playlist_title || 'Playlist'
+              });
+            }
+          }
+        }
+
+        resolve(usageMap);
+      } catch (err) {
+        console.error('Error calculating video usage map:', err);
+        resolve({});
+      }
     });
   }
 }
