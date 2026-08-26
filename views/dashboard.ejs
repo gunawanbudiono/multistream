@@ -707,8 +707,10 @@
         <div class="flex-shrink-0 flex items-center justify-between p-4 sm:px-6 sm:py-4 border-b border-gray-700">
           <div class="flex items-center gap-2.5">
             <h3 class="text-lg font-semibold" id="editStreamModalTitle">Edit Stream</h3>
-            <span id="editStreamInspectorBadge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>Live Inspector
+            <span id="editStreamInspectorBadge" class="hidden px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1.5 font-mono">
+              <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              <span class="font-bold">LIVE</span>
+              <span id="editStreamLiveDuration" class="text-white tracking-wider">00:00:00</span>
             </span>
           </div>
           <div class="flex items-center gap-2">
@@ -772,10 +774,13 @@
                 </div>
                 <div class="lg:hidden bg-dark-900 rounded-lg overflow-hidden">
                   <div class="aspect-video bg-dark-900">
-                    <div id="editVideoPreviewMobile" class="hidden w-full h-full">
-                      <video id="edit-native-preview-mobile" class="native-video-player"
-                        controls preload="metadata">
-                        <source src="" type="video/mp4">
+                    <div id="editVideoPreviewMobile" class="hidden w-full h-full relative">
+                      <div id="edit-native-preview-mobile-spinner" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 transition-opacity duration-300 pointer-events-none opacity-0">
+                        <i class="ti ti-loader-2 text-3xl text-primary animate-spin mb-2"></i>
+                        <span class="text-xs text-gray-300 font-medium">Buffering stream...</span>
+                      </div>
+                      <video id="edit-native-preview-mobile" class="w-full h-full object-contain rounded-lg"
+                        controls playsinline preload="metadata">
                         Your browser does not support the video tag.
                       </video>
                     </div>
@@ -845,10 +850,13 @@
               <div class="hidden lg:block">
                 <div class="overflow-hidden h-full">
                   <div class="aspect-video rounded-lg bg-dark-900">
-                    <div id="editVideoPreview" class="hidden w-full h-full">
+                    <div id="editVideoPreview" class="hidden w-full h-full relative">
+                      <div id="edit-native-preview-desktop-spinner" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 transition-opacity duration-300 pointer-events-none opacity-0">
+                        <i class="ti ti-loader-2 text-3xl text-primary animate-spin mb-2"></i>
+                        <span class="text-xs text-gray-300 font-medium">Buffering stream...</span>
+                      </div>
                       <video id="edit-native-preview-desktop"
-                        class="native-video-player rounded-lg" controls preload="metadata">
-                        <source src="" type="video/mp4">
+                        class="w-full h-full object-contain rounded-lg" controls playsinline preload="metadata">
                         Your browser does not support the video tag.
                       </video>
                     </div>
@@ -3238,6 +3246,38 @@
           showToast('error', 'An error occurred while fetching stream data');
         });
     }
+    let editModalLiveTimerInterval = null;
+
+    function startEditModalLiveTimer(startTimeStr) {
+      stopEditModalLiveTimer();
+      const durEl = document.getElementById('editStreamLiveDuration');
+      if (!startTimeStr) {
+        if (durEl) durEl.textContent = '00:00:00';
+        return;
+      }
+
+      const startTime = new Date(startTimeStr).getTime();
+
+      function update() {
+        const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+        const hours = Math.floor(elapsedSeconds / 3600);
+        const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+        const seconds = elapsedSeconds % 60;
+        const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        if (durEl) durEl.textContent = formatted;
+      }
+
+      update();
+      editModalLiveTimerInterval = setInterval(update, 1000);
+    }
+
+    function stopEditModalLiveTimer() {
+      if (editModalLiveTimerInterval) {
+        clearInterval(editModalLiveTimerInterval);
+        editModalLiveTimerInterval = null;
+      }
+    }
+
     function openEditStreamModal(stream) {
       originalStreamKey = stream.stream_key;
       document.getElementById('editStreamId').value = stream.id;
@@ -3251,8 +3291,13 @@
 
       if (modalTitle) modalTitle.innerText = isLive ? 'Live Stream Details' : 'Edit Stream';
       if (inspectorBadge) {
-        if (isLive) inspectorBadge.classList.remove('hidden');
-        else inspectorBadge.classList.add('hidden');
+        if (isLive) {
+          inspectorBadge.classList.remove('hidden');
+          startEditModalLiveTimer(stream.start_time);
+        } else {
+          inspectorBadge.classList.add('hidden');
+          stopEditModalLiveTimer();
+        }
       }
       if (stopLiveBtn) {
         if (isLive) {
@@ -3548,7 +3593,7 @@
       const modal = document.getElementById('editStreamModal');
       
       modal.classList.remove('active');
-      
+      stopEditModalLiveTimer();
       resetEditModalForm();
       
       const editDurationBadge = document.getElementById('editDurationBadge');
@@ -3556,8 +3601,16 @@
       
       const editDesktopVideo = document.getElementById('edit-native-preview-desktop');
       const editMobileVideo = document.getElementById('edit-native-preview-mobile');
-      if (editDesktopVideo) { editDesktopVideo.pause(); editDesktopVideo.src = ''; }
-      if (editMobileVideo) { editMobileVideo.pause(); editMobileVideo.src = ''; }
+      if (editDesktopVideo) {
+        editDesktopVideo.pause();
+        editDesktopVideo.removeAttribute('src');
+        editDesktopVideo.load();
+      }
+      if (editMobileVideo) {
+        editMobileVideo.pause();
+        editMobileVideo.removeAttribute('src');
+        editMobileVideo.load();
+      }
       
       setTimeout(() => {
         modal.classList.add('hidden');
@@ -3931,45 +3984,43 @@
       document.getElementById('editVideoSelectorDropdown').classList.add('hidden');
     }
     function createEditVideoPreview(video) {
-      const editDesktopVideo = document.getElementById('edit-native-preview-desktop');
-      const editMobileVideo = document.getElementById('edit-native-preview-mobile');
-      if (editDesktopVideo) { editDesktopVideo.pause(); editDesktopVideo.src = ''; }
-      if (editMobileVideo) { editMobileVideo.pause(); editMobileVideo.src = ''; }
-      const desktopVideoContainer = document.getElementById('editVideoPreview');
-      const mobileVideoContainer = document.getElementById('editVideoPreviewMobile');
-      
+      if (!video || !video.id) return;
+      const isMobile = window.innerWidth < 1024;
+      const targetId = isMobile ? 'edit-native-preview-mobile' : 'edit-native-preview-desktop';
+      const otherId = isMobile ? 'edit-native-preview-desktop' : 'edit-native-preview-mobile';
+
+      const otherVideo = document.getElementById(otherId);
+      if (otherVideo) {
+        otherVideo.pause();
+        otherVideo.removeAttribute('src');
+        otherVideo.load();
+      }
+
       const streamUrl = `/stream/${encodeURIComponent(video.id)}`;
-      const createPlayerMarkup = (id) => `
-        <div class="relative w-full h-full bg-black aspect-video flex items-center justify-center rounded-lg overflow-hidden">
-          <div id="${id}-spinner" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 transition-opacity duration-300 pointer-events-none opacity-0">
-            <i class="ti ti-loader-2 text-3xl text-primary animate-spin mb-2"></i>
-            <span class="text-xs text-gray-300 font-medium">Buffering stream...</span>
-          </div>
-          <video id="${id}" class="w-full h-full object-contain rounded-lg" controls preload="auto" playsinline>
-            <source src="${streamUrl}" type="video/mp4">
-            Your browser does not support the video tag.
-          </video>
-        </div>
-      `;
+      const vEl = document.getElementById(targetId);
+      const spinner = document.getElementById(`${targetId}-spinner`);
 
-      desktopVideoContainer.innerHTML = createPlayerMarkup('edit-native-preview-desktop');
-      mobileVideoContainer.innerHTML = createPlayerMarkup('edit-native-preview-mobile');
+      if (vEl) {
+        if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
 
-      ['edit-native-preview-desktop', 'edit-native-preview-mobile'].forEach(pid => {
-        const vEl = document.getElementById(pid);
-        const spinner = document.getElementById(`${pid}-spinner`);
-        if (vEl && spinner) {
-          const hideSpinner = () => spinner.classList.add('opacity-0', 'pointer-events-none');
-          const showSpinner = () => spinner.classList.remove('opacity-0', 'pointer-events-none');
+        const hideSpinner = () => {
+          if (spinner) spinner.classList.add('opacity-0', 'pointer-events-none');
+        };
+        const showSpinner = () => {
+          if (spinner) spinner.classList.remove('opacity-0', 'pointer-events-none');
+        };
 
-          vEl.onwaiting = showSpinner;
-          vEl.onstalled = showSpinner;
-          vEl.onplaying = hideSpinner;
-          vEl.oncanplay = hideSpinner;
-          vEl.onloadeddata = hideSpinner;
-          vEl.ontimeupdate = hideSpinner;
-        }
-      });
+        vEl.onwaiting = showSpinner;
+        vEl.onstalled = showSpinner;
+        vEl.onplaying = hideSpinner;
+        vEl.oncanplay = hideSpinner;
+        vEl.onloadeddata = hideSpinner;
+        vEl.onloadedmetadata = hideSpinner;
+        vEl.ontimeupdate = hideSpinner;
+
+        vEl.src = streamUrl;
+        vEl.load();
+      }
     }
     function setEditVideoOrientation(orientation) {
       currentEditOrientation = orientation;
