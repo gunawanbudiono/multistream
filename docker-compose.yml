@@ -23,3 +23,12 @@ services:
       - TZ=Asia/Jakarta
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
+    depends_on:
+      - pot-provider
+
+  pot-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:latest
+    container_name: multistream-pot-provider
+    restart: unless-stopped
+    ports:
+      - "4416:4416"
