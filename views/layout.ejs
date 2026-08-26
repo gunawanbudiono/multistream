@@ -77,19 +77,17 @@
     <div class="flex items-center">
       <img src="/images/logo_mobile.svg" alt="StreamFlow Logo" class="h-8">
     </div>
-    <div class="flex items-center gap-1">
-      <div id="mobile-server-time" class="hidden items-center gap-1.5 text-gray-400 text-sm mr-2">
+    <div class="flex items-center gap-2">
+      <div id="mobile-server-time" class="hidden items-center gap-1.5 text-gray-400 text-sm mr-1">
         <span id="mobile-server-date">--</span>
         <span class="text-gray-600">•</span>
         <span id="mobile-server-clock" class="tabular-nums">--:--:--</span>
       </div>
       <div id="mobile-separator" class="hidden h-4 w-px bg-gray-600 mr-1"></div>
-      <div class="relative">
-        <button id="mobile-notification-btn" class="p-2 text-gray-400 hover:text-white transition-colors relative">
-          <i class="ti ti-bell text-lg"></i>
-          <span class="hidden absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
-      </div>
+      <a href="/logout" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold" title="Sign Out">
+        <i class="ti ti-logout text-sm"></i>
+        <span>Sign Out</span>
+      </a>
     </div>
   </div>
   <div class="flex">
@@ -154,16 +152,6 @@
         <i class="ti ti-settings mr-3"></i>
         <span>Settings</span>
       </a>
-      <a href="https://github.com/bangtutorial/streamflow/issues"
-        class="flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-700 hover:text-white transition-colors" target="_blank">
-        <i class="ti ti-help mr-3"></i>
-        <span>Help & Support</span>
-      </a>
-      <div class="h-px bg-gray-700 mx-4"></div>
-      <a href="/logout" class="flex items-center px-4 py-2.5 text-sm text-logout hover:bg-dark-700 transition-colors">
-        <i class="ti ti-logout mr-3"></i>
-        <span>Sign Out</span>
-      </a>
     </div>
     <div class="w-full lg:ml-20 flex flex-col min-h-screen">
       <% if (req.session && req.session.isImpersonating) { %>
@@ -205,7 +193,7 @@
         </div>
         <div class="h-4 w-px bg-gray-600 mr-4"></div>
         
-        <!-- Logged-in User Profile Badge (Replaced GitHub icon) -->
+        <!-- Logged-in User Profile Badge -->
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-700/60 border border-[#27272a] text-xs font-semibold text-white mr-3">
           <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           <span><%= helpers.getUsername(req) %></span>
@@ -216,20 +204,11 @@
           <% } %>
         </div>
 
-        <div class="relative">
-          <button id="notification-btn" class="p-2 text-gray-400 hover:text-white transition-colors relative">
-            <i class="ti ti-bell text-lg"></i>
-            <span class="hidden absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-          <div id="notification-dropdown"
-            class="hidden absolute right-0 mt-1 w-80 bg-dark-800 border border-gray-700 rounded-lg shadow-xl z-[60]">
-            <div class="p-3 border-b border-gray-700 flex items-center justify-between">
-              <h3 class="font-medium">Notifications</h3>
-            </div>
-            <div class="max-h-80 overflow-y-auto" id="notification-list">
-            </div>
-          </div>
-        </div>
+        <!-- Sign Out Button on top right next to user admin -->
+        <a href="/logout" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 transition-all text-xs font-semibold shadow-sm" title="Sign Out">
+          <i class="ti ti-logout text-sm"></i>
+          <span>Sign Out</span>
+        </a>
       </div>
       <div class="p-6 pt-20 lg:pt-22 flex-1">
         <%- body %>
@@ -289,14 +268,6 @@
           <span>Sign Out</span>
         </a>
       </div>
-    </div>
-  </div>
-  <div id="mobile-notification-popup"
-    class="fixed bottom-16 right-2 bg-dark-800 rounded-lg shadow-xl border border-gray-700 overflow-hidden hidden transform transition-all duration-200 ease-out opacity-0 translate-y-4 w-72 z-[60]">
-    <div class="p-3 border-b border-gray-700 flex items-center justify-between">
-      <h3 class="font-medium">Notifications</h3>
-    </div>
-    <div class="max-h-80 overflow-y-auto" id="mobile-notification-list">
     </div>
   </div>
   <div id="streamflowUpdateModal" class="fixed inset-0 bg-black/60 z-[60] hidden items-center justify-center p-4 overflow-y-auto">
@@ -520,37 +491,29 @@
     transform: translateY(0) !important;
     visibility: visible !important;
   }
-  #mobile-notification-popup {
-    z-index: 100;
-    transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
-    display: block !important;
-    visibility: hidden;
-  }
-  #mobile-notification-popup.hidden {
-    display: none !important;
-  }
 </style>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const profileButton = document.getElementById('profile-menu-button');
     const profileDropdown = document.getElementById('profile-dropdown');
-    if (!profileButton || !profileDropdown) return;
-    profileButton.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const isHidden = profileDropdown.classList.contains('hidden');
-      profileDropdown.classList.toggle('hidden');
-    });
-    document.addEventListener('click', (e) => {
-      const isClickInsideDropdown = profileDropdown.contains(e.target);
-      const isClickOnButton = profileButton.contains(e.target);
-      if (!isClickInsideDropdown && !isClickOnButton && !profileDropdown.classList.contains('hidden')) {
-        profileDropdown.classList.add('hidden');
-      }
-    });
-    profileDropdown.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
+    if (profileButton && profileDropdown) {
+      profileButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        profileDropdown.classList.toggle('hidden');
+      });
+      document.addEventListener('click', (e) => {
+        const isClickInsideDropdown = profileDropdown.contains(e.target);
+        const isClickOnButton = profileButton.contains(e.target);
+        if (!isClickInsideDropdown && !isClickOnButton && !profileDropdown.classList.contains('hidden')) {
+          profileDropdown.classList.add('hidden');
+        }
+      });
+      profileDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+
     const profileBtn = document.getElementById('mobile-profile-btn');
     const profilePopup = document.getElementById('mobile-profile-popup');
     if (profileBtn && profilePopup) {
@@ -580,208 +543,9 @@
         }
       });
     }
-    const mobileNotificationBtn = document.getElementById('mobile-notification-btn');
-    const mobileNotificationPopup = document.getElementById('mobile-notification-popup');
-    if (mobileNotificationBtn && mobileNotificationPopup) {
-      mobileNotificationBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        hideNotificationBadge();
-        
-        const btnRect = mobileNotificationBtn.getBoundingClientRect();
-        mobileNotificationPopup.style.top = '64px';
-        mobileNotificationPopup.style.right = '10px';
-        mobileNotificationPopup.style.left = 'auto';
-        mobileNotificationPopup.style.bottom = 'auto';
-        if (mobileNotificationPopup.classList.contains('hidden')) {
-          mobileNotificationPopup.classList.remove('hidden');
-          setTimeout(() => {
-            mobileNotificationPopup.classList.add('show');
-          }, 10);
-        } else {
-          mobileNotificationPopup.classList.remove('show');
-          setTimeout(() => {
-            mobileNotificationPopup.classList.add('hidden');
-          }, 200);
-        }
-      });
-      document.addEventListener('click', function (e) {
-        if (!mobileNotificationPopup.classList.contains('hidden') &&
-          !mobileNotificationBtn.contains(e.target) &&
-          !mobileNotificationPopup.contains(e.target)) {
-          mobileNotificationPopup.classList.remove('show');
-          setTimeout(() => {
-            mobileNotificationPopup.classList.add('hidden');
-          }, 200);
-        }
-      });
-    }
-
-    const notificationBtn = document.getElementById('notification-btn');
-    const notificationDropdown = document.getElementById('notification-dropdown');
-    if (notificationBtn && notificationDropdown) {
-      notificationBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        hideNotificationBadge();
-        
-        if (notificationDropdown.classList.contains('hidden')) {
-          notificationDropdown.classList.remove('hidden');
-        } else {
-          notificationDropdown.classList.add('hidden');
-        }
-      });
-      
-      document.addEventListener('click', function (e) {
-        if (!notificationDropdown.classList.contains('hidden') &&
-          !notificationBtn.contains(e.target) &&
-          !notificationDropdown.contains(e.target)) {
-          notificationDropdown.classList.add('hidden');
-        }
-      });
-    }
   });
 
-  function loadNotifications() {
-    checkGitHubUpdates();
-  }
-
-  function hideNotificationBadge() {
-    const badge = document.querySelector('#notification-btn .bg-red-500');
-    const mobileBadge = document.querySelector('#mobile-notification-btn .bg-red-500');
-    
-    if (badge) badge.classList.add('hidden');
-    if (mobileBadge) mobileBadge.classList.add('hidden');
-    
-    const latestCommitSha = localStorage.getItem('latestCommitSha');
-    if (latestCommitSha) {
-      localStorage.setItem('savedCommitSha', latestCommitSha);
-    }
-  }
-
-  async function checkGitHubUpdates() {
-    try {
-      const response = await fetch('https://api.github.com/repos/bangtutorial/streamflow/commits?per_page=3');
-      if (!response.ok) {
-        return;
-      }
-      
-      const commits = await response.json();
-      
-      if (commits && commits.length > 0) {
-        const latestCommitSha = commits[0].sha;
-        const savedCommitSha = localStorage.getItem('savedCommitSha');
-        
-        localStorage.setItem('latestCommitSha', latestCommitSha);
-        
-        showGitHubUpdateNotifications(commits);
-        
-        if (!savedCommitSha) {
-          localStorage.setItem('savedCommitSha', latestCommitSha);
-        } else if (savedCommitSha !== latestCommitSha) {
-          showNotificationBadge();
-        } else {
-          const badge = document.querySelector('#notification-btn .bg-red-500');
-          const mobileBadge = document.querySelector('#mobile-notification-btn .bg-red-500');
-          if (badge) badge.classList.add('hidden');
-          if (mobileBadge) mobileBadge.classList.add('hidden');
-        }
-      }
-    } catch (error) {
-    }
-  }
-
-  function showNotificationBadge() {
-    const badge = document.querySelector('#notification-btn .bg-red-500');
-    const mobileBadge = document.querySelector('#mobile-notification-btn .bg-red-500');
-    
-    if (badge) badge.classList.remove('hidden');
-    if (mobileBadge) mobileBadge.classList.remove('hidden');
-  }
-
-  function showGitHubUpdateNotifications(commits) {
-    const notificationList = document.getElementById('notification-list');
-    const mobileNotificationList = document.getElementById('mobile-notification-list');
-    
-    if (notificationList) {
-      const existingNotifications = notificationList.querySelectorAll('[data-github-notification]');
-      existingNotifications.forEach(notification => notification.remove());
-    }
-    if (mobileNotificationList) {
-      const existingNotifications = mobileNotificationList.querySelectorAll('[data-github-notification]');
-      existingNotifications.forEach(notification => notification.remove());
-    }
-    
-    commits.forEach(commit => {
-      const timeAgo = getTimeAgo(commit.commit.author.date);
-      const commitMessage = commit.commit.message.split('\n')[0];
-      const shortSha = commit.sha.substring(0, 7);
-      const authorName = commit.commit.author.name;
-      
-      const notificationHTML = `
-        <div class="p-3 hover:bg-gray-700/50 transition-colors cursor-pointer" data-github-notification onclick="window.open('${commit.html_url}', '_blank')">
-          <div class="flex items-start gap-3">
-            <div class="w-8 h-8 flex-shrink-0">
-              <img src="${commit.author.avatar_url}" alt="${authorName}" class="w-8 h-8 rounded-full object-cover">
-            </div>
-            <div class="flex-1 min-w-0">
-              <h4 class="text-sm font-medium text-white mb-1">New GitHub Commit</h4>
-              <p class="text-xs text-gray-300 mb-1">${commitMessage}</p>
-              <p class="text-xs text-gray-400">by ${authorName} • ${timeAgo}</p>
-            </div>
-          </div>
-        </div>
-      `;
-      
-      if (notificationList) {
-        notificationList.insertAdjacentHTML('beforeend', notificationHTML);
-      }
-      if (mobileNotificationList) {
-        mobileNotificationList.insertAdjacentHTML('beforeend', notificationHTML);
-      }
-    });
-    
-    updateNotificationBadge();
-  }
-
-  function getTimeAgo(dateString) {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffInSeconds = Math.floor((now - date) / 1000);
-    
-    if (diffInSeconds < 60) {
-      return 'Just now';
-    } else if (diffInSeconds < 3600) {
-      const minutes = Math.floor(diffInSeconds / 60);
-      return `${minutes} minutes ago`;
-    } else if (diffInSeconds < 86400) {
-      const hours = Math.floor(diffInSeconds / 3600);
-      return `${hours} hours ago`;
-    } else {
-      const days = Math.floor(diffInSeconds / 86400);
-      return `${days} days ago`;
-    }
-  }
-
-  function updateNotificationBadge() {
-    const badge = document.querySelector('#notification-btn .bg-red-500');
-    const mobileBadge = document.querySelector('#mobile-notification-btn .bg-red-500');
-    const latestCommitSha = localStorage.getItem('latestCommitSha');
-    const savedCommitSha = localStorage.getItem('savedCommitSha');
-
-    if (savedCommitSha && latestCommitSha && savedCommitSha !== latestCommitSha) {
-      if (badge) badge.classList.remove('hidden');
-      if (mobileBadge) mobileBadge.classList.remove('hidden');
-    } else {
-      if (badge) badge.classList.add('hidden');
-      if (mobileBadge) mobileBadge.classList.add('hidden');
-    }
-  }
-
   document.addEventListener('DOMContentLoaded', function() {
-    loadNotifications();
     initServerTime();
   });
 

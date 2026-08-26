@@ -1001,7 +1001,7 @@ function openStreamUsageModal(videoId) {
           ${usageTypeLabel}
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <a href="/dashboard?streamId=${s.id}" class="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-gray-200 hover:text-white rounded-lg text-xs font-medium flex items-center gap-1 border border-gray-600 transition-all">
+          <a href="/dashboard?editStreamId=${s.id}" target="_blank" class="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-gray-200 hover:text-white rounded-lg text-xs font-medium flex items-center gap-1 border border-gray-600 transition-all shadow-sm">
             <i class="ti ti-external-link text-xs"></i> Details
           </a>
           ${stopButtonHtml}
