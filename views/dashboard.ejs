@@ -1183,13 +1183,18 @@
             <button type="button" id="editModalStopLiveBtn" onclick="stopLiveStreamFromModal()"
               class="hidden px-4 py-2.5 text-sm font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg shadow-red-950/40 transition-all flex items-center gap-1.5">
               <i class="ti ti-player-stop-filled text-sm"></i>
-              <span>Stop Broadcast</span>
+              <span>Stop Stream</span>
+            </button>
+            <button type="button" id="editModalStartStreamBtn" onclick="startStreamFromModal()"
+              class="px-4 py-2.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-lg shadow-emerald-950/40 transition-all flex items-center gap-1.5">
+              <i class="ti ti-player-play-filled text-sm"></i>
+              <span>Start Stream</span>
             </button>
           </div>
           <div class="flex items-center gap-3">
             <button type="button" onclick="closeEditStreamModal()"
               class="px-5 py-2.5 text-sm font-medium text-gray-300 hover:text-white transition-colors">
-              Cancel
+              Close
             </button>
             <button type="submit" form="editStreamForm" id="editModalSaveBtn"
               class="px-5 py-2.5 text-sm font-medium bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors">
@@ -3242,6 +3247,7 @@
       const inspectorBadge = document.getElementById('editStreamInspectorBadge');
       const saveBtn = document.getElementById('editModalSaveBtn') || document.querySelector('#editStreamModal button[type="submit"]');
       const stopLiveBtn = document.getElementById('editModalStopLiveBtn');
+      const startStreamBtn = document.getElementById('editModalStartStreamBtn');
 
       if (modalTitle) modalTitle.innerText = isLive ? 'Live Stream Details' : 'Edit Stream';
       if (inspectorBadge) {
@@ -3252,9 +3258,18 @@
         if (isLive) {
           stopLiveBtn.classList.remove('hidden');
           stopLiveBtn.disabled = false;
-          stopLiveBtn.innerHTML = '<i class="ti ti-player-stop-filled text-sm"></i><span>Stop Broadcast</span>';
+          stopLiveBtn.innerHTML = '<i class="ti ti-player-stop-filled text-sm"></i><span>Stop Stream</span>';
         } else {
           stopLiveBtn.classList.add('hidden');
+        }
+      }
+      if (startStreamBtn) {
+        if (isLive) {
+          startStreamBtn.classList.add('hidden');
+        } else {
+          startStreamBtn.classList.remove('hidden');
+          startStreamBtn.disabled = false;
+          startStreamBtn.innerHTML = '<i class="ti ti-player-play-filled text-sm"></i><span>Start Stream</span>';
         }
       }
       if (saveBtn) {
@@ -3529,6 +3544,12 @@
           if (data.success) {
             showToast('success', 'Live stream stopped successfully');
             if (btn) btn.classList.add('hidden');
+            const startStreamBtn = document.getElementById('editModalStartStreamBtn');
+            if (startStreamBtn) {
+              startStreamBtn.classList.remove('hidden');
+              startStreamBtn.disabled = false;
+              startStreamBtn.innerHTML = '<i class="ti ti-player-play-filled text-sm"></i><span>Start Stream</span>';
+            }
             const modalTitle = document.getElementById('editStreamModalTitle');
             const inspectorBadge = document.getElementById('editStreamInspectorBadge');
             const saveBtn = document.getElementById('editModalSaveBtn') || document.querySelector('#editStreamModal button[type="submit"]');
@@ -3544,7 +3565,7 @@
             showToast('error', data.error || 'Failed to stop stream');
             if (btn) {
               btn.disabled = false;
-              btn.innerHTML = '<i class="ti ti-player-stop-filled text-sm"></i><span>Stop Broadcast</span>';
+              btn.innerHTML = '<i class="ti ti-player-stop-filled text-sm"></i><span>Stop Stream</span>';
             }
           }
         })
@@ -3552,7 +3573,65 @@
           showToast('error', 'Error connecting to server');
           if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="ti ti-player-stop-filled text-sm"></i><span>Stop Broadcast</span>';
+            btn.innerHTML = '<i class="ti ti-player-stop-filled text-sm"></i><span>Stop Stream</span>';
+          }
+        });
+    }
+
+    function startStreamFromModal() {
+      const streamId = document.getElementById('editStreamId')?.value;
+      if (!streamId) return;
+
+      const btn = document.getElementById('editModalStartStreamBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader-2 animate-spin text-sm"></i><span>Starting...</span>';
+      }
+
+      const csrfToken = document.querySelector('input[name="_csrf"]')?.value;
+      fetch(`/api/streams/${streamId}/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+        },
+        body: JSON.stringify({ status: 'live' })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            showToast('success', 'Live stream started successfully');
+            if (btn) btn.classList.add('hidden');
+            const stopLiveBtn = document.getElementById('editModalStopLiveBtn');
+            if (stopLiveBtn) {
+              stopLiveBtn.classList.remove('hidden');
+              stopLiveBtn.disabled = false;
+              stopLiveBtn.innerHTML = '<i class="ti ti-player-stop-filled text-sm"></i><span>Stop Stream</span>';
+            }
+            const modalTitle = document.getElementById('editStreamModalTitle');
+            const inspectorBadge = document.getElementById('editStreamInspectorBadge');
+            const saveBtn = document.getElementById('editModalSaveBtn') || document.querySelector('#editStreamModal button[type="submit"]');
+            if (modalTitle) modalTitle.innerText = 'Live Stream Details';
+            if (inspectorBadge) inspectorBadge.classList.remove('hidden');
+            if (saveBtn) {
+              saveBtn.disabled = true;
+              saveBtn.classList.add('opacity-60', 'cursor-not-allowed');
+              saveBtn.innerHTML = '<i class="ti ti-broadcast text-red-400 mr-1.5"></i>Broadcasting Live (Stop stream to modify)';
+            }
+            if (typeof refreshStreamsView === 'function') refreshStreamsView();
+          } else {
+            showToast('error', data.error || 'Failed to start stream');
+            if (btn) {
+              btn.disabled = false;
+              btn.innerHTML = '<i class="ti ti-player-play-filled text-sm"></i><span>Start Stream</span>';
+            }
+          }
+        })
+        .catch(err => {
+          showToast('error', 'Error connecting to server');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-player-play-filled text-sm"></i><span>Start Stream</span>';
           }
         });
     }
