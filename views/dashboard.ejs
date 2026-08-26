@@ -4541,7 +4541,7 @@
         if (scanSummaryText) scanSummaryText.innerText = `Success! Cleaned and reclaimed ${reclaimed} of storage.`;
         
         if (typeof showToast === 'function') {
-          showToast(`Successfully cleaned ${reclaimed} of system junk!`, 'success');
+          showToast('success', `Successfully cleaned ${reclaimed} of system junk!`);
         }
 
         // Re-scan to show 0 MB
@@ -4554,7 +4554,7 @@
         console.error('Clean storage error:', err);
         if (scanSummaryText) scanSummaryText.innerText = 'Error cleaning storage: ' + err.message;
         if (typeof showToast === 'function') {
-          showToast('Error cleaning storage: ' + err.message, 'error');
+          showToast('error', 'Error cleaning storage: ' + err.message);
         }
       } finally {
         if (cleanBtn) cleanBtn.disabled = false;

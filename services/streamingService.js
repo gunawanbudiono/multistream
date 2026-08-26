@@ -87,6 +87,11 @@ function cleanupStreamData(streamId) {
   streamRetryCount.delete(streamId);
   manuallyStoppingStreams.delete(streamId);
   startingStreams.delete(streamId);
+  // Prevent memory leak by bounding streamLogs map
+  if (streamLogs.size > 50) {
+    const firstKey = streamLogs.keys().next().value;
+    if (firstKey) streamLogs.delete(firstKey);
+  }
 }
 
 function getRetryDelay(retryCount) {
@@ -1181,9 +1186,22 @@ async function syncStreamStatuses() {
         // Seamless Auto-Resume on Server Startup / Restart with Exact Frame Checkpoint
         if (stream.start_time) {
           try {
-            const Video = require('../models/Video');
-            const video = stream.video_id ? await Video.findById(stream.video_id) : null;
-            const videoDuration = (video && video.duration > 0) ? Number(video.duration) : 3600;
+            let videoDuration = 3600;
+            const streamWithVideo = await Stream.getStreamWithVideo(stream.id);
+            if (streamWithVideo && streamWithVideo.video_type === 'playlist') {
+              const Playlist = require('../models/Playlist');
+              const playlist = await Playlist.findByIdWithVideos(stream.video_id);
+              if (playlist && Array.isArray(playlist.videos) && playlist.videos.length > 0) {
+                const totalDur = playlist.videos.reduce((sum, v) => sum + (Number(v.duration) || 0), 0);
+                if (totalDur > 0) videoDuration = totalDur;
+              }
+            } else {
+              const Video = require('../models/Video');
+              const video = stream.video_id ? await Video.findById(stream.video_id) : null;
+              if (video && Number(video.duration) > 0) {
+                videoDuration = Number(video.duration);
+              }
+            }
 
             let resumeOffset = 0;
             if (stream.last_playback_offset && Number(stream.last_playback_offset) > 0) {

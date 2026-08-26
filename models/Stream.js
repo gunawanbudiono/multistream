@@ -326,6 +326,7 @@ class Stream {
               schedule_time = NULL,
               end_time = NULL,
               start_time = NULL,
+              last_playback_offset = 0,
               updated_at = CURRENT_TIMESTAMP
              WHERE id = ?`;
           params = [status, status_updated_at, id];
