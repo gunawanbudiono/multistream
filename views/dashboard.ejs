@@ -428,17 +428,14 @@
                           class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm">
                           <option value="30" selected>30 FPS</option>
                           <option value="60">60 FPS</option>
-                          <option value="120">120 FPS</option>
                         </select>
                       </div>
                       <div>
                         <label class="text-xs text-gray-400 block mb-1">Resolution</label>
                         <select id="resolutionSelect"
                           class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm">
-                          <option value="720" selected data-horizontal="1280x720" data-vertical="720x1280">720p HD
-                          </option>
-                          <option value="1080" data-horizontal="1920x1080" data-vertical="1080x1920">1080p Full HD
-                          </option>
+                          <option value="720" selected data-horizontal="1280x720" data-vertical="720x1280">720p HD</option>
+                          <option value="1080" data-horizontal="1920x1080" data-vertical="1080x1920">1080p Full HD</option>
                           <option value="1440" data-horizontal="2560x1440" data-vertical="1440x2560">1440p QHD</option>
                           <option value="2160" data-horizontal="3840x2160" data-vertical="2160x3840">2160p 4K</option>
                         </select>
@@ -447,6 +444,14 @@
                         </div>
                       </div>
                       <div>
+                        <label class="text-xs text-gray-400 block mb-1">Video Codec</label>
+                        <select name="videoCodec" id="videoCodecSelect"
+                          class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm">
+                          <option value="h264" selected>H.264</option>
+                          <option value="hevc">HEVC (H.265)</option>
+                        </select>
+                      </div>
+                      <div class="sm:col-span-2">
                         <label class="text-xs text-gray-400 block mb-1">Orientation</label>
                         <div class="flex gap-2 h-[42px]">
                           <button type="button" onclick="setVideoOrientation('horizontal')"
@@ -461,6 +466,35 @@
                           </button>
                         </div>
                       </div>
+                    </div>
+
+                    <!-- Rekomendasi Optimalisasi (Render Box) -->
+                    <div class="p-3.5 bg-dark-700/60 border border-gray-600/60 rounded-lg">
+                      <div class="flex items-start gap-2.5 mb-3">
+                        <i class="ti ti-bulb text-amber-400 text-base mt-0.5 shrink-0"></i>
+                        <div>
+                          <h4 class="text-xs font-semibold text-white">Rekomendasi Optimalisasi</h4>
+                          <p class="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                            Render video ini dengan konfigurasi di atas agar siaran berjalan lebih lancar dan optimal.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div id="renderProgressContainer" class="hidden mb-3">
+                        <div class="flex justify-between text-xs text-gray-300 mb-1">
+                          <span id="renderStatusText">Memproses video...</span>
+                          <span id="renderPercentText">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-700 h-2 rounded-full overflow-hidden">
+                          <div id="renderProgressBar" class="bg-primary h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                      </div>
+
+                      <button type="button" id="startRenderBtn" onclick="triggerVideoRender('new')"
+                        class="w-full py-2.5 px-3 bg-dark-600 hover:bg-dark-500 border border-gray-600 hover:border-gray-500 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors">
+                        <i class="ti ti-bolt text-amber-400" id="renderBtnIcon"></i>
+                        <span id="renderBtnText">Render Video</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -891,17 +925,14 @@
                           class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm">
                           <option value="30">30 FPS</option>
                           <option value="60">60 FPS</option>
-                          <option value="120">120 FPS</option>
                         </select>
                       </div>
                       <div>
                         <label class="text-xs text-gray-400 block mb-1">Resolution</label>
                         <select id="editResolutionSelect"
                           class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm">
-                          <option value="720" selected data-horizontal="1280x720" data-vertical="720x1280">720p HD
-                          </option>
-                          <option value="1080" data-horizontal="1920x1080" data-vertical="1080x1920">1080p Full HD
-                          </option>
+                          <option value="720" selected data-horizontal="1280x720" data-vertical="720x1280">720p HD</option>
+                          <option value="1080" data-horizontal="1920x1080" data-vertical="1080x1920">1080p Full HD</option>
                           <option value="1440" data-horizontal="2560x1440" data-vertical="1440x2560">1440p QHD</option>
                           <option value="2160" data-horizontal="3840x2160" data-vertical="2160x3840">2160p 4K</option>
                         </select>
@@ -910,6 +941,14 @@
                         </div>
                       </div>
                       <div>
+                        <label class="text-xs text-gray-400 block mb-1">Video Codec</label>
+                        <select name="videoCodec" id="editVideoCodecSelect"
+                          class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm">
+                          <option value="h264" selected>H.264</option>
+                          <option value="hevc">HEVC (H.265)</option>
+                        </select>
+                      </div>
+                      <div class="sm:col-span-2">
                         <label class="text-xs text-gray-400 block mb-1">Orientation</label>
                         <div class="flex gap-2 h-[42px]">
                           <button type="button" onclick="setEditVideoOrientation('horizontal')"
@@ -924,6 +963,35 @@
                           </button>
                         </div>
                       </div>
+                    </div>
+
+                    <!-- Rekomendasi Optimalisasi (Render Box) -->
+                    <div class="p-3.5 bg-dark-700/60 border border-gray-600/60 rounded-lg">
+                      <div class="flex items-start gap-2.5 mb-3">
+                        <i class="ti ti-bulb text-amber-400 text-base mt-0.5 shrink-0"></i>
+                        <div>
+                          <h4 class="text-xs font-semibold text-white">Rekomendasi Optimalisasi</h4>
+                          <p class="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                            Render video ini dengan konfigurasi di atas agar siaran berjalan lebih lancar dan optimal.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div id="editRenderProgressContainer" class="hidden mb-3">
+                        <div class="flex justify-between text-xs text-gray-300 mb-1">
+                          <span id="editRenderStatusText">Memproses video...</span>
+                          <span id="editRenderPercentText">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-700 h-2 rounded-full overflow-hidden">
+                          <div id="editRenderProgressBar" class="bg-primary h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                      </div>
+
+                      <button type="button" id="editStartRenderBtn" onclick="triggerVideoRender('edit')"
+                        class="w-full py-2.5 px-3 bg-dark-600 hover:bg-dark-500 border border-gray-600 hover:border-gray-500 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors">
+                        <i class="ti ti-bolt text-amber-400" id="editRenderBtnIcon"></i>
+                        <span id="editRenderBtnText">Render Video</span>
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -453,3 +453,168 @@ function checkAudioCodecCompatibility() {
     hideAudioCodecWarning();
   }
 }
+
+let isRenderingVideo = false;
+
+async function triggerVideoRender(context = 'new') {
+  if (isRenderingVideo) return;
+
+  const isEdit = context === 'edit';
+  const videoId = isEdit 
+    ? (document.getElementById('editSelectedVideoId')?.value || (window.currentEditStream?.video_id))
+    : (document.getElementById('selectedVideoId')?.value || selectedVideoData?.id);
+
+  if (!videoId) {
+    if (typeof showToast === 'function') {
+      showToast('Pilih video terlebih dahulu sebelum merender', 'error');
+    } else {
+      alert('Pilih video terlebih dahulu sebelum merender');
+    }
+    return;
+  }
+
+  const resolutionSelect = document.getElementById(isEdit ? 'editResolutionSelect' : 'resolutionSelect');
+  const bitrateSelect = document.getElementById(isEdit ? 'editBitrate' : 'bitrateSelect');
+  const fpsSelect = document.getElementById(isEdit ? 'editFps' : 'fpsSelect');
+  const videoCodecSelect = document.getElementById(isEdit ? 'editVideoCodecSelect' : 'videoCodecSelect');
+
+  const resolution = resolutionSelect ? resolutionSelect.value : '1080';
+  const bitrate = bitrateSelect ? bitrateSelect.value : '4000';
+  const fps = fpsSelect ? fpsSelect.value : '30';
+  const videoCodec = videoCodecSelect ? videoCodecSelect.value : 'h264';
+  const orientation = currentOrientation || 'horizontal';
+
+  const btn = document.getElementById(isEdit ? 'editStartRenderBtn' : 'startRenderBtn');
+  const progressContainer = document.getElementById(isEdit ? 'editRenderProgressContainer' : 'renderProgressContainer');
+  const progressBar = document.getElementById(isEdit ? 'editRenderProgressBar' : 'renderProgressBar');
+  const statusText = document.getElementById(isEdit ? 'editRenderStatusText' : 'renderStatusText');
+  const percentText = document.getElementById(isEdit ? 'editRenderPercentText' : 'renderPercentText');
+  const btnText = document.getElementById(isEdit ? 'editRenderBtnText' : 'renderBtnText');
+  const btnIcon = document.getElementById(isEdit ? 'editRenderBtnIcon' : 'renderBtnIcon');
+
+  isRenderingVideo = true;
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('opacity-75', 'cursor-not-allowed');
+  }
+  if (btnText) btnText.textContent = 'Sedang Merender...';
+  if (btnIcon) btnIcon.className = 'ti ti-loader animate-spin text-amber-400';
+  if (progressContainer) progressContainer.classList.remove('hidden');
+  if (progressBar) progressBar.style.width = '5%';
+  if (statusText) statusText.textContent = 'Memulai proses render...';
+  if (percentText) percentText.textContent = '5%';
+
+  try {
+    const res = await fetch('/api/videos/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        videoId,
+        resolution,
+        bitrate,
+        fps,
+        videoCodec,
+        orientation
+      })
+    });
+
+    const data = await res.json();
+    if (!data.success || !data.jobId) {
+      throw new Error(data.error || 'Gagal memulai render video');
+    }
+
+    const jobId = data.jobId;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const pollRes = await fetch(`/api/videos/render-status/${jobId}`);
+        const pollData = await pollRes.json();
+
+        if (!pollData.success) {
+          clearInterval(pollInterval);
+          throw new Error(pollData.error || 'Terjadi kesalahan saat memproses render');
+        }
+
+        if (pollData.status === 'processing') {
+          const pct = Math.max(5, pollData.progress || 0);
+          if (progressBar) progressBar.style.width = `${pct}%`;
+          if (statusText) statusText.textContent = 'Memproses video...';
+          if (percentText) percentText.textContent = `${pct}%`;
+        } else if (pollData.status === 'complete') {
+          clearInterval(pollInterval);
+          isRenderingVideo = false;
+
+          if (progressBar) progressBar.style.width = '100%';
+          if (statusText) statusText.textContent = 'Render selesai!';
+          if (percentText) percentText.textContent = '100%';
+
+          const renderedVideo = pollData.video;
+
+          if (isEdit) {
+            if (typeof selectEditVideo === 'function') {
+              selectEditVideo(renderedVideo);
+            }
+          } else {
+            selectVideo(renderedVideo);
+          }
+
+          loadGalleryVideos();
+
+          if (btnText) btnText.textContent = 'Video Berhasil Dirender & Terpilih!';
+          if (btnIcon) btnIcon.className = 'ti ti-check text-emerald-400';
+          if (btn) {
+            btn.classList.remove('bg-dark-600', 'hover:bg-dark-500');
+            btn.classList.add('bg-emerald-900/40', 'border-emerald-500/50', 'text-emerald-300');
+          }
+
+          if (typeof showToast === 'function') {
+            showToast('Video berhasil dirender dan otomatis terpilih!', 'success');
+          }
+
+          setTimeout(() => {
+            if (btn) {
+              btn.disabled = false;
+              btn.classList.remove('opacity-75', 'cursor-not-allowed', 'bg-emerald-900/40', 'border-emerald-500/50', 'text-emerald-300');
+              btn.classList.add('bg-dark-600', 'hover:bg-dark-500');
+            }
+            if (btnText) btnText.textContent = 'Render Video';
+            if (btnIcon) btnIcon.className = 'ti ti-bolt text-amber-400';
+            if (progressContainer) progressContainer.classList.add('hidden');
+          }, 4000);
+        } else if (pollData.status === 'error') {
+          clearInterval(pollInterval);
+          throw new Error(pollData.error || 'Gagal merender video');
+        }
+      } catch (pollErr) {
+        clearInterval(pollInterval);
+        isRenderingVideo = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-75', 'cursor-not-allowed');
+        }
+        if (btnText) btnText.textContent = 'Render Video';
+        if (btnIcon) btnIcon.className = 'ti ti-bolt text-amber-400';
+        if (statusText) statusText.textContent = 'Gagal merender video';
+        if (typeof showToast === 'function') {
+          showToast(pollErr.message, 'error');
+        } else {
+          alert('Error: ' + pollErr.message);
+        }
+      }
+    }, 800);
+
+  } catch (err) {
+    isRenderingVideo = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('opacity-75', 'cursor-not-allowed');
+    }
+    if (btnText) btnText.textContent = 'Render Video';
+    if (btnIcon) btnIcon.className = 'ti ti-bolt text-amber-400';
+    if (typeof showToast === 'function') {
+      showToast(err.message, 'error');
+    } else {
+      alert('Error: ' + err.message);
+    }
+  }
+}

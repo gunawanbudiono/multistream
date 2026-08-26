@@ -3007,6 +3007,240 @@ app.delete('/api/videos/chunk/:uploadId', isAuthenticated, async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to cleanup upload' });
   }
 });
+
+const renderJobs = {};
+
+async function finishRenderJob(jobId, outputFullPath, outputRelPath, sourceVideo, targetWidth, targetHeight, fps, bitrate, codec, userId) {
+  try {
+    const stats = fs.statSync(outputFullPath);
+    const thumbFilename = `thumb-${path.parse(outputFullPath).name}.jpg`;
+    const thumbRelPath = `/uploads/thumbnails/${thumbFilename}`;
+    const thumbFullPath = path.join(__dirname, 'public', thumbRelPath);
+
+    await new Promise((resolve) => {
+      ffmpeg(outputFullPath)
+        .screenshots({
+          timestamps: ['10%'],
+          filename: thumbFilename,
+          folder: path.join(__dirname, 'public', 'uploads', 'thumbnails'),
+          size: targetWidth > targetHeight ? '854x?' : '480x?'
+        })
+        .on('end', resolve)
+        .on('error', resolve);
+    });
+
+    const resFormatted = `${targetWidth}x${targetHeight}`;
+    const finalCodec = codec === 'hevc' || codec === 'h265' ? 'hevc' : 'h264';
+    const newTitle = `[Rendered] ${sourceVideo.title}`;
+
+    const newVideo = await Video.create({
+      title: newTitle,
+      filepath: outputRelPath,
+      thumbnail_path: fs.existsSync(thumbFullPath) ? thumbRelPath : (sourceVideo.thumbnail_path || '/images/default-video-thumbnail.svg'),
+      file_size: stats.size,
+      duration: sourceVideo.duration || 0,
+      format: 'mp4',
+      resolution: resFormatted,
+      bitrate: bitrate,
+      fps: fps,
+      codec: finalCodec,
+      audio_codec: 'aac',
+      user_id: userId,
+      folder_id: sourceVideo.folder_id || null
+    });
+
+    if (renderJobs[jobId]) {
+      renderJobs[jobId].status = 'complete';
+      renderJobs[jobId].progress = 100;
+      renderJobs[jobId].video = {
+        id: newVideo.id,
+        name: newTitle,
+        title: newTitle,
+        url: `/stream/${newVideo.id}`,
+        thumbnail: newVideo.thumbnail_path,
+        type: 'video',
+        resolution: resFormatted,
+        fps: fps,
+        bitrate: bitrate,
+        codec: finalCodec,
+        audio_codec: 'aac'
+      };
+    }
+  } catch (e) {
+    console.error('Error finalizing render job:', e);
+    if (renderJobs[jobId]) {
+      renderJobs[jobId].status = 'error';
+      renderJobs[jobId].error = e.message;
+    }
+  }
+}
+
+app.post('/api/videos/render', isAuthenticated, async (req, res) => {
+  try {
+    const { videoId, resolution, bitrate, fps, videoCodec, orientation } = req.body;
+    if (!videoId) {
+      return res.status(400).json({ success: false, error: 'Video ID wajib dipilih' });
+    }
+
+    const sourceVideo = await Video.findById(videoId);
+    if (!sourceVideo || !sourceVideo.filepath) {
+      return res.status(404).json({ success: false, error: 'Video sumber tidak ditemukan' });
+    }
+
+    const sourceFullPath = path.join(__dirname, 'public', sourceVideo.filepath);
+    if (!fs.existsSync(sourceFullPath)) {
+      return res.status(404).json({ success: false, error: 'File video fisik tidak ditemukan di disk' });
+    }
+
+    const jobId = uuidv4();
+    const parsedBitrate = parseInt(bitrate) || 4000;
+    const parsedFps = parseInt(fps) || 30;
+    const codec = (videoCodec || 'h264').toLowerCase();
+    const isVertical = orientation === 'vertical';
+
+    let targetWidth = 1920;
+    let targetHeight = 1080;
+    const resStr = String(resolution || '1080');
+
+    if (resStr.includes('720')) {
+      targetWidth = isVertical ? 720 : 1280;
+      targetHeight = isVertical ? 1280 : 720;
+    } else if (resStr.includes('1440')) {
+      targetWidth = isVertical ? 1440 : 2560;
+      targetHeight = isVertical ? 2560 : 1440;
+    } else if (resStr.includes('2160') || resStr.includes('4k')) {
+      targetWidth = isVertical ? 2160 : 3840;
+      targetHeight = isVertical ? 3840 : 2160;
+    } else {
+      targetWidth = isVertical ? 1080 : 1920;
+      targetHeight = isVertical ? 1920 : 1080;
+    }
+
+    const outputFilename = `rendered-${Date.now()}-${uuidv4().slice(0, 8)}.mp4`;
+    const outputRelPath = `/uploads/videos/${outputFilename}`;
+    const outputFullPath = path.join(__dirname, 'public', outputRelPath);
+
+    renderJobs[jobId] = {
+      status: 'processing',
+      progress: 0,
+      video: null,
+      error: null
+    };
+
+    res.json({ success: true, jobId });
+
+    const sourceDuration = sourceVideo.duration || 60;
+    const vEncoder = codec === 'hevc' || codec === 'h265' ? 'hevc_nvenc' : 'h264_nvenc';
+
+    const ffmpegArgs = [
+      '-y',
+      '-i', sourceFullPath,
+      '-vf', `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2`,
+      '-r', String(parsedFps),
+      '-c:v', vEncoder,
+      '-preset', 'p4',
+      '-b:v', `${parsedBitrate}k`,
+      '-maxrate', `${parsedBitrate}k`,
+      '-bufsize', `${parsedBitrate * 2}k`,
+      '-g', String(parsedFps * 2),
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-ar', '44100',
+      '-movflags', '+faststart',
+      outputFullPath
+    ];
+
+    let renderProc = spawn(systemFfmpegPath, ffmpegArgs);
+
+    renderProc.stderr.on('data', (chunk) => {
+      const line = chunk.toString();
+      const timeMatch = line.match(/time=(\d+):(\d+):(\d+\.\d+)/);
+      if (timeMatch && sourceDuration > 0) {
+        const hours = parseFloat(timeMatch[1]);
+        const minutes = parseFloat(timeMatch[2]);
+        const seconds = parseFloat(timeMatch[3]);
+        const currentSec = (hours * 3600) + (minutes * 60) + seconds;
+        const pct = Math.min(99, Math.round((currentSec / sourceDuration) * 100));
+        if (renderJobs[jobId]) {
+          renderJobs[jobId].progress = pct;
+        }
+      }
+    });
+
+    renderProc.on('error', (err) => {
+      console.error('Render spawn error:', err);
+      if (renderJobs[jobId]) {
+        renderJobs[jobId].status = 'error';
+        renderJobs[jobId].error = err.message;
+      }
+    });
+
+    renderProc.on('close', async (code) => {
+      if (code !== 0) {
+        console.log(`GPU render exited with code ${code}, falling back to CPU encoder...`);
+        const fallbackArgs = [
+          '-y',
+          '-i', sourceFullPath,
+          '-vf', `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2`,
+          '-r', String(parsedFps),
+          '-c:v', codec === 'hevc' || codec === 'h265' ? 'libx265' : 'libx264',
+          '-preset', 'veryfast',
+          '-b:v', `${parsedBitrate}k`,
+          '-maxrate', `${parsedBitrate}k`,
+          '-bufsize', `${parsedBitrate * 2}k`,
+          '-g', String(parsedFps * 2),
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-ar', '44100',
+          '-movflags', '+faststart',
+          outputFullPath
+        ];
+
+        const fallbackProc = spawn(systemFfmpegPath, fallbackArgs);
+        fallbackProc.stderr.on('data', (chunk) => {
+          const line = chunk.toString();
+          const timeMatch = line.match(/time=(\d+):(\d+):(\d+\.\d+)/);
+          if (timeMatch && sourceDuration > 0) {
+            const currentSec = (parseFloat(timeMatch[1]) * 3600) + (parseFloat(timeMatch[2]) * 60) + parseFloat(timeMatch[3]);
+            const pct = Math.min(99, Math.round((currentSec / sourceDuration) * 100));
+            if (renderJobs[jobId]) renderJobs[jobId].progress = pct;
+          }
+        });
+
+        fallbackProc.on('close', async (fbCode) => {
+          if (fbCode !== 0) {
+            if (renderJobs[jobId]) {
+              renderJobs[jobId].status = 'error';
+              renderJobs[jobId].error = `Render failed with code ${fbCode}`;
+            }
+            return;
+          }
+          await finishRenderJob(jobId, outputFullPath, outputRelPath, sourceVideo, targetWidth, targetHeight, parsedFps, parsedBitrate, codec, req.session.userId);
+        });
+      } else {
+        await finishRenderJob(jobId, outputFullPath, outputRelPath, sourceVideo, targetWidth, targetHeight, parsedFps, parsedBitrate, codec, req.session.userId);
+      }
+    });
+  } catch (err) {
+    console.error('Error initiating render:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/videos/render-status/:jobId', isAuthenticated, (req, res) => {
+  const job = renderJobs[req.params.jobId];
+  if (!job) {
+    return res.status(404).json({ success: false, error: 'Job not found' });
+  }
+  res.json({
+    success: true,
+    status: job.status,
+    progress: job.progress,
+    video: job.video,
+    error: job.error
+  });
+});
+
 app.delete('/api/videos/:id', isAuthenticated, async (req, res) => {
   try {
     const videoId = req.params.id;
