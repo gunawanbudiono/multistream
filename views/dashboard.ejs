@@ -3642,6 +3642,7 @@
         .then(data => {
           if (data.success) {
             showToast('success', 'Live stream stopped successfully');
+            stopEditModalLiveTimer();
             if (btn) btn.classList.add('hidden');
             const startStreamBtn = document.getElementById('editModalStartStreamBtn');
             if (startStreamBtn) {
@@ -3711,9 +3712,15 @@
             const inspectorBadge = document.getElementById('editStreamInspectorBadge');
             const saveBtn = document.getElementById('editModalSaveBtn') || document.querySelector('#editStreamModal button[type="submit"]');
             if (modalTitle) modalTitle.innerText = 'Live Stream Details';
-            if (inspectorBadge) inspectorBadge.classList.remove('hidden');
+            if (inspectorBadge) {
+              inspectorBadge.classList.remove('hidden');
+              const newStartTime = data.stream?.start_time || new Date().toISOString();
+              startEditModalLiveTimer(newStartTime);
+            }
             if (saveBtn) {
-              saveBtn.classList.add('hidden');
+              saveBtn.classList.remove('hidden', 'opacity-60', 'cursor-not-allowed');
+              saveBtn.disabled = false;
+              saveBtn.innerHTML = 'Save Changes';
             }
             if (typeof refreshStreamsView === 'function') refreshStreamsView();
           } else {
