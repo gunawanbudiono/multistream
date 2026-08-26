@@ -348,34 +348,34 @@
                 </div>
               </div>
             </div>
-            <div class="space-y-2 mt-4 mb-6">
-              <div class="flex flex-col sm:flex-row sm:items-center">
-                <label class="text-sm font-medium text-white">Schedule Settings</label>
-                <span id="serverTimeDisplay"
-                  class="mt-1 sm:mt-0 sm:ml-2 block sm:inline-block bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded">
-                  Server time: loading...
-                </span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="h-[42px] mt-3 flex items-center justify-between">
-                  <label class="text-sm text-gray-300">Loop Video</label>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" name="loopVideo" class="sr-only peer" checked>
-                    <div class="w-11 h-6 bg-dark-700 rounded-full peer peer-checked:bg-primary"></div>
-                    <div
-                      class="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full transition-all peer-checked:translate-x-5">
-                    </div>
-                  </label>
+            <div class="space-y-3 mt-4 mb-6">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <label class="text-sm font-medium text-white">Schedule Settings</label>
+                  <span id="serverTimeDisplay"
+                    class="bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded">
+                    Server time: loading...
+                  </span>
                 </div>
+                <label class="inline-flex items-center gap-2.5 cursor-pointer select-none bg-dark-700/60 px-3 py-1.5 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                  <span class="text-xs font-medium text-gray-300">Loop Video</span>
+                  <div class="relative inline-flex items-center">
+                    <input type="checkbox" name="loopVideo" class="sr-only peer" checked>
+                    <div class="w-9 h-5 bg-dark-600 rounded-full peer peer-checked:bg-primary transition-colors"></div>
+                    <div class="absolute left-[2px] top-[2px] w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+                  </div>
+                </label>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="text-xs text-gray-400 block mb-1">Start Stream</label>
+                  <label class="text-xs text-gray-400 block mb-1">Start Stream (Optional)</label>
                   <input type="datetime-local" id="scheduleStartTime" name="scheduleStartTime"
                     class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm [color-scheme:dark]">
                 </div>
                 <div>
-                  <label class="text-xs text-gray-400 mb-1 flex items-end">
-                    <span>End Stream</span>
-                    <span id="durationBadge" class="ml-2 bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded hidden leading-none">00:00</span>
+                  <label class="text-xs text-gray-400 mb-1 flex items-center justify-between">
+                    <span>End Stream (Optional)</span>
+                    <span id="durationBadge" class="bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded hidden">00:00</span>
                   </label>
                   <input type="datetime-local" id="scheduleEndTime" name="scheduleEndTime"
                     class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm [color-scheme:dark]">
@@ -860,34 +860,34 @@
                 </div>
               </div>
             </div>
-            <div class="space-y-2 mt-4 mb-6">
-              <div class="flex flex-col sm:flex-row sm:items-center">
-                <label class="text-sm font-medium text-white">Schedule Settings</label>
-                <span id="editServerTimeDisplay"
-                  class="mt-1 sm:mt-0 sm:ml-2 block sm:inline-block bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded">
-                  Server time: loading...
-                </span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="h-[42px] flex items-center justify-between">
-                  <label class="text-sm text-gray-300">Loop Video</label>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" name="loopVideo" id="editLoopVideo" class="sr-only peer" checked>
-                    <div class="w-11 h-6 bg-dark-700 rounded-full peer peer-checked:bg-primary"></div>
-                    <div
-                      class="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full transition-all peer-checked:translate-x-5">
-                    </div>
-                  </label>
+            <div class="space-y-3 mt-4 mb-6">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <label class="text-sm font-medium text-white">Schedule Settings</label>
+                  <span id="editServerTimeDisplay"
+                    class="bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded">
+                    Server time: loading...
+                  </span>
                 </div>
+                <label class="inline-flex items-center gap-2.5 cursor-pointer select-none bg-dark-700/60 px-3 py-1.5 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                  <span class="text-xs font-medium text-gray-300">Loop Video</span>
+                  <div class="relative inline-flex items-center">
+                    <input type="checkbox" name="loopVideo" id="editLoopVideo" class="sr-only peer" checked>
+                    <div class="w-9 h-5 bg-dark-600 rounded-full peer peer-checked:bg-primary transition-colors"></div>
+                    <div class="absolute left-[2px] top-[2px] w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+                  </div>
+                </label>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="text-xs text-gray-400 block mb-1">Start Stream</label>
+                  <label class="text-xs text-gray-400 block mb-1">Start Stream (Optional)</label>
                   <input type="datetime-local" id="editScheduleStartTime" name="scheduleStartTime"
                     class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm [color-scheme:dark]">
                 </div>
                 <div>
-                  <label class="text-xs text-gray-400 mb-1 flex items-end">
-                    <span>End Stream</span>
-                    <span id="editDurationBadge" class="ml-2 bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded hidden leading-none">00:00</span>
+                  <label class="text-xs text-gray-400 mb-1 flex items-center justify-between">
+                    <span>End Stream (Optional)</span>
+                    <span id="editDurationBadge" class="bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded hidden">00:00</span>
                   </label>
                   <input type="datetime-local" id="editScheduleEndTime" name="scheduleEndTime"
                     class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm [color-scheme:dark]">
