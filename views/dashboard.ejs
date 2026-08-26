@@ -83,9 +83,19 @@
     <div class="bg-gray-800 rounded-lg p-5 shadow-md flex flex-col justify-between">
       <div class="flex items-center justify-between mb-2">
         <h3 class="text-base font-semibold text-gray-200">Memory & Storage</h3>
-        <div class="flex items-center gap-1.5 text-gray-400">
-          <i class="ti ti-device-sd-card text-base text-purple-400"></i>
-          <i class="ti ti-database text-base text-amber-400"></i>
+        <div class="flex items-center gap-2">
+          <% if (req.session && req.session.user_role === 'admin') { %>
+            <button type="button" onclick="openStorageCleanerModal()" 
+              class="px-2 py-0.5 bg-dark-700 hover:bg-dark-600 border border-gray-600 hover:border-gray-500 rounded-md text-[11px] font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1 transition-all shadow-sm group" 
+              title="Storage Optimizer & Junk Cleaner">
+              <i class="ti ti-brush text-amber-400 group-hover:rotate-12 transition-transform"></i>
+              <span class="hidden sm:inline">Clean Junk</span>
+            </button>
+          <% } %>
+          <div class="flex items-center gap-1.5 text-gray-400">
+            <i class="ti ti-device-sd-card text-base text-purple-400"></i>
+            <i class="ti ti-database text-base text-amber-400"></i>
+          </div>
         </div>
       </div>
       <div class="space-y-3">
@@ -4339,4 +4349,216 @@
       }
       window._tipsPrevModal = null;
     }
+
+    // ==========================================
+    // STORAGE OPTIMIZER & JUNK CLEANER (ADMIN ONLY)
+    // ==========================================
+    function openStorageCleanerModal() {
+      const modal = document.getElementById('storageCleanerModal');
+      if (!modal) return;
+      document.body.style.overflow = 'hidden';
+      modal.classList.remove('hidden');
+      requestAnimationFrame(() => modal.classList.add('active'));
+      scanStorageJunk();
+    }
+
+    function closeStorageCleanerModal() {
+      const modal = document.getElementById('storageCleanerModal');
+      if (!modal) return;
+      modal.classList.remove('active');
+      setTimeout(() => modal.classList.add('hidden'), 200);
+      document.body.style.overflow = 'auto';
+    }
+
+    function formatBytesToReadable(bytes) {
+      if (!bytes || bytes <= 0) return '0 MB';
+      const mb = bytes / (1024 * 1024);
+      if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
+      return mb.toFixed(1) + ' MB';
+    }
+
+    async function scanStorageJunk() {
+      const scanBtn = document.getElementById('storageScanBtn');
+      const cleanBtn = document.getElementById('storageCleanBtn');
+      const scanSpinner = document.getElementById('storageScanSpinner');
+      const totalReclaimEl = document.getElementById('storageTotalReclaimable');
+      const buildCacheEl = document.getElementById('storageBuildCacheSize');
+      const danglingEl = document.getElementById('storageDanglingSize');
+      const tempUploadsEl = document.getElementById('storageTempUploadsSize');
+      const scanSummaryText = document.getElementById('storageScanSummaryText');
+
+      if (scanBtn) scanBtn.disabled = true;
+      if (cleanBtn) cleanBtn.disabled = true;
+      if (scanSpinner) scanSpinner.classList.remove('hidden');
+      if (scanSummaryText) scanSummaryText.innerText = 'Scanning system layers, Docker build cache, and temp files...';
+
+      try {
+        const res = await fetch('/api/system/storage-audit');
+        const data = await res.json();
+
+        if (!data.success) throw new Error(data.error || 'Failed to scan storage');
+
+        const d = data.data;
+        const total = d.totalReclaimableBytes || 0;
+        
+        if (totalReclaimEl) totalReclaimEl.innerText = formatBytesToReadable(total);
+        if (buildCacheEl) buildCacheEl.innerText = formatBytesToReadable(d.buildCache?.reclaimableBytes || d.buildCache?.totalBytes);
+        if (danglingEl) danglingEl.innerText = formatBytesToReadable(d.danglingImages?.totalBytes);
+        if (tempUploadsEl) tempUploadsEl.innerText = `${formatBytesToReadable(d.tempUploads?.totalBytes)} (${d.tempUploads?.fileCount || 0} files)`;
+        
+        if (scanSummaryText) {
+          if (total > 0) {
+            scanSummaryText.innerText = `Scan complete. Found ${formatBytesToReadable(total)} of reclaimable system junk.`;
+            if (cleanBtn) cleanBtn.disabled = false;
+          } else {
+            scanSummaryText.innerText = 'System is 100% clean and optimal! No junk files found.';
+          }
+        }
+      } catch (err) {
+        console.error('Scan storage error:', err);
+        if (scanSummaryText) scanSummaryText.innerText = 'Error scanning storage: ' + err.message;
+      } finally {
+        if (scanBtn) scanBtn.disabled = false;
+        if (scanSpinner) scanSpinner.classList.add('hidden');
+      }
+    }
+
+    async function cleanStorageJunk() {
+      const cleanBtn = document.getElementById('storageCleanBtn');
+      const scanBtn = document.getElementById('storageScanBtn');
+      const cleanSpinner = document.getElementById('storageCleanSpinner');
+      const cleanBtnText = document.getElementById('storageCleanBtnText');
+      const cleanBtnIcon = document.getElementById('storageCleanBtnIcon');
+      const scanSummaryText = document.getElementById('storageScanSummaryText');
+
+      if (cleanBtn) cleanBtn.disabled = true;
+      if (scanBtn) scanBtn.disabled = true;
+      if (cleanSpinner) cleanSpinner.classList.remove('hidden');
+      if (cleanBtnIcon) cleanBtnIcon.classList.add('hidden');
+      if (cleanBtnText) cleanBtnText.innerText = 'Cleaning Junk...';
+      if (scanSummaryText) scanSummaryText.innerText = 'Purging Docker build cache and cleaning temporary files...';
+
+      try {
+        const res = await fetch('/api/system/storage-clean', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const data = await res.json();
+
+        if (!data.success) throw new Error(data.error || 'Failed to clean storage');
+
+        const reclaimed = formatBytesToReadable(data.reclaimedBytes);
+        if (scanSummaryText) scanSummaryText.innerText = `Success! Cleaned and reclaimed ${reclaimed} of storage.`;
+        
+        if (typeof showToast === 'function') {
+          showToast(`Successfully cleaned ${reclaimed} of system junk!`, 'success');
+        }
+
+        // Re-scan to show 0 MB
+        setTimeout(() => {
+          scanStorageJunk();
+          if (typeof fetchSystemStats === 'function') fetchSystemStats();
+        }, 1200);
+
+      } catch (err) {
+        console.error('Clean storage error:', err);
+        if (scanSummaryText) scanSummaryText.innerText = 'Error cleaning storage: ' + err.message;
+        if (typeof showToast === 'function') {
+          showToast('Error cleaning storage: ' + err.message, 'error');
+        }
+      } finally {
+        if (cleanBtn) cleanBtn.disabled = false;
+        if (scanBtn) scanBtn.disabled = false;
+        if (cleanSpinner) cleanSpinner.classList.add('hidden');
+        if (cleanBtnIcon) cleanBtnIcon.classList.remove('hidden');
+        if (cleanBtnText) cleanBtnText.innerText = 'Clean Junk Now';
+      }
+    }
   </script>
+
+  <!-- MODAL: STORAGE OPTIMIZER & JUNK CLEANER (ADMIN ONLY) -->
+  <div id="storageCleanerModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden modal-overlay overflow-y-auto">
+    <div class="bg-dark-800 border border-gray-700 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl modal-content flex flex-col">
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-gray-700 flex items-center justify-between bg-dark-800/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400">
+            <i class="ti ti-brush text-lg"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-bold text-white">Storage Optimizer</h3>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-semibold uppercase">Admin Only</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-0.5">Scan and purge Docker build cache and temp files</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeStorageCleanerModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-dark-700 transition-colors">
+          <i class="ti ti-x text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 space-y-4">
+        <!-- Reclaimable Highlight Banner -->
+        <div class="p-4 bg-dark-900/80 border border-gray-700/80 rounded-xl flex items-center justify-between">
+          <div>
+            <span class="text-xs text-gray-400 block">Reclaimable Junk Space</span>
+            <span id="storageTotalReclaimable" class="text-2xl font-black text-amber-400 font-mono tracking-tight">--</span>
+          </div>
+          <button type="button" id="storageScanBtn" onclick="scanStorageJunk()" 
+            class="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 border border-gray-600 rounded-lg text-xs font-semibold text-gray-200 flex items-center gap-1.5 transition-colors">
+            <i class="ti ti-refresh text-sm" id="storageScanSpinner"></i>
+            <span>Scan</span>
+          </button>
+        </div>
+
+        <!-- Breakdown List -->
+        <div class="space-y-2 text-xs">
+          <div class="flex items-center justify-between p-2.5 bg-dark-700/40 border border-gray-700/50 rounded-lg">
+            <div class="flex items-center gap-2 text-gray-300">
+              <i class="ti ti-package text-blue-400 text-sm"></i>
+              <span>Docker Build Cache</span>
+            </div>
+            <span id="storageBuildCacheSize" class="font-mono font-semibold text-gray-200">--</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 bg-dark-700/40 border border-gray-700/50 rounded-lg">
+            <div class="flex items-center gap-2 text-gray-300">
+              <i class="ti ti-layers-linked text-purple-400 text-sm"></i>
+              <span>Dangling Docker Layers</span>
+            </div>
+            <span id="storageDanglingSize" class="font-mono font-semibold text-gray-200">--</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 bg-dark-700/40 border border-gray-700/50 rounded-lg">
+            <div class="flex items-center gap-2 text-gray-300">
+              <i class="ti ti-clock-pause text-amber-400 text-sm"></i>
+              <span>Temporary Upload Chunks</span>
+            </div>
+            <span id="storageTempUploadsSize" class="font-mono font-semibold text-gray-200">--</span>
+          </div>
+        </div>
+
+        <!-- Status Summary Text -->
+        <p id="storageScanSummaryText" class="text-xs text-gray-400 italic text-center min-h-[18px]">
+          Ready to scan system storage.
+        </p>
+
+        <!-- Safety Notice -->
+        <div class="p-2.5 bg-emerald-950/30 border border-emerald-800/40 rounded-lg flex items-start gap-2 text-[11px] text-emerald-300">
+          <i class="ti ti-shield-check text-emerald-400 text-sm mt-0.5 shrink-0"></i>
+          <span><strong>100% Safe:</strong> This action never deletes user media files, stream configs, or database records.</span>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="px-6 py-4 border-t border-gray-700 bg-dark-800/80 flex items-center justify-end gap-2.5">
+        <button type="button" onclick="closeStorageCleanerModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg text-xs font-semibold transition-colors">
+          Close
+        </button>
+        <button type="button" id="storageCleanBtn" onclick="cleanStorageJunk()" 
+          class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="ti ti-loader animate-spin hidden text-sm" id="storageCleanSpinner"></i>
+          <i class="ti ti-bolt text-sm" id="storageCleanBtnIcon"></i>
+          <span id="storageCleanBtnText">Clean Junk Now</span>
+        </button>
+      </div>
+    </div>
+  </div>
+

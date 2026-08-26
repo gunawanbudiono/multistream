@@ -17,6 +17,7 @@ services:
       - ./db:/app/db
       - ./logs:/app/logs
       - ./public/uploads:/app/public/uploads
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ENV=production
       - TZ=Asia/Jakarta

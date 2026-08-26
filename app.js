@@ -3244,6 +3244,196 @@ app.get('/api/videos/render-status/:jobId', isAuthenticated, (req, res) => {
   });
 });
 
+// ==========================================
+// SYSTEM STORAGE AUDIT & JUNK CLEANER (ADMIN ONLY)
+// ==========================================
+function queryDockerSocket(options, postData = null) {
+  return new Promise((resolve) => {
+    const reqOptions = {
+      socketPath: '/var/run/docker.sock',
+      path: options.path,
+      method: options.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(postData ? { 'Content-Length': Buffer.byteLength(postData) } : {})
+      }
+    };
+
+    const req = http.request(reqOptions, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = data ? JSON.parse(data) : {};
+          resolve({ statusCode: res.statusCode, data: parsed });
+        } catch (e) {
+          resolve({ statusCode: res.statusCode, data });
+        }
+      });
+    });
+
+    req.on('error', (err) => resolve({ statusCode: 500, error: err.message }));
+    req.setTimeout(10000, () => {
+      req.destroy();
+      resolve({ statusCode: 504, error: 'Socket timeout' });
+    });
+
+    if (postData) req.write(postData);
+    req.end();
+  });
+}
+
+function getDirectorySize(dirPath) {
+  let total = 0;
+  let fileCount = 0;
+  if (!fs.existsSync(dirPath)) return { size: 0, count: 0 };
+  try {
+    const files = fs.readdirSync(dirPath);
+    for (const f of files) {
+      const full = path.join(dirPath, f);
+      const stat = fs.statSync(full);
+      if (stat.isFile()) {
+        total += stat.size;
+        fileCount++;
+      } else if (stat.isDirectory()) {
+        const sub = getDirectorySize(full);
+        total += sub.size;
+        fileCount += sub.count;
+      }
+    }
+  } catch (e) {}
+  return { size: total, count: fileCount };
+}
+
+app.get('/api/system/storage-audit', isAdmin, async (req, res) => {
+  try {
+    // 1. Docker Storage Audit
+    const dockerDf = await queryDockerSocket({ path: '/system/df' });
+    let buildCacheSize = 0;
+    let buildCacheReclaimable = 0;
+    let danglingImagesSize = 0;
+
+    if (dockerDf.statusCode === 200 && dockerDf.data) {
+      if (Array.isArray(dockerDf.data.BuildCache)) {
+        for (const item of dockerDf.data.BuildCache) {
+          buildCacheSize += (item.Size || 0);
+          if (item.Reclaimable) buildCacheReclaimable += (item.Size || 0);
+        }
+      }
+      if (Array.isArray(dockerDf.data.Images)) {
+        for (const img of dockerDf.data.Images) {
+          if (img.RepoTags && img.RepoTags.includes('<none>:<none>')) {
+            danglingImagesSize += (img.Size || 0);
+          }
+        }
+      }
+    }
+
+    // 2. Temp Uploads Folder
+    const tempDir = path.join(__dirname, 'public', 'uploads', 'temp');
+    const tempInfo = getDirectorySize(tempDir);
+
+    // 3. Application Logs
+    const logsDir = path.join(__dirname, 'logs');
+    const logsInfo = getDirectorySize(logsDir);
+
+    const totalReclaimableBytes = (buildCacheReclaimable || buildCacheSize) + danglingImagesSize + tempInfo.size;
+
+    res.json({
+      success: true,
+      data: {
+        buildCache: {
+          totalBytes: buildCacheSize,
+          reclaimableBytes: buildCacheReclaimable || buildCacheSize,
+        },
+        danglingImages: {
+          totalBytes: danglingImagesSize,
+        },
+        tempUploads: {
+          totalBytes: tempInfo.size,
+          fileCount: tempInfo.count,
+        },
+        logs: {
+          totalBytes: logsInfo.size,
+          fileCount: logsInfo.count,
+        },
+        totalReclaimableBytes
+      }
+    });
+  } catch (error) {
+    console.error('Storage audit error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/system/storage-clean', isAdmin, async (req, res) => {
+  try {
+    let reclaimedBytes = 0;
+    const actions = [];
+
+    // 1. Prune Docker Build Cache
+    const pruneBuildRes = await queryDockerSocket({ path: '/build/prune?all=true', method: 'POST' });
+    if (pruneBuildRes.statusCode === 200 && pruneBuildRes.data) {
+      const space = pruneBuildRes.data.SpaceReclaimed || 0;
+      reclaimedBytes += space;
+      actions.push(`Pruned Docker build cache (${Math.round(space / 1024 / 1024)} MB)`);
+    }
+
+    // 2. Prune Dangling Docker Images
+    const pruneImagesRes = await queryDockerSocket({ path: '/images/prune?filters=%7B%22dangling%22%3A%5B%22true%22%5D%7D', method: 'POST' });
+    if (pruneImagesRes.statusCode === 200 && pruneImagesRes.data) {
+      const space = pruneImagesRes.data.SpaceReclaimed || 0;
+      reclaimedBytes += space;
+      actions.push(`Pruned dangling images (${Math.round(space / 1024 / 1024)} MB)`);
+    }
+
+    // 3. Clean Temp Uploads older than 10 minutes
+    const tempDir = path.join(__dirname, 'public', 'uploads', 'temp');
+    if (fs.existsSync(tempDir)) {
+      let tempCleaned = 0;
+      const now = Date.now();
+      const files = fs.readdirSync(tempDir);
+      for (const f of files) {
+        try {
+          const fp = path.join(tempDir, f);
+          const stat = fs.statSync(fp);
+          if (now - stat.mtimeMs > 10 * 60 * 1000) {
+            tempCleaned += stat.size;
+            if (stat.isDirectory()) {
+              fs.rmSync(fp, { recursive: true, force: true });
+            } else {
+              fs.unlinkSync(fp);
+            }
+          }
+        } catch (err) {}
+      }
+      if (tempCleaned > 0) {
+        reclaimedBytes += tempCleaned;
+        actions.push(`Cleaned temp uploads (${Math.round(tempCleaned / 1024 / 1024)} MB)`);
+      }
+    }
+
+    logActivity({
+      userId: req.session.userId,
+      performedBy: req.session.username,
+      actionType: 'STORAGE_CLEAN',
+      category: 'system',
+      description: `Cleaned system junk & reclaimed ${Math.round(reclaimedBytes / 1024 / 1024)} MB`,
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
+
+    res.json({
+      success: true,
+      reclaimedBytes,
+      actions,
+      message: `System successfully optimized and cleaned!`
+    });
+  } catch (error) {
+    console.error('Storage clean error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.delete('/api/videos/:id', isAuthenticated, async (req, res) => {
   try {
     const videoId = req.params.id;
