@@ -75,9 +75,9 @@ app.locals.helpers = {
       }
       const username = (req.session.username || 'U').trim();
       const initial = (username[0] || 'U').toUpperCase();
-      return `<div class="w-full h-full bg-gradient-to-br from-indigo-500 to-primary flex items-center justify-center font-bold text-white text-base select-none uppercase shadow-inner">${initial}</div>`;
+      return `<div class="w-full h-full bg-gradient-to-br from-indigo-500 to-primary flex items-center justify-center font-bold text-white text-xs select-none uppercase shadow-inner">${initial}</div>`;
     }
-    return '<div class="w-full h-full bg-dark-700 flex items-center justify-center font-bold text-gray-300 text-sm select-none">U</div>';
+    return '<div class="w-full h-full bg-dark-700 flex items-center justify-center font-bold text-gray-300 text-xs select-none">U</div>';
   },
   getPlatformIcon: function (platform) {
     switch (platform) {
