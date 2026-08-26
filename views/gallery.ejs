@@ -928,6 +928,15 @@ function detectMediaType(item) {
 </div>
 
 <script>
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let currentView = 'grid';
 let userDiskUsage = <%= Number(typeof userDiskUsage !== 'undefined' ? userDiskUsage : 0) %>;
 let userDiskLimit = <%= Number(typeof userDiskLimit !== 'undefined' ? userDiskLimit : 0) %>;
@@ -940,7 +949,9 @@ let streamUsageMapState = <%- JSON.stringify(typeof streamUsageMap !== 'undefine
 function handleBlockedDelete(id, title) {
   const usage = streamUsageMapState[id];
   const liveCount = usage ? usage.liveCount : 1;
-  showToast('error', `Cannot delete "${title}": Video is actively broadcasting live in ${liveCount} stream(s).`);
+  if (typeof showToast === 'function') {
+    showToast('error', `Cannot delete "${title}": Video is actively broadcasting live in ${liveCount} stream(s).`);
+  }
   openStreamUsageModal(id);
 }
 
@@ -950,7 +961,7 @@ function openStreamUsageModal(videoId) {
   const listEl = document.getElementById('streamUsageListContainer');
   if (!modal || !listEl) return;
 
-  const video = galleryVideosState.find(v => v.id === videoId);
+  const video = (galleryVideosState || []).find(v => v.id === videoId);
   const videoTitle = video ? video.title : 'Selected Media';
   if (titleEl) titleEl.textContent = videoTitle;
 
@@ -1022,26 +1033,38 @@ async function stopStreamFromUsageModal(streamId, videoId) {
     });
     const data = await res.json();
     if (data.success) {
-      showToast('success', 'Stream broadcast stopped successfully');
+      if (typeof showToast === 'function') {
+        showToast('success', 'Stream broadcast stopped successfully');
+      }
       if (typeof window.refreshGalleryData === 'function') {
         await window.refreshGalleryData();
       }
       openStreamUsageModal(videoId);
     } else {
-      showToast('error', data.error || 'Failed to stop stream');
+      if (typeof showToast === 'function') {
+        showToast('error', data.error || 'Failed to stop stream');
+      }
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = `<i class="ti ti-player-stop-filled text-xs"></i> Stop Broadcast`;
       }
     }
   } catch (err) {
-    showToast('error', 'Failed to communicate with server');
+    if (typeof showToast === 'function') {
+      showToast('error', 'Failed to communicate with server');
+    }
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = `<i class="ti ti-player-stop-filled text-xs"></i> Stop Broadcast`;
     }
   }
 }
+
+window.escapeHtml = escapeHtml;
+window.handleBlockedDelete = handleBlockedDelete;
+window.openStreamUsageModal = openStreamUsageModal;
+window.closeStreamUsageModal = closeStreamUsageModal;
+window.stopStreamFromUsageModal = stopStreamFromUsageModal;
 
 async function loadDiskUsage() {
   try {
