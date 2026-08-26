@@ -86,7 +86,7 @@ function cleanYoutubeUrl(url) {
 
 function getPotArgs() {
   return [
-    '--extractor-args', 'youtube:player_client=android,ios,web;youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'
+    '--extractor-args', 'youtube:player_client=mweb,android,web'
   ];
 }
 
@@ -188,6 +188,21 @@ async function inspectVideo(rawUrl) {
         const sortedResolutions = Array.from(resolutionMap.values())
           .sort((a, b) => b.height - a.height);
 
+        // Fallback resolutions if player client returned limited separate video streams
+        if (sortedResolutions.length === 0) {
+          [1080, 720, 480, 360].forEach(h => {
+            sortedResolutions.push({
+              height: h,
+              label: labels[h] || `${h}p`,
+              rawLabel: labels[h] || `${h}p`,
+              filesize: 0,
+              filesizeFormatted: '',
+              ext: 'mp4',
+              type: 'video'
+            });
+          });
+        }
+
         // Always provide Audio Only option
         const audioSizeStr = bestAudioSize > 0 ? formatBytes(bestAudioSize) : '';
         sortedResolutions.push({
@@ -200,7 +215,7 @@ async function inspectVideo(rawUrl) {
           type: 'audio'
         });
 
-        const defaultRes = sortedResolutions.find(r => r.height === 1080) || sortedResolutions[0];
+        const defaultRes = sortedResolutions.find(r => r.height === 1080 || r.height === 720) || sortedResolutions[0];
 
         const result = {
           id: info.id,
