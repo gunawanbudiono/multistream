@@ -6287,17 +6287,6 @@ const server = app.listen(port, '0.0.0.0', async () => {
   } else {
     console.log(`  http://localhost:${port}`);
   }
-  try {
-    const streams = await Stream.findAll(null, 'live');
-    if (streams && streams.length > 0) {
-      console.log(`Resetting ${streams.length} live streams to offline state...`);
-      for (const stream of streams) {
-        await Stream.updateStatus(stream.id, 'offline');
-      }
-    }
-  } catch (error) {
-    console.error('Error resetting stream statuses:', error);
-  }
   schedulerService.init(streamingService);
   rotationService.init();
   try {
