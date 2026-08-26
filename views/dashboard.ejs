@@ -705,7 +705,12 @@
     <div class="flex min-h-screen items-center justify-center p-4">
       <div class="bg-dark-800 rounded-lg shadow-xl w-full max-w-4xl modal-container flex flex-col max-h-[90vh]">
         <div class="flex-shrink-0 flex items-center justify-between p-4 sm:px-6 sm:py-4 border-b border-gray-700">
-          <h3 class="text-lg font-semibold">Edit Stream</h3>
+          <div class="flex items-center gap-2.5">
+            <h3 class="text-lg font-semibold" id="editStreamModalTitle">Edit Stream</h3>
+            <span id="editStreamInspectorBadge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>Live Inspector
+            </span>
+          </div>
           <div class="flex items-center gap-2">
             <button type="button" onclick="openTipsStreaming()" class="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors shadow-sm">
               <i class="ti ti-bulb"></i>
@@ -808,21 +813,31 @@
                     <!-- RTMP URL -->
                     <div class="relative">
                       <input type="text" id="editRtmpUrl" name="rtmpUrl"
-                        class="w-full pl-10 pr-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm"
+                        class="w-full pl-10 pr-10 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm"
                         placeholder="RTMP URL" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" required>
                       <i class="ti ti-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('editRtmpUrl').value); showToast('success', 'RTMP URL copied to clipboard!');"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors" title="Copy RTMP URL">
+                        <i class="ti ti-copy"></i>
+                      </button>
                     </div>
 
                     <!-- Stream Key -->
                     <div class="relative">
                       <input type="text" id="editStreamKey" name="streamKey"
-                        class="w-full pl-10 pr-12 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm masked-stream-key"
+                        class="w-full pl-10 pr-20 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-white text-sm masked-stream-key"
                         placeholder="Stream Key" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" required>
                       <i class="ti ti-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                      <button type="button" onclick="toggleEditStreamKeyVisibility()"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
-                        <i class="ti ti-eye" id="editStreamKeyToggle"></i>
-                      </button>
+                      <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-gray-400">
+                        <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('editStreamKey').value); showToast('success', 'Stream Key copied to clipboard!');"
+                          class="hover:text-white transition-colors" title="Copy Stream Key">
+                          <i class="ti ti-copy"></i>
+                        </button>
+                        <button type="button" onclick="toggleEditStreamKeyVisibility()"
+                          class="hover:text-white transition-colors" title="Toggle Visibility">
+                          <i class="ti ti-eye" id="editStreamKeyToggle"></i>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1952,19 +1967,33 @@
         durationDisplay = `${hours}:${minutes}:${seconds}`;
       }
       const scheduleDate = stream.schedule_time ? formatDate(new Date(stream.schedule_time)) : '';
-      const scheduleTime = stream.schedule_time ? formatTime(new Date(stream.schedule_time)) : '';
-      const endDate = stream.end_time ? formatDate(new Date(stream.end_time)) : '';
-      const endTime = stream.end_time ? formatTime(new Date(stream.end_time)) : '';
+      const formatCodecName = (c) => {
+        if (!c) return 'H.264';
+        const str = String(c).toLowerCase();
+        if (str.includes('hevc') || str.includes('h265') || str.includes('h.265')) return 'H.265';
+        if (str.includes('h264') || str.includes('avc')) return 'H.264';
+        if (str.includes('av1')) return 'AV1';
+        if (str.includes('vp9')) return 'VP9';
+        return String(c).toUpperCase();
+      };
+
+      const codecDisplay = formatCodecName(stream.video_codec || stream.codec);
+      const keyframeDisplay = '2s KF';
+      const modeBadge = !stream.use_advanced_settings
+        ? `<span class="inline-flex items-center gap-0.5 px-1 py-0.2 text-[9px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded"><i class="ti ti-bolt text-[10px]"></i>Direct Stream</span>`
+        : `<span class="inline-flex items-center gap-0.5 px-1 py-0.2 text-[9px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded"><i class="ti ti-refresh text-[10px]"></i>GPU Transcode</span>`;
+
       let settingsDisplay = '';
       if (stream.video_type === 'playlist') {
         settingsDisplay = 'Playlist • Loading...';
         fetchPlaylistInfo(stream.video_id, stream.id);
       } else if (stream.use_advanced_settings) {
-        settingsDisplay = `${stream.resolution || '1280x720'} • ${stream.bitrate || '2500'}kbps`;
+        settingsDisplay = `${stream.resolution || '1280x720'} • ${stream.bitrate || '2500'} kbps • ${stream.fps || '30'} FPS • ${codecDisplay} • ${keyframeDisplay}`;
       } else {
         const videoRes = stream.video_resolution || stream.resolution || '1280x720';
         const videoBitrate = stream.video_bitrate || stream.bitrate || '2500';
-        settingsDisplay = `${videoRes} • ${videoBitrate}kbps`;
+        const videoFps = stream.video_fps || stream.fps || '30';
+        settingsDisplay = `${videoRes} • ${videoBitrate} kbps • ${videoFps} FPS • ${codecDisplay} • ${keyframeDisplay}`;
       }
       let statusBadge = '';
       if (stream.status === 'live') {
@@ -1992,8 +2021,11 @@
             <img src="${thumbnail}" class="w-full h-full object-cover" alt="${stream.title}">
           </div>
           <div class="flex-1 min-w-0">
-            <h4 class="text-sm font-medium text-white truncate leading-tight">${stream.title}</h4>
-            <div class="flex items-center gap-1.5 mt-1">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <h4 class="text-sm font-medium text-white truncate leading-tight">${stream.title}</h4>
+              ${modeBadge}
+            </div>
+            <div class="flex items-center gap-1.5 mt-0.5">
               <div class="flex items-center text-[10px] text-gray-400">
                 <i class="ti ti-brand-${getPlatformIcon(stream.platform)} text-${getPlatformColor(stream.platform)} mr-0.5 text-xs"></i>
                 <span>${stream.platform || 'Custom'}</span>
@@ -2010,7 +2042,12 @@
         <div>${statusBadge}</div>
         <div class="flex items-center gap-1.5">
           ${getActionButtonHTML(stream.status, stream.id, 'mobile')}
-          <button class="p-1 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' || stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" onclick="${stream.status === 'live' || stream.status === 'scheduled' ? '' : `editStream('${stream.id}')`}" ${stream.status === 'live' || stream.status === 'scheduled' ? 'disabled' : ''}><i class="ti ti-edit text-gray-400 hover:text-white text-sm"></i></button>
+          <button class="p-1 hover:bg-dark-700 rounded transition-colors ${stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" 
+                  onclick="${stream.status === 'scheduled' ? '' : `editStream('${stream.id}')`}" 
+                  ${stream.status === 'scheduled' ? 'disabled' : ''}
+                  title="${stream.status === 'live' ? 'Inspect Live Details' : 'Edit Stream'}">
+            <i class="ti ${stream.status === 'live' ? 'ti-eye text-blue-400 hover:text-blue-300' : 'ti-edit text-gray-400 hover:text-white'} text-sm"></i>
+          </button>
           <button class="p-1 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' || stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" onclick="${stream.status === 'live' || stream.status === 'scheduled' ? '' : `deleteStream('${stream.id}')`}" ${stream.status === 'live' || stream.status === 'scheduled' ? 'disabled' : ''}><i class="ti ti-trash text-gray-400 hover:text-red-400 text-sm"></i></button>
         </div>
       </div>
@@ -2030,18 +2067,33 @@
         thumbnail = stream.youtube_thumbnail;
       }
       const startDate = stream.start_time ? new Date(stream.start_time) : null;
-      const scheduleDate = stream.schedule_time ? new Date(stream.schedule_time) : null;
+      const formatCodecName = (c) => {
+        if (!c) return 'H.264';
+        const str = String(c).toLowerCase();
+        if (str.includes('hevc') || str.includes('h265') || str.includes('h.265')) return 'H.265';
+        if (str.includes('h264') || str.includes('avc')) return 'H.264';
+        if (str.includes('av1')) return 'AV1';
+        if (str.includes('vp9')) return 'VP9';
+        return String(c).toUpperCase();
+      };
+
+      const codecDisplay = formatCodecName(stream.video_codec || stream.codec);
+      const keyframeDisplay = '2s KF';
+      const modeBadge = !stream.use_advanced_settings
+        ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded"><i class="ti ti-bolt text-[10px]"></i>Direct Stream</span>`
+        : `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded"><i class="ti ti-refresh text-[10px]"></i>GPU Transcode</span>`;
+
       let settingsDisplay = '';
       if (stream.video_type === 'playlist') {
         settingsDisplay = 'Playlist • Loading...';
         fetchPlaylistInfo(stream.video_id, stream.id);
       } else if (stream.use_advanced_settings) {
-        settingsDisplay = `${stream.resolution || '1280x720'} • ${stream.bitrate || '2500'} kbps • ${stream.fps || '30'} FPS`;
+        settingsDisplay = `${stream.resolution || '1280x720'} • ${stream.bitrate || '2500'} kbps • ${stream.fps || '30'} FPS • ${codecDisplay} • ${keyframeDisplay}`;
       } else {
         const videoRes = stream.video_resolution || stream.resolution || '1280x720';
         const videoBitrate = stream.video_bitrate || stream.bitrate || '2500';
         const videoFps = stream.video_fps || stream.fps || '30';
-        settingsDisplay = `${videoRes} • ${videoBitrate} kbps • ${videoFps} FPS`;
+        settingsDisplay = `${videoRes} • ${videoBitrate} kbps • ${videoFps} FPS • ${codecDisplay} • ${keyframeDisplay}`;
       }
       let durationDisplay = '';
       let statusBadge = '';
@@ -2070,8 +2122,11 @@
             <img src="${thumbnail}" class="w-full h-full object-cover" alt="${stream.title}">
           </div>
           <div class="min-w-0 flex-1">
-            <div class="text-sm font-medium truncate max-w-[200px]" title="${stream.title}">${stream.title}</div>
-            <div class="text-xs text-gray-400 stream-settings-display">${settingsDisplay}</div>
+            <div class="flex items-center gap-2">
+              <div class="text-sm font-medium truncate max-w-[200px]" title="${stream.title}">${stream.title}</div>
+              ${modeBadge}
+            </div>
+            <div class="text-xs text-gray-400 stream-settings-display mt-0.5">${settingsDisplay}</div>
           </div>
         </div>
       </td>
@@ -2146,10 +2201,11 @@
         <div class="flex items-center justify-end space-x-2">
           ${getActionButtonHTML(stream.status, stream.id, 'desktop')}
           <div class="ml-2 flex items-center gap-1">
-            <button class="p-1.5 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' || stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" 
-                    onclick="${stream.status === 'live' || stream.status === 'scheduled' ? '' : `editStream('${stream.id}')`}"
-                    ${stream.status === 'live' || stream.status === 'scheduled' ? 'disabled' : ''}>
-              <i class="ti ti-edit text-gray-400 hover:text-white"></i>
+            <button class="p-1.5 hover:bg-dark-700 rounded transition-colors ${stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" 
+                    onclick="${stream.status === 'scheduled' ? '' : `editStream('${stream.id}')`}"
+                    ${stream.status === 'scheduled' ? 'disabled' : ''}
+                    title="${stream.status === 'live' ? 'Inspect Live Details' : 'Edit Stream'}">
+              <i class="ti ${stream.status === 'live' ? 'ti-eye text-blue-400 hover:text-blue-300' : 'ti-edit text-gray-400 hover:text-white'}"></i>
             </button>
             <button class="p-1.5 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' || stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" 
                     onclick="${stream.status === 'live' || stream.status === 'scheduled' ? '' : `deleteStream('${stream.id}')`}"
@@ -3168,6 +3224,28 @@
       originalStreamKey = stream.stream_key;
       document.getElementById('editStreamId').value = stream.id;
       
+      const isLive = stream.status === 'live';
+      const modalTitle = document.getElementById('editStreamModalTitle');
+      const inspectorBadge = document.getElementById('editStreamInspectorBadge');
+      const saveBtn = document.querySelector('#editStreamModal button[type="submit"]');
+
+      if (modalTitle) modalTitle.innerText = isLive ? 'Live Stream Details' : 'Edit Stream';
+      if (inspectorBadge) {
+        if (isLive) inspectorBadge.classList.remove('hidden');
+        else inspectorBadge.classList.add('hidden');
+      }
+      if (saveBtn) {
+        if (isLive) {
+          saveBtn.disabled = true;
+          saveBtn.classList.add('opacity-60', 'cursor-not-allowed');
+          saveBtn.innerHTML = '<i class="ti ti-broadcast text-red-400 mr-1.5"></i>Broadcasting Live (Stop stream to modify)';
+        } else {
+          saveBtn.disabled = false;
+          saveBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+          saveBtn.innerHTML = 'Save Changes';
+        }
+      }
+
       const isYoutubeStream = stream.is_youtube_api === true || stream.is_youtube_api === 1;
       const modeSelector = document.getElementById('editStreamModeSelector');
       const manualForm = document.getElementById('editManualStreamForm');
@@ -3463,6 +3541,17 @@
       
       const editYtDurationBadge = document.getElementById('editYtDurationBadge');
       if (editYtDurationBadge) editYtDurationBadge.classList.add('hidden');
+
+      const modalTitle = document.getElementById('editStreamModalTitle');
+      const inspectorBadge = document.getElementById('editStreamInspectorBadge');
+      const saveBtn = document.querySelector('#editStreamModal button[type="submit"]');
+      if (modalTitle) modalTitle.innerText = 'Edit Stream';
+      if (inspectorBadge) inspectorBadge.classList.add('hidden');
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+        saveBtn.innerHTML = 'Save Changes';
+      }
     }
     function toggleEditVideoSelector() {
       const dropdown = document.getElementById('editVideoSelectorDropdown');

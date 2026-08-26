@@ -401,7 +401,7 @@ function waitForStreamStartup(streamId, ffmpegProcess, startupState) {
   });
 }
 
-async function buildFFmpegArgsForPlaylist(stream, playlist) {
+async function buildFFmpegArgsForPlaylist(stream, playlist, resumeOffset = 0) {
   if (!playlist.videos || playlist.videos.length === 0) {
     throw new Error('Playlist is empty');
   }
@@ -438,6 +438,7 @@ async function buildFFmpegArgsForPlaylist(stream, playlist) {
   fs.writeFileSync(concatFile, content);
 
   const hasAudio = playlist.audios && playlist.audios.length > 0;
+  const seekArgs = resumeOffset > 0 ? ['-ss', String(resumeOffset)] : [];
 
   if (!hasAudio) {
     if (!stream.use_advanced_settings) {
@@ -448,6 +449,7 @@ async function buildFFmpegArgsForPlaylist(stream, playlist) {
         '-re',
         '-fflags', '+genpts+igndts+discardcorrupt',
         '-avoid_negative_ts', 'make_zero',
+        ...seekArgs,
         '-f', 'concat',
         '-safe', '0',
         '-i', concatFile,
@@ -471,6 +473,7 @@ async function buildFFmpegArgsForPlaylist(stream, playlist) {
       '-re',
       '-fflags', '+genpts+igndts+discardcorrupt',
       '-avoid_negative_ts', 'make_zero',
+      ...seekArgs,
       '-f', 'concat',
       '-safe', '0',
       '-i', concatFile,
@@ -527,10 +530,12 @@ async function buildFFmpegArgsForPlaylist(stream, playlist) {
       '-re',
       '-fflags', '+genpts+igndts+discardcorrupt',
       '-avoid_negative_ts', 'make_zero',
+      ...seekArgs,
       '-f', 'concat',
       '-safe', '0',
       '-i', concatFile,
       '-re',
+      ...seekArgs,
       '-f', 'concat',
       '-safe', '0',
       '-i', audioConcatFile,
@@ -555,10 +560,12 @@ async function buildFFmpegArgsForPlaylist(stream, playlist) {
     '-re',
     '-fflags', '+genpts+igndts+discardcorrupt',
     '-avoid_negative_ts', 'make_zero',
+    ...seekArgs,
     '-f', 'concat',
     '-safe', '0',
     '-i', concatFile,
     '-re',
+    ...seekArgs,
     '-f', 'concat',
     '-safe', '0',
     '-i', audioConcatFile,
@@ -585,7 +592,7 @@ async function buildFFmpegArgsForPlaylist(stream, playlist) {
   ];
 }
 
-async function buildFFmpegArgs(stream) {
+async function buildFFmpegArgs(stream, resumeOffset = 0) {
   const streamWithVideo = await Stream.getStreamWithVideo(stream.id);
 
   if (streamWithVideo && streamWithVideo.video_type === 'playlist') {
@@ -593,7 +600,7 @@ async function buildFFmpegArgs(stream) {
     if (!playlist) {
       throw new Error('Playlist not found');
     }
-    return await buildFFmpegArgsForPlaylist(stream, playlist);
+    return await buildFFmpegArgsForPlaylist(stream, playlist, resumeOffset);
   }
 
   const video = await Video.findById(stream.video_id);
@@ -611,6 +618,7 @@ async function buildFFmpegArgs(stream) {
 
   const rtmpUrl = `${stream.rtmp_url.replace(/\/$/, '')}/${stream.stream_key}`;
   const loopValue = stream.loop_video ? '-1' : '0';
+  const seekArgs = resumeOffset > 0 ? ['-ss', String(resumeOffset)] : [];
 
   if (!stream.use_advanced_settings) {
     const ext = path.extname(videoPath).toLowerCase();
@@ -623,6 +631,7 @@ async function buildFFmpegArgs(stream) {
         '-re',
         '-f', 'lavfi',
         '-i', 'color=c=black:s=1280x720:r=30',
+        ...seekArgs,
         '-stream_loop', loopValue,
         '-i', videoPath,
         '-c:v', 'libx264',
@@ -650,6 +659,7 @@ async function buildFFmpegArgs(stream) {
       '-re',
       '-fflags', '+genpts+igndts+discardcorrupt',
       '-avoid_negative_ts', 'make_zero',
+      ...seekArgs,
       '-stream_loop', loopValue,
       '-i', videoPath,
       '-c:v', 'copy',
@@ -674,6 +684,7 @@ async function buildFFmpegArgs(stream) {
     '-re',
     '-fflags', '+genpts+igndts+discardcorrupt',
     '-avoid_negative_ts', 'make_zero',
+    ...seekArgs,
     '-stream_loop', loopValue,
     '-i', videoPath,
     '-c:v', 'libx264',
@@ -744,7 +755,7 @@ async function killFFmpegProcess(streamId, streamData) {
   });
 }
 
-async function startStream(streamId, isRetry = false, baseUrl = null) {
+async function startStream(streamId, isRetry = false, baseUrl = null, resumeOffset = 0) {
   if (startingStreams.has(streamId)) {
     return { success: false, error: 'Stream start is already in progress' };
   }
@@ -752,7 +763,7 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
   startingStreams.add(streamId);
 
   try {
-    if (!isRetry) {
+    if (!isRetry && resumeOffset <= 0) {
       streamRetryCount.set(streamId, 0);
     }
 
@@ -804,9 +815,11 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
       return { success: false, error: 'Missing RTMP URL or stream key' };
     }
 
-    const ffmpegArgs = await buildFFmpegArgs(stream);
+    const ffmpegArgs = await buildFFmpegArgs(stream, resumeOffset);
 
-    addStreamLog(streamId, `Starting FFmpeg process`);
+    addStreamLog(streamId, resumeOffset > 0 
+      ? `Starting FFmpeg process with seamless resume offset: ${resumeOffset}s` 
+      : `Starting FFmpeg process`);
 
     const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, {
       detached: false,
@@ -823,7 +836,7 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
     const startupPromise = waitForStreamStartup(streamId, ffmpegProcess, startupState);
 
     let startTimeIso;
-    if (isRetry && originalStartTime) {
+    if ((isRetry || resumeOffset > 0) && originalStartTime) {
       startTimeIso = originalStartTime;
     } else {
       startTimeIso = new Date().toISOString();
@@ -1133,17 +1146,30 @@ async function syncStreamStatuses() {
       const isActive = activeStreams.has(stream.id);
 
       if (!isActive) {
-        const retryCount = streamRetryCount.get(stream.id);
-        if (retryCount !== undefined && retryCount < MAX_RETRY_ATTEMPTS) {
-          continue;
-        }
-
         if (stream.end_time) {
           const endTime = new Date(stream.end_time);
           if (endTime.getTime() <= Date.now()) {
             await Stream.updateStatus(stream.id, 'offline', stream.user_id);
             cleanupStreamData(stream.id);
             continue;
+          }
+        }
+
+        // Seamless Auto-Resume on Server Startup / Restart with -ss offset
+        if (stream.start_time) {
+          try {
+            const Video = require('../models/Video');
+            const video = stream.video_id ? await Video.findById(stream.video_id) : null;
+            const videoDuration = (video && video.duration > 0) ? Math.floor(video.duration) : 3600;
+            const elapsedSeconds = Math.max(0, Math.floor((Date.now() - new Date(stream.start_time).getTime()) / 1000));
+            const resumeOffset = stream.loop_video ? (elapsedSeconds % videoDuration) : Math.min(elapsedSeconds, videoDuration);
+
+            console.log(`[Auto-Resume] 🚀 Resuming live broadcast "${stream.title}" (${stream.id}) with offset: ${resumeOffset}s...`);
+            addStreamLog(stream.id, `[Auto-Resume] Resuming live broadcast after restart at offset ${resumeOffset}s...`);
+            await startStream(stream.id, false, null, resumeOffset);
+            continue;
+          } catch (resumeErr) {
+            console.error(`[Auto-Resume] Failed to resume stream ${stream.id}:`, resumeErr);
           }
         }
 
@@ -1319,12 +1345,6 @@ async function gracefulShutdown() {
 
       manuallyStoppingStreams.add(streamId);
       await killFFmpegProcess(streamId, streamData);
-
-      const stream = await Stream.findById(streamId);
-      if (stream) {
-        await Stream.updateStatus(streamId, 'offline', stream.user_id);
-      }
-
       activeStreams.delete(streamId);
       cleanupStreamData(streamId);
     } catch (e) { }

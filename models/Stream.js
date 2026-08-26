@@ -90,6 +90,8 @@ class Stream {
                v.resolution AS video_resolution,  
                v.bitrate AS video_bitrate,        
                v.fps AS video_fps,
+               v.codec AS video_codec,
+               v.audio_codec AS video_audio_codec,
                p.name AS playlist_name,
                CASE 
                  WHEN p.id IS NOT NULL THEN 'playlist'
