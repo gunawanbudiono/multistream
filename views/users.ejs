@@ -154,11 +154,16 @@
               <!-- User Info -->
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center gap-3">
-                  <div class="relative w-10 h-10 rounded-xl overflow-hidden bg-dark-900 border border-gray-700 flex-shrink-0">
-                    <img src="<%= user.avatar_path || '/images/default-avatar.jpg' %>" 
-                         alt="<%= user.username %>" 
-                         class="w-full h-full object-cover" 
-                         onerror="this.onerror=null; this.src='/images/default-avatar.jpg';">
+                  <div class="relative w-10 h-10 rounded-xl overflow-hidden bg-dark-900 border border-gray-700 flex-shrink-0 flex items-center justify-center">
+                    <% if (user.avatar_path && user.avatar_path !== '/images/default-avatar.jpg' && !user.avatar_path.includes('default-avatar')) { %>
+                      <img src="<%= user.avatar_path %>" 
+                           alt="<%= user.username %>" 
+                           class="w-full h-full object-cover">
+                    <% } else { %>
+                      <div class="w-full h-full bg-gradient-to-br from-indigo-500/80 to-primary flex items-center justify-center font-bold text-white text-sm select-none uppercase shadow-inner">
+                        <%= (user.username || 'U')[0].toUpperCase() %>
+                      </div>
+                    <% } %>
                   </div>
                   <div>
                     <div class="text-sm font-semibold text-white flex items-center gap-1.5">
@@ -311,8 +316,9 @@
     <!-- Modal Header -->
     <div class="px-6 pt-5 pb-4 border-b border-[#27272a]/70 flex-shrink-0 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-11 h-11 rounded-xl overflow-hidden bg-dark-900 border border-[#27272a] flex-shrink-0">
-          <img id="inspectorAvatar" src="/images/default-avatar.jpg" alt="Avatar" class="w-full h-full object-cover">
+        <div class="w-11 h-11 rounded-xl overflow-hidden bg-dark-900 border border-[#27272a] flex-shrink-0 flex items-center justify-center">
+          <img id="inspectorAvatar" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+          <div id="inspectorAvatarInitial" class="w-full h-full bg-gradient-to-br from-indigo-500 to-primary flex items-center justify-center font-bold text-white text-base select-none uppercase shadow-inner">U</div>
         </div>
         <div>
           <div class="flex items-center gap-2">
@@ -454,8 +460,9 @@
       <div>
         <label class="block text-xs font-medium text-gray-300 mb-1.5">Profile Photo / Avatar Logo</label>
         <div class="flex items-center gap-3 bg-dark-900 border border-[#27272a] rounded-xl p-2.5">
-          <div class="w-10 h-10 rounded-full overflow-hidden bg-dark-800 border border-[#27272a] flex-shrink-0">
-            <img id="editUserAvatar" src="/images/default-avatar.jpg" alt="Avatar" class="w-full h-full object-cover">
+          <div class="w-10 h-10 rounded-full overflow-hidden bg-dark-800 border border-[#27272a] flex-shrink-0 flex items-center justify-center">
+            <img id="editUserAvatar" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+            <div id="editUserAvatarInitial" class="w-full h-full bg-gradient-to-br from-indigo-500 to-primary flex items-center justify-center font-bold text-white text-sm select-none uppercase shadow-inner">U</div>
           </div>
           <label for="editAvatarInput" class="px-3 py-1.5 bg-primary hover:bg-blue-600 text-xs font-semibold text-white rounded-lg cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-sm flex-shrink-0">
             Choose File
@@ -632,8 +639,9 @@
       <div>
         <label class="block text-xs font-medium text-gray-300 mb-1.5">Profile Photo / Avatar Logo</label>
         <div class="flex items-center gap-3 bg-dark-900 border border-[#27272a] rounded-xl p-2.5">
-          <div class="w-10 h-10 rounded-full overflow-hidden bg-dark-800 border border-[#27272a] flex-shrink-0">
-            <img id="createUserAvatar" src="/images/default-avatar.jpg" alt="Avatar" class="w-full h-full object-cover">
+          <div class="w-10 h-10 rounded-full overflow-hidden bg-dark-800 border border-[#27272a] flex-shrink-0 flex items-center justify-center">
+            <img id="createUserAvatar" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+            <div id="createUserAvatarInitial" class="w-full h-full bg-gradient-to-br from-indigo-500 to-primary flex items-center justify-center font-bold text-white text-sm select-none uppercase shadow-inner"><i class="ti ti-user"></i></div>
           </div>
           <label for="createAvatarInput" class="px-3 py-1.5 bg-primary hover:bg-blue-600 text-xs font-semibold text-white rounded-lg cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-sm flex-shrink-0">
             Choose File
@@ -940,18 +948,32 @@
   document.getElementById('createDiskQuotaGb').addEventListener('change', updateCreateStorageOverviewDynamic);
 
   function resetAvatarToDefault() {
-    document.getElementById('editUserAvatar').src = '/images/default-avatar.jpg';
-    document.getElementById('editAvatarFileName').innerText = 'Reset to default avatar';
+    const editImg = document.getElementById('editUserAvatar');
+    const editInit = document.getElementById('editUserAvatarInitial');
+    editImg.src = '';
+    editImg.classList.add('hidden');
+    if (editInit) {
+      editInit.innerText = (currentActiveEditUsername || 'U')[0].toUpperCase();
+      editInit.classList.remove('hidden');
+    }
+    document.getElementById('editAvatarFileName').innerText = 'Reset to default initial';
     document.getElementById('editAvatarInput').value = '';
     document.getElementById('resetAvatarInput').value = '1';
-    showToast('Photo reset to default avatar', 'info');
+    showToast('Photo reset to default initial badge', 'info');
   }
 
   function resetCreateAvatarToDefault() {
-    document.getElementById('createUserAvatar').src = '/images/default-avatar.jpg';
+    const createImg = document.getElementById('createUserAvatar');
+    const createInit = document.getElementById('createUserAvatarInitial');
+    createImg.src = '';
+    createImg.classList.add('hidden');
+    if (createInit) {
+      createInit.innerHTML = '<i class="ti ti-user"></i>';
+      createInit.classList.remove('hidden');
+    }
     document.getElementById('createAvatarFileName').innerText = 'No file chosen';
     document.getElementById('createAvatarInput').value = '';
-    showToast('Photo reset to default avatar', 'info');
+    showToast('Photo reset to default initial badge', 'info');
   }
 
   function openEditModal(userId, username, role, status, avatar, diskQuotaGb) {
@@ -974,7 +996,20 @@
 
     document.getElementById('editDiskQuotaGb').value = diskQuotaGb || 0;
     document.getElementById('resetAvatarInput').value = '0';
-    document.getElementById('editUserAvatar').src = avatar || '/images/default-avatar.jpg';
+    
+    const editImg = document.getElementById('editUserAvatar');
+    const editInit = document.getElementById('editUserAvatarInitial');
+    if (avatar && avatar !== '/images/default-avatar.jpg' && !avatar.includes('default-avatar')) {
+      editImg.src = avatar;
+      editImg.classList.remove('hidden');
+      if (editInit) editInit.classList.add('hidden');
+    } else {
+      editImg.classList.add('hidden');
+      if (editInit) {
+        editInit.innerText = (username || 'U')[0].toUpperCase();
+        editInit.classList.remove('hidden');
+      }
+    }
     document.getElementById('editAvatarFileName').innerText = 'No file chosen';
     document.getElementById('editAvatarInput').value = '';
 
@@ -1034,7 +1069,14 @@
 
   function openCreateModal() {
     document.getElementById('createUserForm').reset();
-    document.getElementById('createUserAvatar').src = '/images/default-avatar.jpg';
+    const createImg = document.getElementById('createUserAvatar');
+    const createInit = document.getElementById('createUserAvatarInitial');
+    createImg.src = '';
+    createImg.classList.add('hidden');
+    if (createInit) {
+      createInit.innerHTML = '<i class="ti ti-user"></i>';
+      createInit.classList.remove('hidden');
+    }
     document.getElementById('createAvatarFileName').innerText = 'No file chosen';
     document.getElementById('createAvatarInput').value = '';
     document.getElementById('createPassword').type = 'password';
@@ -1179,7 +1221,19 @@
     currentActiveEditUsername = username;
 
     document.getElementById('inspectorUsername').innerText = username;
-    document.getElementById('inspectorAvatar').src = avatar || '/images/default-avatar.jpg';
+    const inspImg = document.getElementById('inspectorAvatar');
+    const inspInit = document.getElementById('inspectorAvatarInitial');
+    if (avatar && avatar !== '/images/default-avatar.jpg' && !avatar.includes('default-avatar')) {
+      inspImg.src = avatar;
+      inspImg.classList.remove('hidden');
+      if (inspInit) inspInit.classList.add('hidden');
+    } else {
+      inspImg.classList.add('hidden');
+      if (inspInit) {
+        inspInit.innerText = (username || 'U')[0].toUpperCase();
+        inspInit.classList.remove('hidden');
+      }
+    }
     
     const roleBadge = document.getElementById('inspectorRoleBadge');
     roleBadge.innerText = role;
@@ -1461,7 +1515,13 @@
       document.getElementById('resetAvatarInput').value = '0';
       document.getElementById('editAvatarFileName').innerText = file.name;
       const reader = new FileReader();
-      reader.onload = (e) => document.getElementById('editUserAvatar').src = e.target.result;
+      reader.onload = (e) => {
+        const editImg = document.getElementById('editUserAvatar');
+        const editInit = document.getElementById('editUserAvatarInitial');
+        editImg.src = e.target.result;
+        editImg.classList.remove('hidden');
+        if (editInit) editInit.classList.add('hidden');
+      };
       reader.readAsDataURL(file);
     }
   });
@@ -1472,7 +1532,13 @@
     if (file) {
       document.getElementById('createAvatarFileName').innerText = file.name;
       const reader = new FileReader();
-      reader.onload = (e) => document.getElementById('createUserAvatar').src = e.target.result;
+      reader.onload = (e) => {
+        const createImg = document.getElementById('createUserAvatar');
+        const createInit = document.getElementById('createUserAvatarInitial');
+        createImg.src = e.target.result;
+        createImg.classList.remove('hidden');
+        if (createInit) createInit.classList.add('hidden');
+      };
       reader.readAsDataURL(file);
     }
   });

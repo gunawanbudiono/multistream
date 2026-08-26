@@ -50,10 +50,17 @@
             <label class="block text-sm font-medium text-gray-300">Profile Photo</label>
             <div class="flex items-center space-x-6">
               <div class="relative">
-                <div class="w-24 h-24 rounded-full bg-dark-700 overflow-hidden border-2 border-gray-700">
-                  <img id="profile-preview" src="<%= user.avatar_path || '/images/default-avatar.jpg' %>"
-                    class="w-full h-full object-cover" alt="Profile Photo"
-                    onerror="this.src='/images/default-avatar.jpg'">
+                <div class="w-24 h-24 rounded-full bg-dark-700 overflow-hidden border-2 border-gray-700 flex items-center justify-center">
+                  <% if (user.avatar_path && user.avatar_path !== '/images/default-avatar.jpg' && !user.avatar_path.includes('default-avatar')) { %>
+                    <img id="profile-preview" src="<%= user.avatar_path %>"
+                      class="w-full h-full object-cover" alt="Profile Photo">
+                  <% } else { %>
+                    <div id="profile-initial-badge" class="w-full h-full bg-gradient-to-br from-indigo-500 to-primary flex items-center justify-center font-bold text-white text-3xl select-none uppercase shadow-inner">
+                      <%= (user.username || 'U')[0].toUpperCase() %>
+                    </div>
+                    <img id="profile-preview" src=""
+                      class="w-full h-full object-cover hidden" alt="Profile Photo">
+                  <% } %>
                 </div>
                 <div class="absolute bottom-0 right-0">
                   <label for="profile-upload"
@@ -644,6 +651,9 @@
           const reader = new FileReader();
           reader.onload = function (event) {
             profilePreview.src = event.target.result;
+            profilePreview.classList.remove('hidden');
+            const initialBadge = document.getElementById('profile-initial-badge');
+            if (initialBadge) initialBadge.classList.add('hidden');
           };
           reader.readAsDataURL(file);
         }

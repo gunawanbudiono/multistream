@@ -69,11 +69,14 @@ app.locals.helpers = {
   getAvatar: function (req) {
     if (req.session && req.session.userId) {
       const avatarPath = req.session.avatar_path;
-      if (avatarPath) {
-        return `<img src="${avatarPath}" alt="${req.session.username || 'User'}'s Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='/images/default-avatar.jpg';">`;
+      if (avatarPath && avatarPath !== '/images/default-avatar.jpg' && !avatarPath.includes('default-avatar')) {
+        return `<img src="${avatarPath}" alt="${req.session.username || 'User'}'s Profile" class="w-full h-full object-cover">`;
       }
+      const username = (req.session.username || 'U').trim();
+      const initial = (username[0] || 'U').toUpperCase();
+      return `<div class="w-full h-full bg-gradient-to-br from-indigo-500 to-primary flex items-center justify-center font-bold text-white text-base select-none uppercase shadow-inner">${initial}</div>`;
     }
-    return '<img src="/images/default-avatar.jpg" alt="Default Profile" class="w-full h-full object-cover">';
+    return '<div class="w-full h-full bg-dark-700 flex items-center justify-center font-bold text-gray-300 text-sm select-none">U</div>';
   },
   getPlatformIcon: function (platform) {
     switch (platform) {
@@ -1722,7 +1725,7 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
       if (user.avatar_path && user.avatar_path.startsWith('/uploads/avatars/')) {
         oldAvatarToDelete = user.avatar_path;
       }
-      avatarPath = '/images/default-avatar.jpg';
+      avatarPath = null;
     } else if (req.file) {
       if (user.avatar_path && user.avatar_path.startsWith('/uploads/avatars/')) {
         oldAvatarToDelete = user.avatar_path;
@@ -1818,7 +1821,7 @@ app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res)
       });
     }
 
-    let avatarPath = '/images/default-avatar.jpg';
+    let avatarPath = null;
     if (req.file) {
       avatarPath = `/uploads/avatars/${req.file.filename}`;
     }
