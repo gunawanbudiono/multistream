@@ -5071,6 +5071,7 @@ app.post('/api/streams', isAuthenticated, [
       streamData.status = 'offline';
     }
     const stream = await Stream.create(streamData);
+    schedulerService.syncStreamSchedule(stream);
     res.json({ success: true, stream });
   } catch (error) {
     console.error('Error creating stream:', error);
@@ -5178,6 +5179,7 @@ app.post('/api/streams/youtube', isAuthenticated, uploadThumbnail.single('thumbn
     }
     
     const stream = await Stream.create(streamData);
+    schedulerService.syncStreamSchedule(stream);
     
     res.json({ 
       success: true, 
@@ -5528,6 +5530,7 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
     }
     
     const updatedStream = await Stream.update(req.params.id, updateData);
+    schedulerService.syncStreamSchedule(updatedStream);
     res.json({ success: true, stream: updatedStream });
   } catch (error) {
     console.error('Error updating stream:', error);
@@ -5543,6 +5546,7 @@ app.delete('/api/streams/:id', isAuthenticated, async (req, res) => {
     if (stream.user_id !== req.session.userId) {
       return res.status(403).json({ success: false, error: 'Not authorized to delete this stream' });
     }
+    schedulerService.handleStreamStopped(req.params.id);
     await Stream.delete(req.params.id, req.session.userId);
     res.json({ success: true, message: 'Stream deleted successfully' });
   } catch (error) {
