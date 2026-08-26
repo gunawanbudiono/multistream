@@ -131,8 +131,39 @@ function selectVideo(video) {
   } else {
     desktopPreview.classList.remove('hidden'); mobilePreview.classList.remove('hidden');
     desktopEmptyPreview.classList.add('hidden'); mobileEmptyPreview.classList.add('hidden');
-    document.getElementById('videoPreview').innerHTML = `<video id="native-preview-desktop" class="native-video-player rounded-lg" controls preload="metadata"><source src="${video.url}" type="video/mp4">Your browser does not support the video tag.</video>`;
-    document.getElementById('videoPreviewMobile').innerHTML = `<video id="native-preview-mobile" class="native-video-player" controls preload="metadata"><source src="${video.url}" type="video/mp4">Your browser does not support the video tag.</video>`;
+    
+    const streamUrl = `/stream/${encodeURIComponent(video.id)}`;
+    const createPlayerMarkup = (id) => `
+      <div class="relative w-full h-full bg-black aspect-video flex items-center justify-center rounded-lg overflow-hidden">
+        <div id="${id}-spinner" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 transition-opacity duration-300 pointer-events-none opacity-0">
+          <i class="ti ti-loader-2 text-3xl text-primary animate-spin mb-2"></i>
+          <span class="text-xs text-gray-300 font-medium">Buffering stream...</span>
+        </div>
+        <video id="${id}" class="w-full h-full object-contain rounded-lg" controls preload="auto" playsinline>
+          <source src="${streamUrl}" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    `;
+
+    document.getElementById('videoPreview').innerHTML = createPlayerMarkup('native-preview-desktop');
+    document.getElementById('videoPreviewMobile').innerHTML = createPlayerMarkup('native-preview-mobile');
+
+    ['native-preview-desktop', 'native-preview-mobile'].forEach(pid => {
+      const vEl = document.getElementById(pid);
+      const spinner = document.getElementById(`${pid}-spinner`);
+      if (vEl && spinner) {
+        const hideSpinner = () => spinner.classList.add('opacity-0', 'pointer-events-none');
+        const showSpinner = () => spinner.classList.remove('opacity-0', 'pointer-events-none');
+
+        vEl.onwaiting = showSpinner;
+        vEl.onstalled = showSpinner;
+        vEl.onplaying = hideSpinner;
+        vEl.oncanplay = hideSpinner;
+        vEl.onloadeddata = hideSpinner;
+        vEl.ontimeupdate = hideSpinner;
+      }
+    });
   }
   document.getElementById('videoSelectorDropdown').classList.add('hidden');
   const hiddenVideoInput = document.getElementById('selectedVideoId');
