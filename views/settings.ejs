@@ -494,48 +494,30 @@
 
     <div id="about-tab" class="settings-content hidden">
       <div class="bg-gray-800 rounded-lg p-6 max-w-3xl">
-        <h3 class="text-lg font-semibold mb-6">About StreamFlow</h3>
+        <h3 class="text-lg font-semibold mb-6">About MultiStream</h3>
         <div class="prose text-sm prose-invert prose-sm max-w-none text-gray-300 space-y-4">
           <p>
-            StreamFlow is a free and open-source live streaming application designed to help content creators 
-            broadcast to multiple platforms simultaneously. Built with simplicity and performance in mind, 
-            StreamFlow runs on your own server, giving you full control over your streaming infrastructure.
+            MultiStream is a professional live streaming application designed to help creators and teams 
+            broadcast high-fidelity video streams to multiple platforms simultaneously with zero-downtime hot reloading.
           </p>
           <p>
-            With StreamFlow, you can stream pre-recorded videos to platforms like YouTube, Facebook, and any 
-            RTMP-compatible service. The application supports scheduled streaming, allowing you to plan your 
-            broadcasts in advance and let the system handle the rest automatically.
+            With MultiStream, you can stream pre-recorded videos to platforms like YouTube, Facebook, and any 
+            RTMP-compatible service. The application supports exact-time scheduled streaming, allowing you to plan your 
+            broadcasts in advance and let the system handle start and termination automatically.
           </p>
           <p>
-            StreamFlow is built using Node.js and leverages FFmpeg for video processing. It uses SQLite for 
-            data storage, making it lightweight and easy to deploy on minimal hardware. The application requires 
-            only 1 CPU core and 1GB of RAM to run effectively.
+            MultiStream is built using Node.js and leverages FFmpeg for video processing. It uses SQLite for 
+            data storage, making it lightweight and easy to deploy on minimal hardware.
           </p>
           <h4 class="text-white font-medium pt-4">Version</h4>
-          <p>StreamFlow v<%= typeof appVersion !== 'undefined' ? appVersion : '2.1.0' %></p>
+          <p>MultiStream v<%= typeof appVersion !== 'undefined' ? appVersion : '2.2.3' %></p>
           <h4 class="text-white font-medium pt-4">License</h4>
           <p>
-            StreamFlow is released under the MIT License. You are free to use, modify, and distribute this 
-            software for personal or commercial purposes. See the 
-            <a href="https://github.com/bangtutorial/streamflow/blob/main/LICENSE.md" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">LICENSE</a> 
-            file for more details.
+            MultiStream is released under the MIT License. You are free to use, modify, and distribute this 
+            software for personal or commercial purposes.
           </p>
-          <h4 class="text-white font-medium pt-4">Contributors</h4>
-          <p>
-            StreamFlow is made possible by the contributions of the open-source community. We thank all 
-            contributors who have helped improve this project.
-          </p>
-          <div id="contributors-container" class="py-2 flex flex-wrap gap-2">
-            <div class="text-gray-500 text-sm">Loading contributors...</div>
-          </div>
-          <h4 class="text-white font-medium pt-4">Links</h4>
-          <ul class="list-disc list-inside space-y-1">
-            <li><a href="https://github.com/bangtutorial/streamflow" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">GitHub Repository</a></li>
-            <li><a href="https://github.com/bangtutorial/streamflow/issues" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">Report Issues</a></li>
-            <li><a href="https://youtube.com/bangtutorial" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">YouTube Channel</a></li>
-          </ul>
           <div class="border-t border-gray-700 pt-6 mt-6">
-            <p class="text-gray-500 text-sm">© 2026 Bang Tutorial. All rights reserved.</p>
+            <p class="text-gray-500 text-sm">© 2026 MultiStream. All rights reserved.</p>
           </div>
         </div>
       </div>
@@ -1159,19 +1141,7 @@
   }
 
   async function loadContributors() {
-    const container = document.getElementById('contributors-container');
-    try {
-      const response = await fetch('https://api.github.com/repos/bangtutorial/streamflow/contributors');
-      if (!response.ok) throw new Error('Failed to fetch');
-      const contributors = await response.json();
-      container.innerHTML = contributors.map(c => `
-        <a href="${c.html_url}" target="_blank" rel="noopener noreferrer" title="${c.login}" class="block">
-          <img src="${c.avatar_url}&s=40" alt="${c.login}" class="w-10 h-10 rounded-full hover:ring-2 hover:ring-primary transition-all">
-        </a>
-      `).join('');
-    } catch (error) {
-      container.innerHTML = '<a href="https://github.com/bangtutorial/streamflow/graphs/contributors" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline text-sm">View contributors on GitHub</a>';
-    }
+    // Deprecated
   }
 
   const aboutTab = document.querySelector('.settings-tab[data-tab="about"]');

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>
-    <%= title %> - StreamFlow
+    <%= title %> - MultiStream
   </title>
   <link rel="icon" href="/images/logo.svg?v=2" type="image/svg+xml">
   <link rel="shortcut icon" href="/images/logo.svg?v=2" type="image/svg+xml">
@@ -75,7 +75,7 @@
   <div
     class="lg:hidden fixed top-0 left-0 right-0 h-16 bg-dark-800 shadow-lg flex items-center justify-between px-6 z-30">
     <div class="flex items-center">
-      <img src="/images/logo_mobile.svg" alt="StreamFlow Logo" class="h-8">
+      <img src="/images/logo_mobile.svg" alt="MultiStream Logo" class="h-8">
     </div>
     <div class="flex items-center gap-2">
       <div id="mobile-server-time" class="hidden items-center gap-1.5 text-gray-400 text-sm mr-1">
@@ -93,7 +93,7 @@
   <div class="flex">
     <div class="hidden lg:flex lg:fixed lg:flex-col w-20 h-screen pt-2 bg-dark-800 shadow-lg overflow-hidden">
       <div class="flex items-center justify-center h-14 w-14 mx-auto mb-4">
-        <img src="/images/logo.svg" alt="StreamFlow Logo" class="w-9 h-9">
+        <img src="/images/logo.svg" alt="MultiStream Logo" class="w-9 h-9">
       </div>
       <div class="flex-1">
         <a href="/dashboard" class="sidebar-icon group <%= active === 'dashboard' ? 'bg-primary' : '' %>">
@@ -263,18 +263,18 @@
       </div>
     </div>
   </div>
-  <div id="streamflowUpdateModal" class="fixed inset-0 bg-black/60 z-[60] hidden items-center justify-center p-4 overflow-y-auto">
+  <div id="appUpdateModal" class="fixed inset-0 bg-black/60 z-[60] hidden items-center justify-center p-4 overflow-y-auto">
     <div class="bg-dark-800 rounded-xl shadow-xl w-full max-w-2xl m-auto flex flex-col max-h-[90vh] border border-gray-700/50">
       <div class="flex-shrink-0 flex items-center justify-between px-5 py-2 border-b border-gray-700/50">
         <h3 class="text-lg font-medium text-white flex items-center gap-2">
-          <span class="text-base">🎉 Update StreamFlow v2</span>
+          <span class="text-base">🎉 Update MultiStream v2</span>
         </h3>
-        <button onclick="closeStreamflowUpdateModal()" class="text-gray-400 hover:text-white hover:bg-gray-700/50 px-2 py-1 rounded-lg transition-colors">
+        <button onclick="closeAppUpdateModal()" class="text-gray-400 hover:text-white hover:bg-gray-700/50 px-2 py-1 rounded-lg transition-colors">
           <i class="ti ti-x text-lg"></i>
         </button>
       </div>
       <div class="p-5 overflow-y-auto text-gray-300 space-y-4">
-        <p class="text-sm">Terima kasih buat teman-teman yang sudah menunggu. Berikut adalah update terbaru yang ada di StreamFlow v2:</p>
+        <p class="text-sm">Terima kasih buat teman-teman yang sudah menunggu. Berikut adalah update terbaru yang ada di MultiStream v2:</p>
         
         <div class="space-y-4">
           <div class="flex items-start gap-3">
@@ -285,7 +285,7 @@
             </div>
             <div>
               <h4 class="font-medium text-white text-sm">UI Baru yang Lebih Fresh</h4>
-              <p class="text-gray-300 mt-1 text-sm">Tampilan baru yang lebih fresh dan user freindly. Sudah dibikin senyaman mungkin untuk kebutuhan live streaming.</p>
+              <p class="text-gray-300 mt-1 text-sm">Tampilan baru yang lebih fresh dan user friendly. Sudah dibikin senyaman mungkin untuk kebutuhan live streaming.</p>
             </div>
           </div>
           
@@ -297,7 +297,7 @@
             </div>
             <div>
               <h4 class="font-medium text-white text-sm">Live Streaming Lebih Ringan</h4>
-              <p class="text-gray-300 mt-1 text-sm">Di StreamFlow v2, proses streaming sudah dioptimalkan, sehingga jauh lebih ringan dibandingkan StreamFlow v1 sebelumnya.</p>
+              <p class="text-gray-300 mt-1 text-sm">Di MultiStream v2, proses streaming sudah dioptimalkan, sehingga jauh lebih ringan dibandingkan versi sebelumnya.</p>
             </div>
           </div>
           
@@ -321,7 +321,7 @@
             </div>
             <div>
               <h4 class="font-medium text-white text-sm">Fix Bug</h4>
-              <p class="text-gray-300 mt-1 text-sm">Beberapa bug yang sering ditemui di versi sebelumnya sudah di fix pada StreamFlow v2 ini, salah satunya bug streaming tiba-tiba terhenti.</p>
+              <p class="text-gray-300 mt-1 text-sm">Beberapa bug yang sering ditemui di versi sebelumnya sudah di-fix pada MultiStream v2 ini, salah satunya bug streaming tiba-tiba terhenti.</p>
             </div>
           </div>
         </div>
@@ -603,8 +603,8 @@
     if (mobileClockEl) mobileClockEl.textContent = timeStr;
   }
 
-  function openStreamflowUpdateModal() {
-    const modal = document.getElementById('streamflowUpdateModal');
+  function openAppUpdateModal() {
+    const modal = document.getElementById('appUpdateModal');
     if (modal) {
       modal.classList.remove('hidden');
       modal.classList.add('flex');
@@ -612,8 +612,8 @@
     }
   }
 
-  function closeStreamflowUpdateModal() {
-    const modal = document.getElementById('streamflowUpdateModal');
+  function closeAppUpdateModal() {
+    const modal = document.getElementById('appUpdateModal');
     if (modal) {
       modal.classList.add('hidden');
       modal.classList.remove('flex');
@@ -621,17 +621,21 @@
     }
   }
 
+  // Compatibility aliases
+  function openStreamflowUpdateModal() { openAppUpdateModal(); }
+  function closeStreamflowUpdateModal() { closeAppUpdateModal(); }
+
   document.addEventListener('keydown', (e) => {
-    const updateModal = document.getElementById('streamflowUpdateModal');
+    const updateModal = document.getElementById('appUpdateModal');
     if (e.key === 'Escape' && updateModal && !updateModal.classList.contains('hidden')) {
-      closeStreamflowUpdateModal();
+      closeAppUpdateModal();
     }
   });
 
   document.addEventListener('click', (e) => {
-    const updateModal = document.getElementById('streamflowUpdateModal');
+    const updateModal = document.getElementById('appUpdateModal');
     if (updateModal && e.target === updateModal) { 
-      closeStreamflowUpdateModal();
+      closeAppUpdateModal();
     }
   });
 </script>
