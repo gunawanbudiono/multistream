@@ -1820,18 +1820,8 @@ function renderYtQueue() {
   const batchSizeStr = totalBatchBytes > 0 ? ` • ~${formatClientBytes(totalBatchBytes)}` : '';
   const countLabel = ytDownloadQueue.length === 1 ? '1 item' : `${ytDownloadQueue.length} items`;
 
-  const hasExactDuplicate = ytDownloadQueue.some(item => 
-    item.alreadyInGallery && item.alreadyInGallery.exists && 
-    String(item.selectedResolution) === String(item.alreadyInGallery.existingHeight)
-  );
-
-  if (hasExactDuplicate) {
-    if (submitBtn) submitBtn.disabled = true;
-    if (submitText) submitText.textContent = 'Change Quality to Download (Duplicate Detected)';
-  } else {
-    if (submitBtn) submitBtn.disabled = (ytActiveJobId !== null);
-    if (submitText) submitText.textContent = `Start Download (${countLabel}${batchSizeStr})`;
-  }
+  if (submitBtn) submitBtn.disabled = (ytActiveJobId !== null);
+  if (submitText) submitText.textContent = `Start Download (${countLabel}${batchSizeStr})`;
 
   if (cardsContainer) {
     cardsContainer.innerHTML = ytDownloadQueue.map((item, idx) => {
@@ -1843,15 +1833,15 @@ function renderYtQueue() {
         const isSelected = String(item.selectedResolution) === String(val) ? 'selected' : '';
         const isThisOptionSaved = item.alreadyInGallery && item.alreadyInGallery.exists &&
           String(val) === String(item.alreadyInGallery.existingHeight);
-        const optLabel = isThisOptionSaved ? `${r.label} (Already Downloaded)` : r.label;
+        const optLabel = isThisOptionSaved ? `${r.label} (Already in Gallery)` : r.label;
         return `<option value="${val}" ${isSelected}>${optLabel}</option>`;
       }).join('');
 
       let duplicateBadgeHtml = '';
       if (isExactDuplicate) {
-        duplicateBadgeHtml = `<div class="mb-1.5 inline-flex items-center gap-1.5 text-[10px] text-red-400 bg-red-500/10 border border-red-500/25 px-2 py-0.5 rounded-md font-medium">
-          <i class="ti ti-ban text-xs shrink-0"></i>
-          <span>Exact Duplicate: Already saved in ${item.alreadyInGallery.resolution}. Please select a different quality.</span>
+        duplicateBadgeHtml = `<div class="mb-1.5 inline-flex items-center gap-1.5 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md font-medium">
+          <i class="ti ti-info-circle text-xs shrink-0"></i>
+          <span>Note: Already saved in ${item.alreadyInGallery.resolution} (Will download as copy)</span>
         </div>`;
       } else if (item.alreadyInGallery && item.alreadyInGallery.exists) {
         duplicateBadgeHtml = `<div class="mb-1.5 inline-flex items-center gap-1.5 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-md font-medium">

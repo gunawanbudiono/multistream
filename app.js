@@ -4070,13 +4070,26 @@ app.post('/api/youtube/inspect', isAuthenticated, async (req, res) => {
       const userId = req.session.userId;
       const titleSearch = metadata.title ? metadata.title.slice(0, 35) : '';
       const existingVideo = await new Promise((resolve) => {
-        db.get(
-          `SELECT id, title, resolution, format, duration FROM videos 
-           WHERE user_id = ? AND (title = ? OR (duration > 0 AND ABS(duration - ?) <= 2 AND title LIKE ?)) 
-           LIMIT 1`,
-          [userId, metadata.title, metadata.duration || 0, `%${titleSearch}%`],
-          (err, row) => resolve(row || null)
-        );
+        if (!metadata.duration || metadata.duration <= 0) {
+          db.get(
+            `SELECT id, title, resolution, format, duration FROM videos 
+             WHERE user_id = ? AND title = ? 
+             LIMIT 1`,
+            [userId, metadata.title],
+            (err, row) => resolve(row || null)
+          );
+        } else {
+          db.get(
+            `SELECT id, title, resolution, format, duration FROM videos 
+             WHERE user_id = ? 
+               AND duration > 0 
+               AND ABS(duration - ?) <= 3 
+               AND (title = ? OR title LIKE ?) 
+             LIMIT 1`,
+            [userId, metadata.duration, metadata.title, `%${titleSearch}%`],
+            (err, row) => resolve(row || null)
+          );
+        }
       });
 
       if (existingVideo) {
