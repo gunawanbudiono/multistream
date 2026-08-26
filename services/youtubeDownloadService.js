@@ -14,7 +14,10 @@ fs.ensureDirSync(VIDEOS_DIR);
 fs.ensureDirSync(THUMBNAILS_DIR);
 
 function getYtDlpRunner() {
-  return { cmd: 'python3', prefixArgs: ['-u', '-m', 'yt_dlp'] };
+  if (fs.existsSync('/usr/local/bin/yt-dlp')) {
+    return { cmd: '/usr/local/bin/yt-dlp', prefixArgs: [] };
+  }
+  return { cmd: 'yt-dlp', prefixArgs: [] };
 }
 
 function formatDuration(sec) {
