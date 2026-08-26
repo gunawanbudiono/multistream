@@ -86,8 +86,7 @@ function cleanYoutubeUrl(url) {
 
 function getPotArgs() {
   return [
-    '--remote-components', 'ejs:github',
-    '--extractor-args', 'youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'
+    '--extractor-args', 'youtube:player_client=android,ios,web;youtubepot-bgutilhttp:base_url=http://multistream-pot-provider:4416'
   ];
 }
 
