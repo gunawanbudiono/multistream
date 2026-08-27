@@ -365,7 +365,11 @@ async function processJobQueue(jobId, queueItems) {
       const item = queueItems[i];
       if (!item) break;
 
-      job.itemsStatus[i].status = 'downloading';
+      job.itemsStatus[i].status = 'connecting';
+      job.itemsStatus[i].progress = 0;
+      job.itemsStatus[i].speed = '';
+      job.itemsStatus[i].rawSpeedBps = 0;
+      job.itemsStatus[i].sizeProgress = 'Connecting to YouTube stream...';
       updateOverallProgress();
 
       try {
@@ -564,6 +568,15 @@ async function downloadSingleItem(job, item, i, onProgress) {
   }
 
   if (await fs.pathExists(finalFilePath)) {
+    if (job.itemsStatus && job.itemsStatus[i]) {
+      job.itemsStatus[i].status = 'processing';
+      job.itemsStatus[i].progress = 99;
+      job.itemsStatus[i].speed = '';
+      job.itemsStatus[i].rawSpeedBps = 0;
+      job.itemsStatus[i].sizeProgress = 'Finalizing & saving to Gallery...';
+    }
+    if (typeof onProgress === 'function') onProgress();
+
     const stat = await fs.stat(finalFilePath);
     const thumbnailFilename = `thumb-${path.parse(finalFilename).name}.jpg`;
     const thumbnailPath = `/uploads/thumbnails/${thumbnailFilename}`;
@@ -593,7 +606,9 @@ async function downloadSingleItem(job, item, i, onProgress) {
       job.itemsStatus[i].progress = 100;
       job.itemsStatus[i].speed = '';
       job.itemsStatus[i].rawSpeedBps = 0;
+      job.itemsStatus[i].sizeProgress = '';
     }
+    if (typeof onProgress === 'function') onProgress();
   }
 }
 
