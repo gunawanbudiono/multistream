@@ -903,6 +903,10 @@ async function startStream(streamId, isRetry = false, baseUrl = null, resumeOffs
             startupState.resolve();
           }
           const timeMatch = line.match(/time=(\d+):(\d+):(\d+\.?\d*)/);
+          const fpsMatch = line.match(/fps=\s*([\d.]+)/);
+          const bitrateMatch = line.match(/bitrate=\s*([\d.]+\s*[kKmMgG]?bits?\/s)/i);
+          const speedMatch = line.match(/speed=\s*([\d.]+)x/i);
+
           if (timeMatch) {
             const h = parseInt(timeMatch[1], 10);
             const m = parseInt(timeMatch[2], 10);
@@ -912,6 +916,24 @@ async function startStream(streamId, isRetry = false, baseUrl = null, resumeOffs
             if (streamData) {
               const baseOffset = streamData.resumeOffset || 0;
               streamData.lastPlaybackTime = baseOffset + currentSeconds;
+
+              if (!streamData.telemetry) {
+                streamData.telemetry = { fps: 0, bitrate: '', speed: '1.0x', health: 'excellent', lastUpdate: Date.now() };
+              }
+              if (fpsMatch) streamData.telemetry.fps = parseFloat(fpsMatch[1]);
+              if (bitrateMatch) streamData.telemetry.bitrate = bitrateMatch[1].trim();
+              if (speedMatch) {
+                const spVal = parseFloat(speedMatch[1]);
+                streamData.telemetry.speed = `${spVal}x`;
+                if (spVal >= 0.95 && spVal <= 1.05) {
+                  streamData.telemetry.health = 'excellent';
+                } else if (spVal >= 0.80) {
+                  streamData.telemetry.health = 'good';
+                } else {
+                  streamData.telemetry.health = 'warning';
+                }
+              }
+              streamData.telemetry.lastUpdate = Date.now();
 
               // Check if loop was disabled at runtime and current cycle has completed!
               if (streamData.stopAtCycleEnd && streamData.stopAtPlaybackTime && streamData.lastPlaybackTime >= streamData.stopAtPlaybackTime) {
@@ -1191,7 +1213,8 @@ function getActiveStreamInfo(streamId) {
     endTime: streamData.endTime,
     pid: streamData.pid,
     lastActivity: streamData.lastActivity,
-    retryCount: streamRetryCount.get(streamId) || 0
+    retryCount: streamRetryCount.get(streamId) || 0,
+    telemetry: streamData.telemetry || { fps: 0, bitrate: '', speed: '1.0x', health: 'excellent' }
   };
 }
 

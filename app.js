@@ -5106,9 +5106,25 @@ app.get('/api/streams', isAuthenticated, async (req, res) => {
         filter,
         search
       });
+      if (result.streams && Array.isArray(result.streams)) {
+        result.streams.forEach(s => {
+          if (s.status === 'live') {
+            const info = streamingService.getActiveStreamInfo(s.id);
+            if (info && info.telemetry) s.telemetry = info.telemetry;
+          }
+        });
+      }
       res.json({ success: true, ...result });
     } else {
       const streams = await Stream.findAll(req.session.userId, filter);
+      if (Array.isArray(streams)) {
+        streams.forEach(s => {
+          if (s.status === 'live') {
+            const info = streamingService.getActiveStreamInfo(s.id);
+            if (info && info.telemetry) s.telemetry = info.telemetry;
+          }
+        });
+      }
       res.json({ success: true, streams });
     }
   } catch (error) {

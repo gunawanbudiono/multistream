@@ -2022,7 +2022,13 @@
       }
       let statusBadge = '';
       if (stream.status === 'live') {
-        statusBadge = `<span class="flex items-center text-red-400"><span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse mr-1"></span><span class="text-[10px] font-medium">Live${durationDisplay ? ' • ' : ''}</span>${durationDisplay ? `<span class="text-[10px] font-medium tabular-nums live-duration" data-start-time="${stream.start_time}">${durationDisplay}</span>` : ''}</span>`;
+        let telemetryHTML = '';
+        if (stream.telemetry && (stream.telemetry.fps || stream.telemetry.bitrate)) {
+          const t = stream.telemetry;
+          const healthColor = t.health === 'excellent' ? 'text-emerald-400 border-emerald-500/30' : (t.health === 'good' ? 'text-cyan-400 border-cyan-500/30' : 'text-amber-400 border-amber-500/30');
+          telemetryHTML = `<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-dark-900 border ${healthColor} flex items-center gap-1"><i class="ti ti-activity text-[10px]"></i> ${t.fps ? Math.round(t.fps) + 'fps' : ''}${t.bitrate ? ' • ' + t.bitrate : ''}</span>`;
+        }
+        statusBadge = `<div class="flex items-center gap-2"><span class="flex items-center text-red-400"><span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse mr-1"></span><span class="text-[10px] font-medium">Live${durationDisplay ? ' • ' : ''}</span>${durationDisplay ? `<span class="text-[10px] font-medium tabular-nums live-duration" data-start-time="${stream.start_time}">${durationDisplay}</span>` : ''}</span>${telemetryHTML}</div>`;
       } else if (stream.status === 'scheduled') {
         statusBadge = `<span class="flex items-center text-yellow-500"><i class="ti ti-calendar-event text-[10px] mr-1"></i><span class="text-[10px] font-medium">Scheduled</span></span>`;
       } else {
@@ -2131,12 +2137,21 @@
         const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
         const seconds = Math.floor((durationMs % (1000 * 60)) / 1000).toString().padStart(2, '0');
         durationDisplay = `${hours}:${minutes}:${seconds}`;
+        let telemetryHTML = '';
+        if (stream.telemetry && (stream.telemetry.fps || stream.telemetry.bitrate)) {
+          const t = stream.telemetry;
+          const healthColor = t.health === 'excellent' ? 'text-emerald-400 border-emerald-500/30' : (t.health === 'good' ? 'text-cyan-400 border-cyan-500/30' : 'text-amber-400 border-amber-500/30');
+          telemetryHTML = `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-dark-900 border ${healthColor} flex items-center gap-1"><i class="ti ti-activity text-xs"></i> ${t.fps ? Math.round(t.fps) + 'fps' : ''}${t.bitrate ? ' • ' + t.bitrate : ''}</span>`;
+        }
         statusBadge = `
-          <span class="flex items-center bg-red-400/10 text-red-400 rounded-full px-2.5 py-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse mr-1.5"></span>
-            <span class="text-xs font-medium">Live • <span class="live-duration tabular-nums" data-start-time="${stream.start_time}">
-              ${durationDisplay}</span></span>
-          </span>
+          <div class="flex items-center gap-2">
+            <span class="flex items-center bg-red-400/10 text-red-400 rounded-full px-2.5 py-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse mr-1.5"></span>
+              <span class="text-xs font-medium">Live • <span class="live-duration tabular-nums" data-start-time="${stream.start_time}">
+                ${durationDisplay}</span></span>
+            </span>
+            ${telemetryHTML}
+          </div>
         `;
       } else {
         statusBadge = getStatusBadgeHTML(stream.status);

@@ -458,8 +458,34 @@ async function initializeDatabase() {
   console.log('Database tables initialized successfully');
 }
 
+function runDatabaseOptimization() {
+  return new Promise((resolve) => {
+    db.serialize(() => {
+      // 1. Non-blocking checkpoint to truncate wal file without locking writers
+      db.run('PRAGMA wal_checkpoint(PASSIVE);', (err) => {
+        if (err) console.warn('[Database] WAL passive checkpoint notice:', err.message);
+      });
+      // 2. Query planner index stats optimization
+      db.run('PRAGMA optimize;', (err) => {
+        if (err) console.warn('[Database] PRAGMA optimize notice:', err.message);
+        resolve();
+      });
+    });
+  });
+}
+
+// Run database optimization on startup (after 10s) and periodically every 6 hours
+setTimeout(() => {
+  runDatabaseOptimization();
+}, 10000);
+
+setInterval(() => {
+  runDatabaseOptimization();
+}, 6 * 60 * 60 * 1000);
+
 module.exports = {
   db,
   checkIfUsersExist,
-  initializeDatabase
+  initializeDatabase,
+  runDatabaseOptimization
 };
