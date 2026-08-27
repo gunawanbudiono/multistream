@@ -88,8 +88,8 @@ function createTables() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         user_id TEXT,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (video_id) REFERENCES videos(id)
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE SET NULL
       )`);
       
       db.run(`CREATE TABLE IF NOT EXISTS stream_history (
@@ -314,7 +314,7 @@ function createTables() {
         end_time TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (rotation_id) REFERENCES stream_rotations(id) ON DELETE CASCADE,
-        FOREIGN KEY (video_id) REFERENCES videos(id)
+        FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
       )`);
 
       // Add start_time, end_time, and repeat_mode columns to stream_rotations table

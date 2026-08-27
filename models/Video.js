@@ -114,14 +114,31 @@ class Video {
           if (!video) {
             return reject(new Error('Video not found'));
           }
-          db.run('DELETE FROM videos WHERE id = ?', [id], function (err) {
-            if (err) {
-              console.error('Error deleting video from database:', err.message);
-              return reject(err);
-            }
-            Video.removeOwnedAsset(video.filepath);
-            Video.removeOwnedAsset(video.thumbnail_path);
-            resolve({ success: true, id });
+          db.serialize(() => {
+            db.run('UPDATE stream_history SET video_id = NULL WHERE video_id = ?', [id], (err) => {
+              if (err) console.error('Error unlinking stream_history before video delete:', err.message);
+            });
+            db.run('UPDATE streams SET video_id = NULL WHERE video_id = ?', [id], (err) => {
+              if (err) console.error('Error unlinking streams before video delete:', err.message);
+            });
+            db.run('DELETE FROM stream_rotation_items WHERE video_id = ?', [id], (err) => {
+              if (err) console.error('Error removing rotation items before video delete:', err.message);
+            });
+            db.run('DELETE FROM playlist_videos WHERE video_id = ?', [id], (err) => {
+              if (err) console.error('Error removing playlist videos before video delete:', err.message);
+            });
+            db.run('DELETE FROM playlist_audios WHERE audio_id = ?', [id], (err) => {
+              if (err) console.error('Error removing playlist audios before video delete:', err.message);
+            });
+            db.run('DELETE FROM videos WHERE id = ?', [id], function (deleteErr) {
+              if (deleteErr) {
+                console.error('Error deleting video from database:', deleteErr.message);
+                return reject(deleteErr);
+              }
+              Video.removeOwnedAsset(video.filepath);
+              Video.removeOwnedAsset(video.thumbnail_path);
+              resolve({ success: true, id });
+            });
           });
         })
         .catch(err => reject(err));
