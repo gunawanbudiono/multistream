@@ -1244,6 +1244,9 @@
 
   function getActionCategoryStyle(category, actionType) {
     if (category === 'auth' || (actionType && actionType.startsWith('AUTH'))) {
+      if (actionType && (actionType.includes('FAILED') || actionType.includes('BLOCKED'))) {
+        return { icon: 'ti-shield-x', bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', label: 'AUTH' };
+      }
       return { icon: 'ti-shield-lock', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', label: 'AUTH' };
     }
     if (category === 'admin' || (actionType && actionType.startsWith('USER'))) {
@@ -1256,6 +1259,24 @@
       return { icon: 'ti-video', bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20', label: 'MEDIA' };
     }
     return { icon: 'ti-history', bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', label: 'GENERAL' };
+  }
+
+  function formatIpBadge(ip) {
+    if (!ip) return '';
+    const cleanIp = String(ip).replace(/^::ffff:/, '').trim();
+    const isLocal = cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp.startsWith('172.18.') || cleanIp.startsWith('172.19.') || cleanIp.startsWith('192.168.') || cleanIp.startsWith('10.');
+    
+    if (isLocal) {
+      return `<span class="inline-flex items-center gap-1 text-[10px] text-gray-400 font-mono"><i class="ti ti-lan text-gray-500"></i> ${cleanIp} <span class="text-[9px] px-1 py-0.2 rounded bg-dark-800 text-gray-400 border border-gray-700/60 font-sans">LAN/Docker</span></span>`;
+    }
+    return `<span class="inline-flex items-center gap-1 text-[10px] text-blue-300 font-mono"><i class="ti ti-world text-blue-400"></i> ${cleanIp} <span class="text-[9px] px-1 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-sans">Public IP</span></span>`;
+  }
+
+  function formatDeviceBadge(deviceInfo) {
+    if (!deviceInfo || typeof deviceInfo !== 'object') return '';
+    const icon = deviceInfo.icon || 'ti-device-desktop';
+    const label = deviceInfo.label || `${deviceInfo.browser || 'Browser'} on ${deviceInfo.os || 'Device'}`;
+    return `<span class="inline-flex items-center gap-1 text-[10px] text-gray-400 font-mono" title="${label}"><i class="ti ${icon} text-gray-400 text-xs"></i> ${label}</span>`;
   }
 
   function renderInspectorLogs() {
@@ -1283,6 +1304,8 @@
         const parsedDate = parseDbDate(log.created_at);
         const relTime = formatRelativeTime(parsedDate);
         const fullTimeStr = parsedDate ? parsedDate.toLocaleString('en-GB', { timeZone: 'Asia/Jakarta', month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '';
+        const ipBadgeHtml = formatIpBadge(log.ip_address);
+        const deviceBadgeHtml = formatDeviceBadge(log.device_info);
 
         const logItem = document.createElement('div');
         logItem.className = 'bg-dark-900 border border-[#27272a] rounded-xl p-3.5 flex items-start gap-3 hover:border-gray-600 transition-colors';
@@ -1305,9 +1328,11 @@
             <p class="text-xs text-gray-200 mt-1.5 font-medium leading-relaxed break-words">
               ${log.description || log.action_type}
             </p>
-            ${log.ip_address ? `
-              <div class="mt-1.5 flex items-center gap-1 text-[10px] text-gray-500 font-mono">
-                <i class="ti ti-map-pin text-[11px]"></i> IP: ${log.ip_address}
+            ${(ipBadgeHtml || deviceBadgeHtml) ? `
+              <div class="mt-2 flex items-center gap-2.5 flex-wrap">
+                ${ipBadgeHtml}
+                ${(ipBadgeHtml && deviceBadgeHtml) ? `<span class="text-gray-600">•</span>` : ''}
+                ${deviceBadgeHtml}
               </div>
             ` : ''}
           </div>
@@ -1966,7 +1991,8 @@
         ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-semibold uppercase">Admin</span>`
         : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-semibold uppercase">Member</span>`;
 
-      const ipBadge = log.ip_address ? `<span class="text-[10px] text-gray-500 font-mono flex items-center gap-1"><i class="ti ti-map-pin text-[11px]"></i> ${log.ip_address}</span>` : '';
+      const ipBadgeHtml = formatIpBadge(log.ip_address);
+      const deviceBadgeHtml = formatDeviceBadge(log.device_info);
       const timeAgo = formatTimeAgo(log.created_at);
 
       return `
@@ -1983,9 +2009,10 @@
                 </span>
               </div>
               <p class="text-xs text-gray-300 break-words leading-relaxed">${log.description || 'No description provided'}</p>
-              <div class="mt-1.5 flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+              <div class="mt-2 flex items-center gap-2.5 text-[11px] text-gray-500 flex-wrap">
                 <span class="flex items-center gap-1"><i class="ti ti-clock text-xs text-gray-400"></i> ${timeAgo}</span>
-                ${ipBadge ? `<span>•</span>${ipBadge}` : ''}
+                ${(ipBadgeHtml || deviceBadgeHtml) ? `<span>•</span>${ipBadgeHtml}` : ''}
+                ${deviceBadgeHtml ? `<span>•</span>${deviceBadgeHtml}` : ''}
               </div>
             </div>
           </div>

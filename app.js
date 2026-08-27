@@ -455,6 +455,14 @@ app.post('/login', loginDelayMiddleware, loginLimiter, async (req, res) => {
     
     const user = await User.findByUsername(username);
     if (!user) {
+      logActivity({
+        userId: 'system',
+        performedBy: username || 'Unknown',
+        actionType: 'AUTH_LOGIN_FAILED',
+        category: 'auth',
+        description: `Failed login attempt for non-existent username '${username}'`,
+        req
+      });
       return res.render('login', {
         title: 'Login',
         error: 'Invalid username or password',
@@ -463,6 +471,14 @@ app.post('/login', loginDelayMiddleware, loginLimiter, async (req, res) => {
     }
     const passwordMatch = await User.verifyPassword(password, user.password);
     if (!passwordMatch) {
+      logActivity({
+        userId: user.id,
+        performedBy: user.username,
+        actionType: 'AUTH_LOGIN_FAILED',
+        category: 'auth',
+        description: `Failed login attempt for user '${user.username}' (Invalid password)`,
+        req
+      });
       return res.render('login', {
         title: 'Login',
         error: 'Invalid username or password',
@@ -471,6 +487,14 @@ app.post('/login', loginDelayMiddleware, loginLimiter, async (req, res) => {
     }
     
     if (user.status !== 'active') {
+      logActivity({
+        userId: user.id,
+        performedBy: user.username,
+        actionType: 'AUTH_LOGIN_BLOCKED',
+        category: 'auth',
+        description: `Blocked login attempt for inactive account '${user.username}'`,
+        req
+      });
       return res.render('login', {
         title: 'Login',
         error: 'Your account is not active. Please contact administrator for activation.',
@@ -491,7 +515,7 @@ app.post('/login', loginDelayMiddleware, loginLimiter, async (req, res) => {
       actionType: 'AUTH_LOGIN',
       category: 'auth',
       description: `User '${user.username}' logged in successfully`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for']) || req.socket.remoteAddress
+      req
     });
 
     res.redirect('/dashboard');
@@ -512,7 +536,7 @@ app.get('/logout', (req, res) => {
       actionType: 'AUTH_LOGOUT',
       category: 'auth',
       description: `User '${req.session.username}' logged out`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for']) || req.socket.remoteAddress
+      req
     });
   }
   req.session.destroy();

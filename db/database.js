@@ -218,6 +218,12 @@ function createTables() {
         }
       });
 
+      db.run(`ALTER TABLE user_activity_logs ADD COLUMN user_agent TEXT`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('Error adding user_agent column:', err.message);
+        }
+      });
+
       db.run(`ALTER TABLE users ADD COLUMN youtube_channel_name TEXT`, (err) => {
         if (err && !err.message.includes('duplicate column name')) {
           console.error('Error adding youtube_channel_name column:', err.message);
