@@ -4126,7 +4126,12 @@ app.post('/api/youtube/inspect', isAuthenticated, async (req, res) => {
     res.json({ success: true, metadata });
   } catch (error) {
     console.error('YouTube inspect error:', error);
-    res.status(500).json({ success: false, error: error.message || 'Failed to scan YouTube video' });
+    res.status(400).json({
+      success: false,
+      code: error.code || 'SCAN_ERROR',
+      needsCookie: !!error.needsCookie,
+      error: error.message || 'Failed to scan YouTube video'
+    });
   }
 });
 

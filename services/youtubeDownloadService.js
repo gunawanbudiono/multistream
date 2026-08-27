@@ -105,6 +105,36 @@ function getCookieArgs() {
   return [];
 }
 
+function formatYtDlpError(errText) {
+  const raw = String(errText || '');
+  if (/Sign in to confirm you('re| are) not a bot|--cookies|confirm you're not a bot|cookies are expired|requires authentication|login/i.test(raw)) {
+    const err = new Error('YouTube session cookie has expired or verification is required. Please refresh your cookies in Cookie Setup to continue.');
+    err.code = 'COOKIE_EXPIRED';
+    err.needsCookie = true;
+    return err;
+  }
+  if (/HTTP Error 429|Too Many Requests/i.test(raw)) {
+    const err = new Error('YouTube request limit reached. Please update cookies in Cookie Setup to resume immediate downloads.');
+    err.code = 'COOKIE_EXPIRED';
+    err.needsCookie = true;
+    return err;
+  }
+  if (/Private video|This video is private/i.test(raw)) {
+    const err = new Error('This YouTube video is private or requires authorized account access.');
+    err.code = 'PRIVATE_VIDEO';
+    return err;
+  }
+  if (/Video unavailable|This video has been removed/i.test(raw)) {
+    const err = new Error('This YouTube video is unavailable or has been removed.');
+    err.code = 'VIDEO_UNAVAILABLE';
+    return err;
+  }
+  const cleaned = raw.replace(/^ERROR:\s*(\[[^\]]+\]\s*)?([a-zA-Z0-9_-]+:\s*)?/, '').split('\n')[0].trim();
+  const err = new Error(cleaned || 'Failed to inspect YouTube URL');
+  err.code = 'YT_ERROR';
+  return err;
+}
+
 /**
  * Inspects a YouTube URL and extracts rich metadata and available resolutions.
  */
@@ -126,7 +156,7 @@ async function inspectVideo(rawUrl) {
 
     execFile(runner.cmd, args, { maxBuffer: 10 * 1024 * 1024, timeout: 35000 }, (error, stdout, stderr) => {
       if (error) {
-        return reject(new Error(stderr || error.message || 'Failed to inspect YouTube URL'));
+        return reject(formatYtDlpError(stderr || error.message));
       }
 
       try {
@@ -714,5 +744,6 @@ module.exports = {
   verifyCookie,
   startDownloadJob,
   getJobStatus,
-  cancelJob
+  cancelJob,
+  formatYtDlpError
 };

@@ -674,9 +674,9 @@ function detectMediaType(item) {
               <span id="ytCookieBannerDesc" class="text-[11px] text-amber-300/80">Required to download copyright-protected or official music videos.</span>
             </div>
           </div>
-          <button type="button" onclick="openYouTubeCookieModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs rounded-lg transition-colors shrink-0 shadow flex items-center gap-1">
-            <i class="ti ti-settings text-sm"></i>
-            <span>Setup Cookie</span>
+          <button type="button" onclick="openYouTubeCookieModal()" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs rounded-lg transition-all shrink-0 shadow flex items-center gap-1.5 hover:scale-105 active:scale-95">
+            <i class="ti ti-refresh text-sm"></i>
+            <span id="ytCookieBannerBtnText">Refresh Cookie</span>
           </button>
         </div>
 
@@ -760,8 +760,8 @@ function detectMediaType(item) {
             <i class="ti ti-cookie text-2xl"></i>
           </div>
           <div>
-            <h3 class="text-base font-bold text-white">YouTube Cookie Setup</h3>
-            <p class="text-xs text-gray-400">One-time setup for protected & official music videos</p>
+            <h3 class="text-base font-bold text-white">YouTube Cookie Setup & Refresh</h3>
+            <p class="text-xs text-gray-400">Update session cookies to bypass YouTube bot checks & download in Full HD</p>
           </div>
         </div>
         <button type="button" onclick="closeYouTubeCookieModal()" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
@@ -776,7 +776,7 @@ function detectMediaType(item) {
           <div class="flex items-start gap-2.5">
             <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0 text-[11px]">1</span>
             <div class="text-gray-300">
-              Install Chrome extension: 
+              Install Chrome extension (if not installed yet): 
               <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener" class="text-amber-400 hover:underline font-semibold inline-flex items-center gap-0.5">
                 Get cookies.txt locally <i class="ti ti-external-link text-xs"></i>
               </a>
@@ -785,13 +785,13 @@ function detectMediaType(item) {
           <div class="flex items-start gap-2.5">
             <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0 text-[11px]">2</span>
             <div class="text-gray-300">
-              Open <a href="https://www.youtube.com" target="_blank" rel="noopener" class="text-red-400 hover:underline font-semibold">youtube.com</a> in a new tab (make sure you are logged in).
+              Open <a href="https://www.youtube.com" target="_blank" rel="noopener" class="text-red-400 hover:underline font-semibold">youtube.com</a> in a new tab (ensure you are logged in to your Google/YouTube account).
             </div>
           </div>
           <div class="flex items-start gap-2.5">
             <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0 text-[11px]">3</span>
             <div class="text-gray-300">
-              Click the extension icon &rarr; click <strong class="text-amber-300">Copy 📋</strong> (or <strong class="text-gray-300">Export 📥</strong>) &rarr; paste or upload below.
+              Click the extension icon &rarr; click <strong class="text-amber-300">Copy 📋</strong> (or <strong class="text-gray-300">Export 📥</strong>) &rarr; paste into Option 1 below &rarr; click <strong class="text-emerald-400">Save & Activate Cookie</strong>.
             </div>
           </div>
         </div>
@@ -1894,7 +1894,10 @@ async function handleScanYouTubeUrl() {
     const data = await res.json();
 
     if (!data.success || !data.metadata) {
-      throw new Error(data.error || 'Failed to scan YouTube video');
+      const err = new Error(data.error || 'Failed to scan YouTube video');
+      err.code = data.code;
+      err.needsCookie = data.needsCookie;
+      throw err;
     }
 
     const meta = data.metadata;
@@ -1927,23 +1930,31 @@ async function handleScanYouTubeUrl() {
         banner.classList.remove('hidden');
         const titleEl = document.getElementById('ytCookieBannerTitle');
         const descEl = document.getElementById('ytCookieBannerDesc');
+        const btnTextEl = document.getElementById('ytCookieBannerBtnText');
         if (titleEl) titleEl.textContent = 'YouTube SABR Stream Detected (360p Cap)';
-        if (descEl) descEl.textContent = 'YouTube restricted this video to 360p. Update cookies via Incognito robots.txt method to unlock Full HD (1080p/4K).';
+        if (descEl) descEl.textContent = 'YouTube restricted this video to 360p. Refresh cookies to unlock Full HD (1080p/4K).';
+        if (btnTextEl) btnTextEl.textContent = 'Refresh Cookie';
       }
     } else {
       if (banner) banner.classList.add('hidden');
     }
   } catch (error) {
     console.error('YouTube scan error:', error);
-    const msg = error.message || 'Failed to scan video';
-    showToast('error', msg);
-    const banner = document.getElementById('ytCookieAlertBanner');
-    if (banner) {
-      banner.classList.remove('hidden');
-      const titleEl = document.getElementById('ytCookieBannerTitle');
-      const descEl = document.getElementById('ytCookieBannerDesc');
-      if (titleEl) titleEl.textContent = 'YouTube Authentication / Bot Check Required';
-      if (descEl) descEl.textContent = 'Google requires fresh session cookies to scan this video. Please update cookies via Incognito robots.txt.';
+    const isCookieIssue = error.needsCookie || error.code === 'COOKIE_EXPIRED' || /cookie|bot|sign in|authentication/i.test(error.message);
+    if (isCookieIssue) {
+      showToast('error', '⚠️ YouTube cookie expired. Please click "Refresh Cookie" to update your session.');
+      const banner = document.getElementById('ytCookieAlertBanner');
+      if (banner) {
+        banner.classList.remove('hidden');
+        const titleEl = document.getElementById('ytCookieBannerTitle');
+        const descEl = document.getElementById('ytCookieBannerDesc');
+        const btnTextEl = document.getElementById('ytCookieBannerBtnText');
+        if (titleEl) titleEl.textContent = 'YouTube Cookie Expired / Verification Required';
+        if (descEl) descEl.textContent = 'Your YouTube session cookie has expired. Click "Refresh Cookie" to quickly paste fresh cookies from your browser.';
+        if (btnTextEl) btnTextEl.textContent = 'Refresh Cookie';
+      }
+    } else {
+      showToast('error', error.message || 'Failed to scan video');
     }
   } finally {
     scanBtn.disabled = false;
