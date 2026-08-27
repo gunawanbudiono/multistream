@@ -557,6 +557,8 @@ async function downloadSingleItem(job, item, i, onProgress) {
   if (job.status === 'cancelled') {
     try {
       if (await fs.pathExists(finalFilePath)) await fs.remove(finalFilePath);
+      if (await fs.pathExists(finalFilePath + '.part')) await fs.remove(finalFilePath + '.part');
+      if (await fs.pathExists(finalFilePath + '.temp')) await fs.remove(finalFilePath + '.temp');
     } catch (e) {}
     return;
   }
