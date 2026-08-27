@@ -201,21 +201,49 @@ async function cleanupUpload(uploadId) {
 
 async function cleanupOldUploads(maxAgeMs = 2 * 60 * 60 * 1000) {
   try {
-    const files = await fs.readdir(INFO_DIR);
     const now = Date.now();
-    for (const file of files) {
-      if (file.endsWith('.json')) {
-        const infoPath = path.join(INFO_DIR, file);
-        try {
-          const info = await fs.readJson(infoPath);
-          const lastActivity = info.lastActivity || info.createdAt || 0;
-          if (info.status !== 'completed' && (now - lastActivity) > maxAgeMs) {
-            console.log(`[ChunkUploadService] Cleaning up stale upload session: ${info.uploadId} (Inactive for > 2h)`);
-            await cleanupUpload(info.uploadId);
+    const activeUploadIds = new Set();
+
+    // 1. Clean Stale / Abandoned Sessions (> 2 Hours Inactivity)
+    if (await fs.pathExists(INFO_DIR)) {
+      const files = await fs.readdir(INFO_DIR);
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const infoPath = path.join(INFO_DIR, file);
+          try {
+            const info = await fs.readJson(infoPath);
+            const lastActivity = info.lastActivity || info.createdAt || 0;
+            if (info.status !== 'completed' && (now - lastActivity) > maxAgeMs) {
+              console.log(`[ChunkUploadService] Cleaning up stale upload session: ${info.uploadId} (Inactive for > 2h)`);
+              await cleanupUpload(info.uploadId);
+            } else {
+              activeUploadIds.add(info.uploadId);
+            }
+          } catch (e) {
+            await fs.remove(infoPath);
           }
-        } catch (e) {
-          await fs.remove(infoPath);
         }
+      }
+    }
+
+    // 2. Orphan Chunk Sweeper (Chunks without active info JSON or older than 2 hours)
+    if (await fs.pathExists(TEMP_DIR)) {
+      const tempFiles = await fs.readdir(TEMP_DIR);
+      for (const file of tempFiles) {
+        if (file === 'info') continue;
+        const filePath = path.join(TEMP_DIR, file);
+        try {
+          const stat = await fs.stat(filePath);
+          if (stat.isFile()) {
+            const uploadIdMatch = file.match(/^([a-f0-9]{32})_chunk_/i);
+            const isOrphan = uploadIdMatch ? !activeUploadIds.has(uploadIdMatch[1]) : true;
+            const isExpired = (now - stat.mtimeMs) > maxAgeMs;
+
+            if (isOrphan || isExpired) {
+              await fs.remove(filePath);
+            }
+          }
+        } catch (e) {}
       }
     }
   } catch (error) {
@@ -223,7 +251,7 @@ async function cleanupOldUploads(maxAgeMs = 2 * 60 * 60 * 1000) {
   }
 }
 
-// Run garbage collection on startup and every 15 minutes
+// Run garbage collection on startup and periodically every 15 minutes
 setTimeout(() => {
   cleanupOldUploads(2 * 60 * 60 * 1000);
 }, 5000);
