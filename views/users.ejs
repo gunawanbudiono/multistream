@@ -804,26 +804,35 @@
     </div>
 
     <!-- Filters & Search Toolbar -->
-    <div class="p-4 px-6 border-b border-[#27272a] bg-dark-900/60 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
-      <!-- Category Tabs -->
-      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0" id="globalLogCategoryTabs">
-        <button type="button" onclick="switchGlobalLogCategory('all')" id="globalCatBtn-all" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary text-white transition-colors shrink-0">All Events</button>
-        <button type="button" onclick="switchGlobalLogCategory('stream')" id="globalCatBtn-stream" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-broadcast text-cyan-400"></i> Streams</button>
-        <button type="button" onclick="switchGlobalLogCategory('media')" id="globalCatBtn-media" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-video text-blue-400"></i> Media & Uploads</button>
-        <button type="button" onclick="switchGlobalLogCategory('auth')" id="globalCatBtn-auth" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-shield-lock text-emerald-400"></i> Auth & Security</button>
-        <button type="button" onclick="switchGlobalLogCategory('admin')" id="globalCatBtn-admin" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-user-cog text-purple-400"></i> Admin Actions</button>
-        <button type="button" onclick="switchGlobalLogCategory('system')" id="globalCatBtn-system" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-settings text-amber-400"></i> System</button>
+    <div class="p-4 px-6 border-b border-[#27272a] bg-dark-900/60 space-y-3 shrink-0">
+      <!-- Top Row: Search Input & User Filter -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <!-- Search Input -->
+        <div class="relative flex-1">
+          <i class="ti ti-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input type="text" id="globalLogSearchInput" oninput="onGlobalLogSearchInput(this.value)" placeholder="Search by description, IP, action..." class="w-full bg-dark-800 border border-[#27272a] text-gray-200 text-xs rounded-xl pl-9 pr-3.5 py-2 focus:outline-none focus:border-primary transition-colors placeholder-gray-500">
+        </div>
+
+        <!-- User Dropdown Filter -->
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="relative w-full sm:w-auto">
+            <i class="ti ti-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+            <select id="globalLogUserSelect" onchange="onGlobalLogUserChange(this.value)" class="w-full sm:w-auto bg-dark-800 border border-[#27272a] text-gray-200 text-xs rounded-xl pl-8 pr-8 py-2 focus:outline-none focus:border-primary transition-colors min-w-[160px] truncate cursor-pointer appearance-none">
+              <option value="all">All Users</option>
+            </select>
+            <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+          </div>
+        </div>
       </div>
 
-      <!-- User & Search Filters -->
-      <div class="flex items-center gap-2">
-        <select id="globalLogUserSelect" onchange="onGlobalLogUserChange(this.value)" class="bg-dark-800 border border-[#27272a] text-gray-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-primary transition-colors max-w-[150px] truncate">
-          <option value="all">All Users</option>
-        </select>
-        <div class="relative w-48 md:w-56">
-          <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-          <input type="text" id="globalLogSearchInput" oninput="onGlobalLogSearchInput(this.value)" placeholder="Search description, IP..." class="w-full bg-dark-800 border border-[#27272a] text-gray-200 text-xs rounded-xl pl-8 pr-3 py-1.5 focus:outline-none focus:border-primary transition-colors placeholder-gray-500">
-        </div>
+      <!-- Bottom Row: Category Tabs -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5" id="globalLogCategoryTabs" style="scrollbar-width: none; -ms-overflow-style: none;">
+        <button type="button" onclick="switchGlobalLogCategory('all')" id="globalCatBtn-all" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-primary text-white transition-colors shrink-0">All Events</button>
+        <button type="button" onclick="switchGlobalLogCategory('stream')" id="globalCatBtn-stream" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-broadcast text-cyan-400"></i> Streams</button>
+        <button type="button" onclick="switchGlobalLogCategory('media')" id="globalCatBtn-media" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-video text-blue-400"></i> Media & Uploads</button>
+        <button type="button" onclick="switchGlobalLogCategory('auth')" id="globalCatBtn-auth" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-shield-lock text-emerald-400"></i> Auth & Security</button>
+        <button type="button" onclick="switchGlobalLogCategory('admin')" id="globalCatBtn-admin" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-user-cog text-purple-400"></i> Admin Actions</button>
+        <button type="button" onclick="switchGlobalLogCategory('system')" id="globalCatBtn-system" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-settings text-amber-400"></i> System</button>
       </div>
     </div>
 
