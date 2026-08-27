@@ -4856,10 +4856,31 @@
         if (totalReclaimEl) totalReclaimEl.innerText = formatBytesToReadable(total);
         if (buildCacheEl) buildCacheEl.innerText = formatBytesToReadable(d.buildCache?.reclaimableBytes || d.buildCache?.totalBytes);
         if (danglingEl) danglingEl.innerText = formatBytesToReadable(d.danglingImages?.totalBytes);
-        if (tempUploadsEl) tempUploadsEl.innerText = `${formatBytesToReadable(d.tempUploads?.totalBytes)} (${d.tempUploads?.fileCount || 0} files)`;
+        
+        const activeUploads = d.activeUploads || { count: 0, totalBytes: 0, files: [] };
+        const activeAlert = document.getElementById('storageActiveUploadAlert');
+        const activeFilesList = document.getElementById('storageActiveUploadFilesList');
+
+        if (activeUploads.count > 0) {
+          if (activeAlert) activeAlert.classList.remove('hidden');
+          if (activeFilesList) {
+            activeFilesList.innerHTML = activeUploads.files.map(f => `<li>• <strong>${f.filename}</strong> (${formatBytesToReadable(f.fileSize)})</li>`).join('');
+          }
+          if (tempUploadsEl) {
+            tempUploadsEl.innerHTML = `<span class="text-amber-400 font-semibold">${formatBytesToReadable(d.tempUploads?.activeBytes || 0)} (Active In-Use)</span>`;
+          }
+        } else {
+          if (activeAlert) activeAlert.classList.add('hidden');
+          if (tempUploadsEl) {
+            tempUploadsEl.innerText = `${formatBytesToReadable(d.tempUploads?.totalBytes || 0)} (${d.tempUploads?.fileCount || 0} files)`;
+          }
+        }
         
         if (scanSummaryText) {
-          if (total > 0) {
+          if (activeUploads.count > 0) {
+            scanSummaryText.innerHTML = `<span class="text-amber-300">⚠️ Active upload detected. Active upload chunks are protected. Found ${formatBytesToReadable(total)} reclaimable junk.</span>`;
+            if (cleanBtn) cleanBtn.disabled = false;
+          } else if (total > 0) {
             scanSummaryText.innerText = `Scan complete. Found ${formatBytesToReadable(total)} of reclaimable system junk.`;
             if (cleanBtn) cleanBtn.disabled = false;
           } else {
@@ -4960,6 +4981,18 @@
             <i class="ti ti-refresh text-sm" id="storageScanSpinner"></i>
             <span>Scan</span>
           </button>
+        </div>
+
+        <!-- Active Upload Warning Banner (Hidden by default) -->
+        <div id="storageActiveUploadAlert" class="hidden p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-1 text-xs text-amber-300">
+          <div class="flex items-center gap-2 font-bold text-amber-400">
+            <i class="ti ti-alert-triangle text-base"></i>
+            <span>Upload in Progress Detected</span>
+          </div>
+          <p class="text-[11px] text-amber-200/90 leading-relaxed">
+            Active file chunks currently uploading are <strong>protected</strong> and will NOT be deleted by Clean Junk.
+          </p>
+          <ul id="storageActiveUploadFilesList" class="text-[10px] text-amber-300/80 font-mono mt-1 space-y-0.5 pl-1"></ul>
         </div>
 
         <!-- Breakdown List -->

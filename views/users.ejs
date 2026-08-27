@@ -6,7 +6,12 @@
     <h2 class="text-2xl font-bold text-white">User Management</h2>
     <p class="text-gray-400 text-sm mt-1">Manage user accounts, storage limits, and streaming permissions</p>
   </div>
-  <div>
+  <div class="flex items-center gap-3">
+    <button onclick="openGlobalLogsModal()" 
+      class="px-4 py-2.5 bg-dark-800 hover:bg-dark-700 text-gray-200 border border-gray-700/80 hover:border-gray-600 font-medium rounded-xl transition-all duration-200 shadow-sm flex items-center gap-2">
+      <i class="ti ti-activity text-lg text-indigo-400"></i>
+      <span>Global Activity Logs</span>
+    </button>
     <button onclick="openCreateModal()" 
       class="px-4 py-2.5 bg-primary hover:bg-blue-600 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20 flex items-center gap-2">
       <i class="ti ti-plus text-lg"></i>
@@ -764,6 +769,110 @@
       </button>
       <button id="confirmOkBtn" class="px-5 py-2 text-sm bg-primary hover:bg-blue-600 text-white font-medium rounded-xl transition-colors">
         Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: GLOBAL ACTIVITY LOGS (ADMIN ONLY) -->
+<!-- ========================================== -->
+<div id="globalLogsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200 overflow-y-auto">
+  <div id="globalLogsModalContent" class="bg-[#18181b] border border-[#27272a] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200 flex flex-col">
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-[#27272a] flex items-center justify-between bg-dark-800/80 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xl border border-indigo-500/20">
+          <i class="ti ti-activity"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-bold text-white">Global Activity Logs</h3>
+            <span class="text-[10px] px-2 py-0.5 rounded-md font-semibold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">Audit Trail</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-0.5">Real-time consolidated event history for all users across the system</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="fetchGlobalLogs(true)" title="Refresh Logs" class="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-xl transition-colors border border-[#27272a]">
+          <i class="ti ti-refresh text-base" id="globalLogsRefreshIcon"></i>
+        </button>
+        <button type="button" onclick="closeGlobalLogsModal()" class="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-xl transition-colors">
+          <i class="ti ti-x text-lg"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div class="p-4 px-6 border-b border-[#27272a] bg-dark-900/60 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+      <!-- Category Tabs -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0" id="globalLogCategoryTabs">
+        <button type="button" onclick="switchGlobalLogCategory('all')" id="globalCatBtn-all" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary text-white transition-colors shrink-0">All Events</button>
+        <button type="button" onclick="switchGlobalLogCategory('stream')" id="globalCatBtn-stream" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-broadcast text-cyan-400"></i> Streams</button>
+        <button type="button" onclick="switchGlobalLogCategory('media')" id="globalCatBtn-media" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-video text-blue-400"></i> Media & Uploads</button>
+        <button type="button" onclick="switchGlobalLogCategory('auth')" id="globalCatBtn-auth" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-shield-lock text-emerald-400"></i> Auth & Security</button>
+        <button type="button" onclick="switchGlobalLogCategory('admin')" id="globalCatBtn-admin" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-user-cog text-purple-400"></i> Admin Actions</button>
+        <button type="button" onclick="switchGlobalLogCategory('system')" id="globalCatBtn-system" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5"><i class="ti ti-settings text-amber-400"></i> System</button>
+      </div>
+
+      <!-- User & Search Filters -->
+      <div class="flex items-center gap-2">
+        <select id="globalLogUserSelect" onchange="onGlobalLogUserChange(this.value)" class="bg-dark-800 border border-[#27272a] text-gray-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-primary transition-colors max-w-[150px] truncate">
+          <option value="all">All Users</option>
+        </select>
+        <div class="relative w-48 md:w-56">
+          <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+          <input type="text" id="globalLogSearchInput" oninput="onGlobalLogSearchInput(this.value)" placeholder="Search description, IP..." class="w-full bg-dark-800 border border-[#27272a] text-gray-200 text-xs rounded-xl pl-8 pr-3 py-1.5 focus:outline-none focus:border-primary transition-colors placeholder-gray-500">
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Body: Scrollable Log List -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-3 min-h-[300px]">
+      <!-- Loading Skeleton -->
+      <div id="globalLogsLoading" class="space-y-3 hidden">
+        <div class="p-4 bg-dark-900 border border-[#27272a] rounded-xl animate-pulse flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-gray-800 shrink-0"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-3 bg-gray-800 rounded w-1/4"></div>
+            <div class="h-3 bg-gray-800 rounded w-3/4"></div>
+          </div>
+        </div>
+        <div class="p-4 bg-dark-900 border border-[#27272a] rounded-xl animate-pulse flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-gray-800 shrink-0"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-3 bg-gray-800 rounded w-1/3"></div>
+            <div class="h-3 bg-gray-800 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="globalLogsEmpty" class="hidden py-16 text-center text-gray-400">
+        <div class="w-14 h-14 rounded-2xl bg-dark-800 border border-[#27272a] text-gray-500 flex items-center justify-center text-2xl mx-auto mb-3">
+          <i class="ti ti-clipboard-list"></i>
+        </div>
+        <h4 class="text-sm font-semibold text-white">No Activity Logs Found</h4>
+        <p class="text-xs text-gray-400 mt-1 max-w-sm mx-auto">No logged actions match the selected filter or search term.</p>
+      </div>
+
+      <!-- Real Log List Container -->
+      <div id="globalLogsList" class="space-y-2.5"></div>
+
+      <!-- Load More Button Container -->
+      <div id="globalLogsLoadMoreContainer" class="hidden pt-2 text-center">
+        <button type="button" id="globalLogsLoadMoreBtn" onclick="loadMoreGlobalLogs()" class="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-gray-300 hover:text-white border border-[#27272a] text-xs font-semibold rounded-xl transition-all inline-flex items-center gap-2">
+          <i class="ti ti-chevron-down"></i>
+          <span>Load More Logs</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-3 border-t border-[#27272a] bg-dark-800/80 flex items-center justify-between text-xs text-gray-400 shrink-0">
+      <span id="globalLogsStatusCount">Showing 0 log entries</span>
+      <button type="button" onclick="closeGlobalLogsModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-xl text-xs font-semibold transition-colors">
+        Close
       </button>
     </div>
   </div>
@@ -1653,12 +1762,239 @@
   roleFilter.addEventListener('change', filterUsers);
   statusFilter.addEventListener('change', filterUsers);
 
+  // ==========================================
+  // GLOBAL ACTIVITY LOGS MODAL (ADMIN ONLY)
+  // ==========================================
+  let globalLogsData = [];
+  let currentGlobalCategory = 'all';
+  let currentGlobalUserId = 'all';
+  let currentGlobalSearch = '';
+  let globalLogsOffset = 0;
+  const GLOBAL_LOGS_LIMIT = 50;
+  let globalLogsHasMore = false;
+  let globalLogsSearchDebounce = null;
+
+  function formatTimeAgo(dateStr) {
+    if (!dateStr) return '';
+    const date = parseDbDate(dateStr);
+    if (!date || isNaN(date.getTime())) return dateStr;
+    const now = new Date();
+    const diffSec = Math.floor((now - date) / 1000);
+    if (diffSec < 45) return 'just now';
+    if (diffSec < 90) return '1m ago';
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 7200) return '1h ago';
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    if (diffSec < 172800) return 'yesterday';
+    if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function openGlobalLogsModal() {
+    const modal = document.getElementById('globalLogsModal');
+    const content = document.getElementById('globalLogsModalContent');
+    if (!modal) return;
+
+    // Populate user dropdown from the table
+    const userSelect = document.getElementById('globalLogUserSelect');
+    if (userSelect) {
+      userSelect.innerHTML = '<option value="all">All Users</option>';
+      const userRows = document.querySelectorAll('.user-row');
+      userRows.forEach(row => {
+        const uId = row.getAttribute('data-user-id') || row.querySelector('[data-user-id]')?.getAttribute('data-user-id');
+        const uName = row.getAttribute('data-username');
+        if (uId && uName) {
+          const opt = document.createElement('option');
+          opt.value = uId;
+          opt.textContent = uName;
+          userSelect.appendChild(opt);
+        }
+      });
+      userSelect.value = currentGlobalUserId;
+    }
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+      modal.classList.remove('opacity-0');
+      content.classList.remove('opacity-0', 'scale-95');
+    }, 10);
+
+    fetchGlobalLogs(true);
+  }
+
+  function closeGlobalLogsModal() {
+    const modal = document.getElementById('globalLogsModal');
+    const content = document.getElementById('globalLogsModalContent');
+    if (!modal) return;
+    modal.classList.add('opacity-0');
+    content.classList.add('opacity-0', 'scale-95');
+    setTimeout(() => modal.classList.add('hidden'), 200);
+  }
+
+  function switchGlobalLogCategory(category) {
+    currentGlobalCategory = category;
+    const catKeys = ['all', 'stream', 'media', 'auth', 'admin', 'system'];
+    catKeys.forEach(k => {
+      const btn = document.getElementById('globalCatBtn-' + k);
+      if (!btn) return;
+      if (k === category) {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary text-white transition-colors shrink-0 flex items-center gap-1.5';
+      } else {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold bg-dark-800 text-gray-400 hover:text-white border border-[#27272a] transition-colors shrink-0 flex items-center gap-1.5';
+      }
+    });
+    fetchGlobalLogs(true);
+  }
+
+  function onGlobalLogUserChange(userId) {
+    currentGlobalUserId = userId;
+    fetchGlobalLogs(true);
+  }
+
+  function onGlobalLogSearchInput(val) {
+    currentGlobalSearch = val;
+    clearTimeout(globalLogsSearchDebounce);
+    globalLogsSearchDebounce = setTimeout(() => {
+      fetchGlobalLogs(true);
+    }, 300);
+  }
+
+  async function fetchGlobalLogs(reset = false) {
+    if (reset) {
+      globalLogsOffset = 0;
+      globalLogsData = [];
+    }
+
+    const loadingEl = document.getElementById('globalLogsLoading');
+    const emptyEl = document.getElementById('globalLogsEmpty');
+    const listEl = document.getElementById('globalLogsList');
+    const loadMoreContainer = document.getElementById('globalLogsLoadMoreContainer');
+    const refreshIcon = document.getElementById('globalLogsRefreshIcon');
+    const statusCount = document.getElementById('globalLogsStatusCount');
+
+    if (reset) {
+      if (listEl) listEl.innerHTML = '';
+      if (loadingEl) loadingEl.classList.remove('hidden');
+      if (emptyEl) emptyEl.classList.add('hidden');
+    }
+    if (refreshIcon) refreshIcon.classList.add('animate-spin');
+
+    try {
+      const params = new URLSearchParams({
+        limit: GLOBAL_LOGS_LIMIT,
+        offset: globalLogsOffset,
+        category: currentGlobalCategory,
+        userId: currentGlobalUserId,
+        search: currentGlobalSearch
+      });
+
+      const res = await fetch(`/api/admin/activity-logs?${params.toString()}`);
+      const data = await res.json();
+
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch logs');
+      }
+
+      const incoming = data.logs || [];
+      if (reset) {
+        globalLogsData = incoming;
+      } else {
+        globalLogsData = globalLogsData.concat(incoming);
+      }
+
+      globalLogsHasMore = incoming.length === GLOBAL_LOGS_LIMIT;
+      globalLogsOffset += incoming.length;
+
+      renderGlobalLogs();
+
+      if (loadMoreContainer) {
+        if (globalLogsHasMore) loadMoreContainer.classList.remove('hidden');
+        else loadMoreContainer.classList.add('hidden');
+      }
+
+      if (statusCount) {
+        statusCount.textContent = `Showing ${globalLogsData.length} activity log entries`;
+      }
+    } catch (err) {
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+      console.error('Error fetching global logs:', err);
+      showToast('Error loading activity logs: ' + err.message, 'error');
+    }
+  }
+
+  function loadMoreGlobalLogs() {
+    fetchGlobalLogs(false);
+  }
+
+  function renderGlobalLogs() {
+    const listEl = document.getElementById('globalLogsList');
+    const emptyEl = document.getElementById('globalLogsEmpty');
+    if (!listEl) return;
+
+    if (globalLogsData.length === 0) {
+      listEl.innerHTML = '';
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    if (emptyEl) emptyEl.classList.add('hidden');
+
+    listEl.innerHTML = globalLogsData.map(log => {
+      const catStyle = getActionCategoryStyle(log.category, log.action_type);
+      const username = log.user_name || log.performed_by || 'Unknown';
+      const initial = (username[0] || 'U').toUpperCase();
+      const hasAvatar = log.avatar_path && log.avatar_path !== '/images/default-avatar.jpg' && !log.avatar_path.includes('default-avatar');
+      
+      const avatarHtml = hasAvatar 
+        ? `<img src="${log.avatar_path}" alt="" class="w-9 h-9 rounded-xl object-cover shrink-0 border border-gray-800">`
+        : `<div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-xs shrink-0 select-none uppercase">${initial}</div>`;
+
+      const roleBadge = log.user_role === 'admin'
+        ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-semibold uppercase">Admin</span>`
+        : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-semibold uppercase">Member</span>`;
+
+      const ipBadge = log.ip_address ? `<span class="text-[10px] text-gray-500 font-mono flex items-center gap-1"><i class="ti ti-map-pin text-[11px]"></i> ${log.ip_address}</span>` : '';
+      const timeAgo = formatTimeAgo(log.created_at);
+
+      return `
+        <div class="bg-dark-900 border border-[#27272a] hover:border-gray-700/80 rounded-xl p-3.5 flex items-start justify-between gap-3 transition-colors">
+          <div class="flex items-start gap-3 min-w-0">
+            ${avatarHtml}
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="text-xs font-bold text-white">${username}</span>
+                ${roleBadge}
+                <span class="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${catStyle.bg} ${catStyle.text} ${catStyle.border} border flex items-center gap-1">
+                  <i class="ti ${catStyle.icon} text-xs"></i>
+                  <span>${log.action_type || catStyle.label}</span>
+                </span>
+              </div>
+              <p class="text-xs text-gray-300 break-words leading-relaxed">${log.description || 'No description provided'}</p>
+              <div class="mt-1.5 flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+                <span class="flex items-center gap-1"><i class="ti ti-clock text-xs text-gray-400"></i> ${timeAgo}</span>
+                ${ipBadge ? `<span>•</span>${ipBadge}` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="text-[10px] text-gray-500 font-mono shrink-0 text-right hidden sm:block">
+            ${log.created_at ? new Date(parseDbDate(log.created_at)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
   // Global Keyboard Escape Key Listener
   window.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' || e.keyCode === 27) {
       closeEditModal();
       closeInspectorModal();
       closeCreateModal();
+      closeGlobalLogsModal();
       const confirmModal = document.getElementById('confirmModal');
       if (confirmModal && !confirmModal.classList.contains('hidden')) {
         document.getElementById('confirmCancelBtn').click();

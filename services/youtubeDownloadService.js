@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const ffmpeg = require('fluent-ffmpeg');
 const Video = require('../models/Video');
 const MediaFolder = require('../models/MediaFolder');
+const { logActivity } = require('./activityLogger');
 
 const activeJobs = new Map();
 const VIDEOS_DIR = path.join(__dirname, '..', 'public', 'uploads', 'videos');
@@ -600,6 +601,15 @@ async function downloadSingleItem(job, item, i, onProgress) {
 
     const createdVideo = await Video.create(videoData);
     job.downloadedFiles.push(createdVideo);
+
+    logActivity({
+      userId: job.userId,
+      performedBy: 'User',
+      actionType: 'YOUTUBE_DOWNLOAD',
+      category: 'media',
+      description: `Downloaded YouTube media '${createdVideo.title}' (${(createdVideo.file_size / (1024 * 1024)).toFixed(1)} MB, ${createdVideo.resolution || createdVideo.format})`,
+      details: { videoId: createdVideo.id, url: item.url, format: createdVideo.format, resolution: createdVideo.resolution }
+    });
 
     if (job.itemsStatus && job.itemsStatus[i]) {
       job.itemsStatus[i].status = 'completed';

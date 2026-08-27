@@ -28,7 +28,7 @@ const { uploadVideo, upload, uploadThumbnail, uploadAudio, uploadUniversalMedia 
 const chunkUploadService = require('./services/chunkUploadService');
 const audioConverter = require('./services/audioConverter');
 const { ensureDirectories } = require('./utils/storage');
-const { logActivity, getUserLogs } = require('./services/activityLogger');
+const { logActivity, getUserLogs, getAllLogs } = require('./services/activityLogger');
 const { getVideoInfo, generateThumbnail, generateImageThumbnail } = require('./utils/videoProcessor');
 const Video = require('./models/Video');
 const MediaFolder = require('./models/MediaFolder');
@@ -1524,6 +1524,17 @@ app.post('/api/users/:id/revoke-sessions', isAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/admin/activity-logs', isAdmin, async (req, res) => {
+  try {
+    const { limit = 50, offset = 0, category = 'all', userId = 'all', search = '' } = req.query;
+    const logs = await getAllLogs({ limit, offset, category, userId, search });
+    res.json({ success: true, logs });
+  } catch (error) {
+    console.error('Error fetching admin activity logs:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch activity logs' });
+  }
+});
+
 app.post('/api/users/status', isAdmin, async (req, res) => {
   try {
     const { userId, status } = req.body;
@@ -2976,6 +2987,15 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
     });
     const video = await Video.create(videoData);
     await chunkUploadService.cleanupUpload(uploadId);
+    logActivity({
+      userId: req.session.userId,
+      performedBy: req.session.username,
+      actionType: 'MEDIA_UPLOAD',
+      category: 'media',
+      description: `Uploaded media '${video.title}' (${(video.file_size / (1024 * 1024)).toFixed(1)} MB, ${video.resolution || video.format}) via Chunk Upload`,
+      details: { videoId: video.id, fileSize: video.file_size, format: video.format, resolution: video.resolution },
+      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+    });
     res.json({ success: true, message: 'Video uploaded successfully', video });
   } catch (error) {
     console.error('Chunk complete error:', error);
@@ -3335,15 +3355,80 @@ app.get('/api/system/storage-audit', isAdmin, async (req, res) => {
       }
     }
 
-    // 2. Temp Uploads Folder
+    // 2. Temp Uploads Inspection & Active Upload Protection Detection
     const tempDir = path.join(__dirname, 'public', 'uploads', 'temp');
-    const tempInfo = getDirectorySize(tempDir);
+    const infoDir = path.join(tempDir, 'info');
+    let activeUploadsCount = 0;
+    let activeUploadBytes = 0;
+    const activeUploadFiles = [];
+    const activeUploadIds = new Set();
+    const now = Date.now();
+
+    if (fs.existsSync(infoDir)) {
+      try {
+        const infoFiles = fs.readdirSync(infoDir);
+        for (const inf of infoFiles) {
+          if (inf.endsWith('.json')) {
+            try {
+              const infoData = JSON.parse(fs.readFileSync(path.join(infoDir, inf), 'utf8'));
+              const lastAct = infoData.lastActivity || infoData.createdAt || 0;
+              // If status is uploading and activity was within last 30 minutes, it is an active upload
+              if (infoData.status === 'uploading' && (now - lastAct < 30 * 60 * 1000)) {
+                activeUploadsCount++;
+                activeUploadIds.add(infoData.uploadId);
+                activeUploadFiles.push({
+                  filename: infoData.filename,
+                  fileSize: infoData.fileSize,
+                  totalChunks: infoData.totalChunks
+                });
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    }
+
+    let staleUploadBytes = 0;
+    let staleUploadCount = 0;
+    let totalTempBytes = 0;
+    let totalTempCount = 0;
+
+    if (fs.existsSync(tempDir)) {
+      try {
+        const tempFiles = fs.readdirSync(tempDir);
+        for (const f of tempFiles) {
+          if (f === 'info') continue;
+          try {
+            const fp = path.join(tempDir, f);
+            const stat = fs.statSync(fp);
+            if (stat.isFile()) {
+              totalTempBytes += stat.size;
+              totalTempCount++;
+
+              let isActiveChunk = false;
+              for (const actId of activeUploadIds) {
+                if (f.startsWith(actId)) {
+                  isActiveChunk = true;
+                  activeUploadBytes += stat.size;
+                  break;
+                }
+              }
+
+              if (!isActiveChunk) {
+                staleUploadBytes += stat.size;
+                staleUploadCount++;
+              }
+            }
+          } catch (e) {}
+        }
+      } catch (e) {}
+    }
 
     // 3. Application Logs
     const logsDir = path.join(__dirname, 'logs');
     const logsInfo = getDirectorySize(logsDir);
 
-    const totalReclaimableBytes = (buildCacheReclaimable || buildCacheSize) + danglingImagesSize + tempInfo.size;
+    const totalReclaimableBytes = (buildCacheReclaimable || buildCacheSize) + danglingImagesSize + staleUploadBytes;
 
     res.json({
       success: true,
@@ -3356,8 +3441,16 @@ app.get('/api/system/storage-audit', isAdmin, async (req, res) => {
           totalBytes: danglingImagesSize,
         },
         tempUploads: {
-          totalBytes: tempInfo.size,
-          fileCount: tempInfo.count,
+          totalBytes: totalTempBytes,
+          fileCount: totalTempCount,
+          staleBytes: staleUploadBytes,
+          staleCount: staleUploadCount,
+          activeBytes: activeUploadBytes
+        },
+        activeUploads: {
+          count: activeUploadsCount,
+          totalBytes: activeUploadBytes,
+          files: activeUploadFiles
         },
         logs: {
           totalBytes: logsInfo.size,
@@ -3393,17 +3486,53 @@ app.post('/api/system/storage-clean', isAdmin, async (req, res) => {
       actions.push(`Pruned dangling images (${Math.round(space / 1024 / 1024)} MB)`);
     }
 
-    // 3. Clean Temp Uploads older than 10 minutes
+    // 3. Smart Clean Temp Uploads (STRICTLY PROTECT ACTIVE UPLOADS)
     const tempDir = path.join(__dirname, 'public', 'uploads', 'temp');
+    const infoDir = path.join(tempDir, 'info');
+    const activeUploadIds = new Set();
+    const now = Date.now();
+
+    if (fs.existsSync(infoDir)) {
+      try {
+        const infoFiles = fs.readdirSync(infoDir);
+        for (const inf of infoFiles) {
+          if (inf.endsWith('.json')) {
+            try {
+              const infoData = JSON.parse(fs.readFileSync(path.join(infoDir, inf), 'utf8'));
+              const lastAct = infoData.lastActivity || infoData.createdAt || 0;
+              if (infoData.status === 'uploading' && (now - lastAct < 30 * 60 * 1000)) {
+                activeUploadIds.add(infoData.uploadId);
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    }
+
     if (fs.existsSync(tempDir)) {
       let tempCleaned = 0;
-      const now = Date.now();
       const files = fs.readdirSync(tempDir);
       for (const f of files) {
+        if (f === 'info') continue;
         try {
+          // Check if file belongs to any active upload session
+          let isActive = false;
+          for (const actId of activeUploadIds) {
+            if (f.startsWith(actId)) {
+              isActive = true;
+              break;
+            }
+          }
+
+          if (isActive) {
+            // NEVER delete active upload chunks!
+            continue;
+          }
+
           const fp = path.join(tempDir, f);
           const stat = fs.statSync(fp);
-          if (now - stat.mtimeMs > 10 * 60 * 1000) {
+          // Only clean stale files older than 2 hours or inactive orphan files
+          if (now - stat.mtimeMs > 2 * 60 * 60 * 1000) {
             tempCleaned += stat.size;
             if (stat.isDirectory()) {
               fs.rmSync(fp, { recursive: true, force: true });
@@ -3415,7 +3544,7 @@ app.post('/api/system/storage-clean', isAdmin, async (req, res) => {
       }
       if (tempCleaned > 0) {
         reclaimedBytes += tempCleaned;
-        actions.push(`Cleaned temp uploads (${Math.round(tempCleaned / 1024 / 1024)} MB)`);
+        actions.push(`Cleaned stale temporary files (${Math.round(tempCleaned / 1024 / 1024)} MB)`);
       }
     }
 
@@ -3424,7 +3553,7 @@ app.post('/api/system/storage-clean', isAdmin, async (req, res) => {
       performedBy: req.session.username,
       actionType: 'STORAGE_CLEAN',
       category: 'system',
-      description: `Cleaned system junk & reclaimed ${Math.round(reclaimedBytes / 1024 / 1024)} MB`,
+      description: `Cleaned system junk & reclaimed ${Math.round(reclaimedBytes / 1024 / 1024)} MB (Active uploads protected)`,
       ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
     });
 
