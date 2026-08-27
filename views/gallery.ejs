@@ -1333,6 +1333,9 @@ function openUploadModal() {
   hideFloatingUploadWidget();
   document.getElementById('uploadModal').classList.remove('hidden');
   document.body.classList.add('overflow-hidden');
+  if ('Notification' in window && Notification.permission === 'default') {
+    try { Notification.requestPermission(); } catch (e) {}
+  }
 }
 
 function minimizeUploadModal() {
@@ -3318,6 +3321,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (failedIndices.length === 0) {
           uploadProgressStatus.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="ti ti-circle-check text-base"></i> All files uploaded successfully (${successCount}/${selectedFiles.length})</span>`;
           showToast('success', `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`);
+          notifyUploadComplete('🎉 Upload Selesai!', `${successCount} file telah berhasil diproses ke Galeri.`);
 
           // Update floating widget
           const floatTitle = document.getElementById('floatingUploadTitle');
@@ -3328,6 +3332,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           uploadProgressStatus.innerHTML = `<span class="text-amber-400 font-bold flex items-center gap-1.5"><i class="ti ti-alert-triangle text-base"></i> Finished with issues (${successCount} succeeded, ${failedIndices.length} failed)</span>`;
           showToast('warning', `${successCount} uploaded, ${failedIndices.length} failed`);
+          notifyUploadComplete('⚠️ Upload Selesai Sebagian', `${successCount} berhasil, ${failedIndices.length} gagal.`);
         }
 
         const modalFooterAction = document.getElementById('modalFooterAction');
@@ -3487,6 +3492,21 @@ document.addEventListener('DOMContentLoaded', function() {
       const uploadId = initData.uploadId;
       currentActiveUploadId = uploadId;
       let uploaded = new Set(initData.uploadedChunks || []);
+
+      if (initData.resumed && uploaded.size > 0) {
+        let resumedBytes = 0;
+        uploaded.forEach(c => {
+          resumedBytes += Math.min(chunkSize, file.size - c * chunkSize);
+        });
+        const resumedPct = Math.round((resumedBytes / file.size) * 100);
+        if (typeof showToast === 'function') {
+          showToast('info', `⚡ Melanjutkan upload: ${formatFileSize(resumedBytes)} (${resumedPct}%) terverifikasi aman & dilewati!`);
+        }
+        const queueSub = document.querySelector(`#upload-queue-item-${index} .file-substatus`);
+        if (queueSub) {
+          queueSub.innerHTML = `<span class="text-amber-400 font-semibold">⚡ Resumed from ${resumedPct}% (${formatFileSize(resumedBytes)} ready)</span>`;
+        }
+      }
 
       const chunkProgress = new Map();
       uploaded.forEach(c => chunkProgress.set(c, Math.min(chunkSize, file.size - c * chunkSize)));
@@ -3702,6 +3722,29 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+
+  function notifyUploadComplete(title, body) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notif = new Notification(title, {
+          body: body,
+          icon: '/images/favicon.ico'
+        });
+        notif.onclick = () => {
+          window.focus();
+        };
+      } catch (e) {}
+    }
+  }
+
+  // Guard against accidental tab close or page navigation during active upload
+  window.addEventListener('beforeunload', (e) => {
+    if (isUploadInProgress && !uploadAborted) {
+      e.preventDefault();
+      e.returnValue = 'Upload media sedang berlangsung. Yakin ingin meninggalkan halaman ini?';
+      return e.returnValue;
+    }
+  });
 
   function escapeHtml(value) {
     return String(value ?? '')
