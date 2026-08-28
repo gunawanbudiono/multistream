@@ -1482,7 +1482,7 @@ app.post('/api/users/:id/impersonate', isAdmin, async (req, res) => {
       actionType: 'USER_IMPERSONATE',
       category: 'admin',
       description: `Admin '${req.session.username}' started impersonating this user`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
 
     req.session.userId = targetUser.id;
@@ -1538,7 +1538,7 @@ app.post('/api/users/:id/revoke-sessions', isAdmin, async (req, res) => {
         actionType: 'REVOKE_SESSIONS',
         category: 'auth',
         description: `All active sessions revoked by admin '${req.session.username}'`,
-        ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+        req
       });
       res.json({ success: true, message: 'All active sessions revoked successfully' });
     });
@@ -1593,7 +1593,7 @@ app.post('/api/users/status', isAdmin, async (req, res) => {
       actionType: 'USER_STATUS',
       category: 'admin',
       description: `Admin changed account status to '${status}'`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
 
     res.json({
@@ -1643,7 +1643,7 @@ app.post('/api/users/role', isAdmin, async (req, res) => {
       actionType: 'USER_ROLE',
       category: 'admin',
       description: `Admin changed user role to '${role}'`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
 
     res.json({
@@ -1812,7 +1812,7 @@ app.post('/api/users/update', isAdmin, upload.single('avatar'), async (req, res)
       actionType: 'USER_UPDATE',
       category: 'admin',
       description: `Admin updated account settings for '${updateData.username}' (Quota: ${sanitizedQuota} GB, Role: ${updateData.user_role})`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
 
     res.json({
@@ -1886,7 +1886,7 @@ app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res)
       actionType: 'USER_CREATE',
       category: 'admin',
       description: `Admin created user '${username}' (Role: ${userData.user_role}, Quota: ${sanitizedQuota} GB)`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
 
     res.json({
@@ -2105,7 +2105,7 @@ app.post('/settings/password', isAuthenticated, [
       actionType: 'AUTH_PASSWORD_CHANGE',
       category: 'auth',
       description: `User '${req.session.username}' updated account password`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
     return res.render('settings', {
       title: 'Settings',
@@ -2261,7 +2261,7 @@ app.post('/upload/video', isAuthenticated, uploadVideo.single('video'), async (r
       actionType: 'MEDIA_UPLOAD',
       category: 'media',
       description: `Uploaded video '${video.title}' (${(video.file_size / (1024 * 1024)).toFixed(1)} MB)`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
     res.json({
       success: true,
@@ -2411,7 +2411,7 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
           actionType: 'MEDIA_UPLOAD',
           category: 'media',
           description: `Uploaded video '${videoRecord.title}' (${(videoRecord.file_size / (1024 * 1024)).toFixed(1)} MB)`,
-          ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+          req
         });
 
       } else if (audioExts.includes(ext) || file.mimetype.startsWith('audio/')) {
@@ -2455,7 +2455,7 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
           actionType: 'MEDIA_UPLOAD',
           category: 'media',
           description: `Uploaded audio '${audioRecord.title}' (${(audioRecord.file_size / (1024 * 1024)).toFixed(1)} MB)`,
-          ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+          req
         });
 
       } else if (imageExts.includes(ext) || file.mimetype.startsWith('image/')) {
@@ -2516,7 +2516,7 @@ app.post('/api/media/upload-universal', isAuthenticated, (req, res, next) => {
           actionType: 'MEDIA_UPLOAD',
           category: 'media',
           description: `Uploaded image '${imageRecord.title}' (${(imageRecord.file_size / (1024 * 1024)).toFixed(1)} MB)`,
-          ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+          req
         });
       }
     }
@@ -3018,7 +3018,7 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
       category: 'media',
       description: `Uploaded media '${video.title}' (${(video.file_size / (1024 * 1024)).toFixed(1)} MB, ${video.resolution || video.format}) via Chunk Upload`,
       details: { videoId: video.id, fileSize: video.file_size, format: video.format, resolution: video.resolution },
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
     res.json({ success: true, message: 'Video uploaded successfully', video });
   } catch (error) {
@@ -3578,7 +3578,7 @@ app.post('/api/system/storage-clean', isAdmin, async (req, res) => {
       actionType: 'STORAGE_CLEAN',
       category: 'system',
       description: `Cleaned system junk & reclaimed ${Math.round(reclaimedBytes / 1024 / 1024)} MB (Active uploads protected)`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
 
     res.json({
@@ -3620,7 +3620,7 @@ app.delete('/api/videos/:id', isAuthenticated, async (req, res) => {
       actionType: 'MEDIA_DELETE',
       category: 'media',
       description: `Deleted video '${video.title}'`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
     res.json({ success: true, message: 'Video deleted successfully' });
   } catch (error) {
@@ -5763,7 +5763,7 @@ app.delete('/api/streams/:id', isAuthenticated, async (req, res) => {
       actionType: 'STREAM_DELETE',
       category: 'stream',
       description: `Deleted stream '${stream.title}'`,
-      ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+      req
     });
     res.json({ success: true, message: 'Stream deleted successfully' });
   } catch (error) {
@@ -5819,7 +5819,7 @@ const handleStreamStatusUpdate = async (req, res) => {
           actionType: 'STREAM_START',
           category: 'stream',
           description: `Started live broadcast '${stream.title}' (${stream.platform || 'Custom RTMP'})`,
-          ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+          req
         });
         return res.json({
           success: true,
@@ -5858,7 +5858,7 @@ const handleStreamStatusUpdate = async (req, res) => {
         actionType: 'STREAM_STOP',
         category: 'stream',
         description: `Stopped live broadcast '${stream.title}'`,
-        ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+        req
       });
       return res.json({ success: true, stream: result });
     } else {
@@ -6458,7 +6458,7 @@ app.post('/api/rotations/:id/activate', isAuthenticated, async (req, res) => {
         actionType: 'ROTATION_ACTIVATE',
         category: 'rotation',
         description: `Activated stream rotation '${rotation.name}'`,
-        ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+        req
       });
     }
     res.json(result);
@@ -6504,7 +6504,7 @@ app.post('/api/rotations/:id/stop', isAuthenticated, async (req, res) => {
         actionType: 'ROTATION_STOP',
         category: 'rotation',
         description: `Stopped stream rotation '${rotation.name}'`,
-        ipAddress: req.ip || (req.headers && req.headers['x-forwarded-for'])
+        req
       });
     }
     res.json(result);

@@ -1272,11 +1272,36 @@
     return `<span class="inline-flex items-center gap-1 text-[10px] text-blue-300 font-mono"><i class="ti ti-world text-blue-400"></i> ${cleanIp} <span class="text-[9px] px-1 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-sans">Public IP</span></span>`;
   }
 
-  function formatDeviceBadge(deviceInfo) {
-    if (!deviceInfo || typeof deviceInfo !== 'object') return '';
-    const icon = deviceInfo.icon || 'ti-device-desktop';
-    const label = deviceInfo.label || `${deviceInfo.browser || 'Browser'} on ${deviceInfo.os || 'Device'}`;
-    return `<span class="inline-flex items-center gap-1 text-[10px] text-gray-400 font-mono" title="${label}"><i class="ti ${icon} text-gray-400 text-xs"></i> ${label}</span>`;
+  function formatDeviceBadge(deviceInfo, rawUserAgent) {
+    let dev = deviceInfo;
+    if ((!dev || typeof dev !== 'object') && rawUserAgent) {
+      const ua = String(rawUserAgent);
+      let browser = 'Browser';
+      let os = 'Unknown OS';
+      let icon = 'ti-device-desktop';
+
+      if (/mobile|iphone|ipod|android.*mobile/i.test(ua)) icon = 'ti-device-mobile';
+      else if (/ipad|tablet|android(?!.*mobile)/i.test(ua)) icon = 'ti-device-tablet';
+
+      if (/windows nt 10/i.test(ua)) os = 'Windows 10/11';
+      else if (/windows/i.test(ua)) os = 'Windows';
+      else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
+      else if (/macintosh|mac os x/i.test(ua)) os = 'macOS';
+      else if (/android/i.test(ua)) os = 'Android';
+      else if (/linux/i.test(ua)) os = 'Linux';
+
+      if (/edg\//i.test(ua)) browser = 'Edge';
+      else if (/opr\/|opera/i.test(ua)) browser = 'Opera';
+      else if (/chrome|crios/i.test(ua)) browser = 'Chrome';
+      else if (/firefox|fxios/i.test(ua)) browser = 'Firefox';
+      else if (/safari/i.test(ua)) browser = 'Safari';
+
+      dev = { icon, label: `${browser} on ${os}` };
+    }
+
+    if (!dev || !dev.label) return '';
+    const icon = dev.icon || 'ti-device-desktop';
+    return `<span class="inline-flex items-center gap-1.5 text-[10px] text-gray-400 font-mono" title="${dev.label}"><i class="ti ${icon} text-gray-400 text-xs"></i> ${dev.label}</span>`;
   }
 
   function formatLogTimestamps(dateStr) {
@@ -1331,7 +1356,7 @@
         const isByAdmin = log.performed_by && log.performed_by !== currentActiveEditUsername;
         const timeInfo = formatLogTimestamps(log.created_at);
         const ipBadgeHtml = formatIpBadge(log.ip_address);
-        const deviceBadgeHtml = formatDeviceBadge(log.device_info);
+        const deviceBadgeHtml = formatDeviceBadge(log.device_info, log.user_agent);
 
         const logItem = document.createElement('div');
         logItem.className = 'bg-dark-900 border border-[#27272a] rounded-xl p-3.5 flex items-start gap-3 hover:border-gray-600 transition-colors';
@@ -2024,7 +2049,7 @@
         : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-semibold uppercase">Member</span>`;
 
       const ipBadgeHtml = formatIpBadge(log.ip_address);
-      const deviceBadgeHtml = formatDeviceBadge(log.device_info);
+      const deviceBadgeHtml = formatDeviceBadge(log.device_info, log.user_agent);
       const timeInfo = formatLogTimestamps(log.created_at);
 
       return `
