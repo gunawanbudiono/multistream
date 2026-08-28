@@ -1279,6 +1279,34 @@
     return `<span class="inline-flex items-center gap-1 text-[10px] text-gray-400 font-mono" title="${label}"><i class="ti ${icon} text-gray-400 text-xs"></i> ${label}</span>`;
   }
 
+  function formatLogTimestamps(dateStr) {
+    if (!dateStr) return { fullDateTime: '', relativeTime: '' };
+    const parsedDate = parseDbDate(dateStr);
+    if (!parsedDate || isNaN(parsedDate.getTime())) return { fullDateTime: dateStr, relativeTime: '' };
+
+    const dateFormatted = parsedDate.toLocaleDateString('en-GB', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+    const timeFormatted = parsedDate.toLocaleTimeString('en-GB', {
+      timeZone: 'Asia/Jakarta',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const relativeFormatted = formatRelativeTime(parsedDate);
+
+    return {
+      dateFormatted,
+      timeFormatted,
+      fullDateTime: `${dateFormatted}, ${timeFormatted}`,
+      relativeTime: relativeFormatted
+    };
+  }
+
   function renderInspectorLogs() {
     const logList = document.getElementById('inspectorLogList');
     const logEmpty = document.getElementById('inspectorLogEmpty');
@@ -1301,9 +1329,7 @@
       filtered.forEach(log => {
         const style = getActionCategoryStyle(log.category, log.action_type);
         const isByAdmin = log.performed_by && log.performed_by !== currentActiveEditUsername;
-        const parsedDate = parseDbDate(log.created_at);
-        const relTime = formatRelativeTime(parsedDate);
-        const fullTimeStr = parsedDate ? parsedDate.toLocaleString('en-GB', { timeZone: 'Asia/Jakarta', month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '';
+        const timeInfo = formatLogTimestamps(log.created_at);
         const ipBadgeHtml = formatIpBadge(log.ip_address);
         const deviceBadgeHtml = formatDeviceBadge(log.device_info);
 
@@ -1314,16 +1340,22 @@
             <i class="ti ${style.icon}"></i>
           </div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex items-start justify-between gap-3">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${style.bg} ${style.text} border ${style.border}">
                   ${style.label}
                 </span>
                 ${isByAdmin ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-semibold">By ${log.performed_by}</span>` : ''}
               </div>
-              <span class="text-[11px] text-gray-400 font-mono flex-shrink-0" title="${fullTimeStr}">
-                ${relTime} <span class="text-gray-500 text-[10px]">(${fullTimeStr.split(' ')[3] || ''})</span>
-              </span>
+              <div class="text-right flex-shrink-0 font-mono">
+                <div class="text-[11px] font-semibold text-gray-300 flex items-center justify-end gap-1">
+                  <i class="ti ti-calendar-time text-xs text-primary"></i>
+                  <span>${timeInfo.fullDateTime}</span>
+                </div>
+                <div class="text-[10px] text-gray-500 mt-0.5">
+                  ${timeInfo.relativeTime}
+                </div>
+              </div>
             </div>
             <p class="text-xs text-gray-200 mt-1.5 font-medium leading-relaxed break-words">
               ${log.description || log.action_type}
@@ -1993,13 +2025,13 @@
 
       const ipBadgeHtml = formatIpBadge(log.ip_address);
       const deviceBadgeHtml = formatDeviceBadge(log.device_info);
-      const timeAgo = formatTimeAgo(log.created_at);
+      const timeInfo = formatLogTimestamps(log.created_at);
 
       return `
-        <div class="bg-dark-900 border border-[#27272a] hover:border-gray-700/80 rounded-xl p-3.5 flex items-start justify-between gap-3 transition-colors">
-          <div class="flex items-start gap-3 min-w-0">
+        <div class="bg-dark-900 border border-[#27272a] hover:border-gray-700/80 rounded-xl p-3.5 flex items-start justify-between gap-4 transition-colors">
+          <div class="flex items-start gap-3 min-w-0 flex-1">
             ${avatarHtml}
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2 flex-wrap mb-1">
                 <span class="text-xs font-bold text-white">${username}</span>
                 ${roleBadge}
@@ -2009,15 +2041,23 @@
                 </span>
               </div>
               <p class="text-xs text-gray-300 break-words leading-relaxed">${log.description || 'No description provided'}</p>
-              <div class="mt-2 flex items-center gap-2.5 text-[11px] text-gray-500 flex-wrap">
-                <span class="flex items-center gap-1"><i class="ti ti-clock text-xs text-gray-400"></i> ${timeAgo}</span>
-                ${(ipBadgeHtml || deviceBadgeHtml) ? `<span>•</span>${ipBadgeHtml}` : ''}
-                ${deviceBadgeHtml ? `<span>•</span>${deviceBadgeHtml}` : ''}
-              </div>
+              ${(ipBadgeHtml || deviceBadgeHtml) ? `
+                <div class="mt-2 flex items-center gap-2.5 text-[11px] text-gray-500 flex-wrap">
+                  ${ipBadgeHtml}
+                  ${(ipBadgeHtml && deviceBadgeHtml) ? `<span class="text-gray-600">•</span>` : ''}
+                  ${deviceBadgeHtml}
+                </div>
+              ` : ''}
             </div>
           </div>
-          <div class="text-[10px] text-gray-500 font-mono shrink-0 text-right hidden sm:block">
-            ${log.created_at ? new Date(parseDbDate(log.created_at)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+          <div class="text-right flex-shrink-0 font-mono">
+            <div class="text-[11px] font-semibold text-gray-300 flex items-center justify-end gap-1">
+              <i class="ti ti-calendar-time text-xs text-primary"></i>
+              <span>${timeInfo.fullDateTime}</span>
+            </div>
+            <div class="text-[10px] text-gray-500 mt-0.5">
+              ${timeInfo.relativeTime}
+            </div>
           </div>
         </div>
       `;
