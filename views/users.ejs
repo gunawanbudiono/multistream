@@ -1304,6 +1304,18 @@
     return `<span class="inline-flex items-center gap-1.5 text-[10px] text-gray-400 font-mono" title="${dev.label}"><i class="ti ${icon} text-gray-400 text-xs"></i> ${dev.label}</span>`;
   }
 
+  function formatActorBadge(performedBy, targetUsername) {
+    if (!performedBy) return '';
+    const p = String(performedBy).trim();
+    if (p.includes('(Impersonating)')) {
+      return `<span class="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-semibold border border-amber-500/30 flex items-center gap-1"><i class="ti ti-user-exclamation text-xs"></i> By ${p}</span>`;
+    }
+    if (targetUsername && p.toLowerCase() !== targetUsername.toLowerCase()) {
+      return `<span class="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-semibold border border-purple-500/30 flex items-center gap-1"><i class="ti ti-user-cog text-xs"></i> By ${p}</span>`;
+    }
+    return `<span class="text-[10px] px-2 py-0.5 rounded-md bg-dark-800 text-gray-300 font-semibold border border-gray-700/60 flex items-center gap-1"><i class="ti ti-user text-xs text-gray-400"></i> By ${p}</span>`;
+  }
+
   function formatLogTimestamps(dateStr) {
     if (!dateStr) return { fullDateTime: '', relativeTime: '' };
     const parsedDate = parseDbDate(dateStr);
@@ -1353,7 +1365,6 @@
       logList.classList.remove('hidden');
       filtered.forEach(log => {
         const style = getActionCategoryStyle(log.category, log.action_type);
-        const isByAdmin = log.performed_by && log.performed_by !== currentActiveEditUsername;
         const timeInfo = formatLogTimestamps(log.created_at);
         const ipBadgeHtml = formatIpBadge(log.ip_address);
         const deviceBadgeHtml = formatDeviceBadge(log.device_info, log.user_agent);
@@ -1370,7 +1381,7 @@
                 <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${style.bg} ${style.text} border ${style.border}">
                   ${style.label}
                 </span>
-                ${isByAdmin ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-semibold">By ${log.performed_by}</span>` : ''}
+                ${formatActorBadge(log.performed_by, currentActiveEditUsername)}
               </div>
               <div class="text-right flex-shrink-0 font-mono">
                 <div class="text-[11px] font-semibold text-gray-300 flex items-center justify-end gap-1">
@@ -2064,6 +2075,7 @@
                   <i class="ti ${catStyle.icon} text-xs"></i>
                   <span>${log.action_type || catStyle.label}</span>
                 </span>
+                ${formatActorBadge(log.performed_by, username)}
               </div>
               <p class="text-xs text-gray-300 break-words leading-relaxed">${log.description || 'No description provided'}</p>
               ${(ipBadgeHtml || deviceBadgeHtml) ? `

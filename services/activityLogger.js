@@ -89,13 +89,24 @@ function logActivity({ userId, performedBy, actionType, category = 'general', de
     const effectiveUa = userAgent || (req && req.headers ? req.headers['user-agent'] : null);
     const detailsStr = typeof details === 'object' && details !== null ? JSON.stringify(details) : (details || null);
     
+    // Determine the true actor (especially during impersonation)
+    let actualActor = performedBy;
+    if (req && req.session) {
+      if (req.session.isImpersonating && req.session.originalAdminUsername) {
+        actualActor = `${req.session.originalAdminUsername} (Impersonating)`;
+      } else if (!actualActor) {
+        actualActor = req.session.username;
+      }
+    }
+    actualActor = actualActor || userId || 'system';
+
     db.run(
       `INSERT INTO user_activity_logs (id, user_id, performed_by, action_type, category, description, details, ip_address, user_agent) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         userId,
-        performedBy || userId || 'system',
+        actualActor,
         actionType || 'UNKNOWN',
         category || 'general',
         description || '',
