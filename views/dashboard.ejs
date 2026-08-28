@@ -4859,19 +4859,29 @@
     }
 
     async function purgeUploadSession(uploadId) {
-      if (!confirm('Are you sure you want to delete this incomplete upload session and free up its temporary chunks?')) return;
-      try {
-        const res = await fetch(`/api/system/storage-purge-session/${uploadId}`, { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-          if (typeof showToast === 'function') showToast('success', 'Upload session purged successfully');
-          scanStorageJunk();
-        } else {
-          alert(data.error || 'Failed to purge upload session');
+      showCustomConfirm(
+        'Purge Upload Session',
+        'Are you sure you want to delete this incomplete upload session and free up its temporary chunks?',
+        async () => {
+          try {
+            const res = await fetch(`/api/system/storage-purge-session/${uploadId}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+              if (typeof showToast === 'function') showToast('success', 'Upload session purged successfully');
+              scanStorageJunk();
+            } else {
+              if (typeof showToast === 'function') showToast('error', data.error || 'Failed to purge upload session');
+            }
+          } catch (e) {
+            if (typeof showToast === 'function') showToast('error', e.message);
+          }
+        },
+        {
+          icon: 'ti-trash',
+          okText: 'Purge File',
+          okClass: 'bg-red-500 hover:bg-red-600 text-white'
         }
-      } catch (e) {
-        alert(e.message);
-      }
+      );
     }
 
     async function scanStorageJunk() {

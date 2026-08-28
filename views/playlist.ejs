@@ -688,22 +688,27 @@ function viewPlaylist(playlistId) {
 }
 
 function deletePlaylist(playlistId, playlistName) {
-  if (confirm(`Are you sure you want to delete "${playlistName}"?`)) {
-    fetch(`/api/playlists/${playlistId}`, { method: 'DELETE' })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          showToast('Playlist deleted successfully', 'success');
-          location.reload();
-        } else {
-          showToast(data.message || 'Error deleting playlist', 'error');
-        }
-      })
-      .catch(error => {
-        console.error('Error deleting playlist:', error);
-        showToast('Error deleting playlist', 'error');
-      });
-  }
+  showCustomConfirm(
+    'Delete Playlist',
+    `Are you sure you want to delete "${playlistName}"?`,
+    () => {
+      fetch(`/api/playlists/${playlistId}`, { method: 'DELETE' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showToast('Playlist deleted successfully', 'success');
+            location.reload();
+          } else {
+            showToast(data.message || 'Error deleting playlist', 'error');
+          }
+        })
+        .catch(error => {
+          console.error('Error deleting playlist:', error);
+          showToast('Error deleting playlist', 'error');
+        });
+    },
+    { icon: 'ti-trash', okText: 'Delete Playlist', okClass: 'bg-red-500 hover:bg-red-600 text-white' }
+  );
 }
 
 function submitPlaylist() {

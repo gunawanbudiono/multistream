@@ -152,8 +152,11 @@
           try {
             const res = await fetch('/api/users/exit-impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
             const data = await res.json();
-            if (data.success) window.location.href = '/users';
-            else alert(data.error || 'Failed to exit impersonation');
+            if (data.success) {
+              window.location.href = '/users';
+            } else {
+              console.error(data.error || 'Failed to exit impersonation');
+            }
           } catch (e) {
             console.error(e);
           }
@@ -648,6 +651,58 @@
     }
   });
 
+  // ==========================================
+  // GLOBAL CUSTOM CONFIRMATION MODAL
+  // ==========================================
+  window.showCustomConfirm = function(title, message, onConfirm, options = {}) {
+    const modal = document.getElementById('globalConfirmModal');
+    const content = document.getElementById('globalConfirmModalContent');
+    const titleEl = document.getElementById('globalConfirmTitle');
+    const msgEl = document.getElementById('globalConfirmMessage');
+    const cancelBtn = document.getElementById('globalConfirmCancelBtn');
+    const okBtn = document.getElementById('globalConfirmOkBtn');
+    const iconEl = document.getElementById('globalConfirmIcon');
+
+    if (!modal || !content) return;
+
+    if (titleEl) titleEl.innerText = title || 'Confirm Action';
+    if (msgEl) msgEl.innerText = message || 'Are you sure you want to proceed?';
+    if (okBtn) {
+      okBtn.innerText = options.okText || 'Confirm';
+      okBtn.className = `px-5 py-2 text-sm font-medium rounded-xl transition-colors ${options.okClass || 'bg-primary hover:bg-blue-600 text-white'}`;
+    }
+    if (iconEl && options.icon) {
+      iconEl.className = `ti ${options.icon}`;
+    }
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+      modal.classList.remove('opacity-0');
+      content.classList.remove('opacity-0', 'scale-95');
+    }, 10);
+
+    const cleanup = () => {
+      modal.classList.add('opacity-0');
+      content.classList.add('opacity-0', 'scale-95');
+      setTimeout(() => modal.classList.add('hidden'), 200);
+    };
+
+    cancelBtn.onclick = cleanup;
+    okBtn.onclick = () => {
+      cleanup();
+      if (typeof onConfirm === 'function') onConfirm();
+    };
+  };
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const gModal = document.getElementById('globalConfirmModal');
+      if (gModal && !gModal.classList.contains('hidden')) {
+        document.getElementById('globalConfirmCancelBtn')?.click();
+      }
+    }
+  });
+
   <% if (req.session && req.session.user_role === 'admin') { %>
   async function pollActiveUploads() {
     try {
@@ -690,3 +745,24 @@
   setInterval(pollActiveUploads, 8000);
   <% } %>
 </script>
+
+<!-- ========================================== -->
+<!-- GLOBAL CUSTOM CONFIRMATION MODAL -->
+<!-- ========================================== -->
+<div id="globalConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+  <div id="globalConfirmModalContent" class="bg-[#18181b] border border-[#27272a] rounded-2xl w-full max-w-md p-6 shadow-2xl transform scale-95 opacity-0 transition-all duration-200 text-center">
+    <div id="globalConfirmIconWrapper" class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-2xl mx-auto mb-4">
+      <i id="globalConfirmIcon" class="ti ti-alert-triangle"></i>
+    </div>
+    <h3 id="globalConfirmTitle" class="text-lg font-bold text-white mb-2">Confirm Action</h3>
+    <p id="globalConfirmMessage" class="text-sm text-gray-400 mb-6">Are you sure you want to proceed?</p>
+    <div class="flex items-center justify-center gap-3">
+      <button id="globalConfirmCancelBtn" class="px-4 py-2 text-sm text-gray-400 hover:text-white bg-dark-900 border border-[#27272a] rounded-xl transition-colors">
+        Cancel
+      </button>
+      <button id="globalConfirmOkBtn" class="px-5 py-2 text-sm bg-primary hover:bg-blue-600 text-white font-medium rounded-xl transition-colors">
+        Confirm
+      </button>
+    </div>
+  </div>
+</div>

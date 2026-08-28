@@ -1261,24 +1261,29 @@ async function compressRotationThumbnail(file) {
 }
 
 async function deleteRotation(id) {
-  if (!confirm('Are you sure you want to delete this rotation?')) return;
-  
-  try {
-    const response = await fetch(`/api/rotations/${id}`, {
-      method: 'DELETE',
-      headers: { 'X-CSRF-Token': csrfToken }
-    });
-    const result = await response.json();
-    
-    if (result.success) {
-      showToast('success', 'Rotation deleted');
-      setTimeout(() => window.location.reload(), 1000);
-    } else {
-      showToast('error', result.error || 'Failed to delete');
-    }
-  } catch (error) {
-    showToast('error', 'An error occurred');
-  }
+  showCustomConfirm(
+    'Delete Rotation',
+    'Are you sure you want to delete this rotation?',
+    async () => {
+      try {
+        const response = await fetch(`/api/rotations/${id}`, {
+          method: 'DELETE',
+          headers: { 'X-CSRF-Token': csrfToken }
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+          showToast('success', 'Rotation deleted');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('error', result.error || 'Failed to delete');
+        }
+      } catch (error) {
+        showToast('error', 'An error occurred');
+      }
+    },
+    { icon: 'ti-trash', okText: 'Delete Rotation', okClass: 'bg-red-500 hover:bg-red-600 text-white' }
+  );
 }
 
 async function activateRotation(id) {

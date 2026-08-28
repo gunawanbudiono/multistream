@@ -803,21 +803,35 @@
       const removeRecaptchaBtn = document.getElementById('remove-recaptcha');
       if (removeRecaptchaBtn) {
         removeRecaptchaBtn.addEventListener('click', async () => {
-          if (!confirm('Are you sure you want to remove reCAPTCHA keys? This will disable reCAPTCHA protection.')) return;
-          
-          try {
-            const response = await fetch('/api/settings/recaptcha', {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': '<%= csrfToken %>'
+          showCustomConfirm(
+            'Remove reCAPTCHA Keys',
+            'Are you sure you want to remove reCAPTCHA keys? This will disable reCAPTCHA protection.',
+            async () => {
+              try {
+                const response = await fetch('/api/settings/recaptcha', {
+                  method: 'DELETE',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '<%= csrfToken %>'
+                  }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                  showToast('success', 'reCAPTCHA keys removed successfully');
+                  setTimeout(() => window.location.reload(), 1500);
+                } else {
+                  showToast('error', data.error || 'Failed to remove reCAPTCHA keys');
+                }
+              } catch (error) {
+                showToast('error', 'Failed to remove reCAPTCHA keys');
               }
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-              showToast('success', 'reCAPTCHA keys removed successfully');
+            },
+            { icon: 'ti-shield-off', okText: 'Remove Keys', okClass: 'bg-red-500 hover:bg-red-600 text-white' }
+          );
+        });
+      }
               setTimeout(() => {
                 window.location.hash = 'security';
                 window.location.reload();
@@ -899,27 +913,32 @@
       }
 
       async function clearLogs() {
-        if (!confirm('Are you sure you want to clear all logs?')) return;
-        
-        try {
-          const response = await fetch('/api/settings/logs/clear', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-Token': '<%= csrfToken %>'
+        showCustomConfirm(
+          'Clear Application Logs',
+          'Are you sure you want to clear all logs? This cannot be undone.',
+          async () => {
+            try {
+              const response = await fetch('/api/settings/logs/clear', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRF-Token': '<%= csrfToken %>'
+                }
+              });
+              const data = await response.json();
+              
+              if (data.success) {
+                showToast('success', 'Logs cleared successfully');
+                loadLogs();
+              } else {
+                showToast('error', data.error || 'Failed to clear logs');
+              }
+            } catch (error) {
+              showToast('error', 'Failed to clear logs');
             }
-          });
-          const data = await response.json();
-          
-          if (data.success) {
-            showToast('success', 'Logs cleared successfully');
-            loadLogs();
-          } else {
-            showToast('error', data.error || 'Failed to clear logs');
-          }
-        } catch (error) {
-          showToast('error', 'Failed to clear logs');
-        }
+          },
+          { icon: 'ti-trash', okText: 'Clear Logs', okClass: 'bg-red-500 hover:bg-red-600 text-white' }
+        );
       }
 
       refreshLogsBtn.addEventListener('click', loadLogs);
@@ -1057,31 +1076,36 @@
       const disconnectAllBtn = document.getElementById('disconnect-all-youtube');
       if (disconnectAllBtn) {
         disconnectAllBtn.addEventListener('click', async () => {
-          if (!confirm('Are you sure you want to disconnect ALL YouTube channels?')) return;
-          
-          try {
-            const response = await fetch('/api/settings/youtube-disconnect', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': '<%= csrfToken %>'
+          showCustomConfirm(
+            'Disconnect All YouTube Channels',
+            'Are you sure you want to disconnect ALL YouTube channels? Any active streams using these channels will be stopped.',
+            async () => {
+              try {
+                const response = await fetch('/api/settings/youtube-disconnect', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '<%= csrfToken %>'
+                  }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                  showToast('success', 'All YouTube channels disconnected');
+                  setTimeout(() => {
+                    window.location.hash = 'integration';
+                    window.location.reload();
+                  }, 1000);
+                } else {
+                  showToast('error', data.error || 'Failed to disconnect');
+                }
+              } catch (error) {
+                showToast('error', 'Failed to disconnect YouTube channels');
               }
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-              showToast('success', 'All YouTube channels disconnected');
-              setTimeout(() => {
-                window.location.hash = 'integration';
-                window.location.reload();
-              }, 1000);
-            } else {
-              showToast('error', data.error || 'Failed to disconnect');
-            }
-          } catch (error) {
-            showToast('error', 'Failed to disconnect YouTube channels');
-          }
+            },
+            { icon: 'ti-plug-connected-x', okText: 'Disconnect All', okClass: 'bg-red-500 hover:bg-red-600 text-white' }
+          );
         });
       }
   });
@@ -1113,21 +1137,37 @@
   }
 
   async function disconnectChannel(channelId, channelName) {
-    if (!confirm(`Are you sure you want to disconnect "${channelName}"?`)) return;
-    
-    try {
-      const response = await fetch(`/api/settings/youtube-channel/${channelId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': '<%= csrfToken %>'
+    showCustomConfirm(
+      'Disconnect Channel',
+      `Are you sure you want to disconnect "${channelName}"?`,
+      async () => {
+        try {
+          const response = await fetch(`/api/settings/youtube-channel/${channelId}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': '<%= csrfToken %>'
+            }
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            showToast('success', 'Channel disconnected successfully');
+            setTimeout(() => {
+              window.location.hash = 'integration';
+              window.location.reload();
+            }, 1000);
+          } else {
+            showToast('error', data.error || 'Failed to disconnect channel');
+          }
+        } catch (error) {
+          showToast('error', 'Failed to disconnect channel');
         }
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        showToast('success', 'Channel disconnected successfully');
+      },
+      { icon: 'ti-plug-connected-x', okText: 'Disconnect', okClass: 'bg-red-500 hover:bg-red-600 text-white' }
+    );
+  }
         setTimeout(() => {
           window.location.hash = 'integration';
           window.location.reload();

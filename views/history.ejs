@@ -197,22 +197,42 @@
     }
 
     function deleteHistoryEntry(id, title) {
-      if (confirm(`Are you sure you want to delete "${title}"?`)) {
-        fetch(`/api/history/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
-          .then(r => r.json())
-          .then(data => {
-            if (data.success) {
-              showToast('Deleted successfully');
-              const row = document.querySelector(`tr[data-id="${id}"]`);
-              if (row) {
-                row.style.opacity = '0';
-                row.style.transform = 'translateX(-10px)';
-                row.style.transition = 'all 0.3s';
-                setTimeout(() => {
-                  row.remove();
-                  if (!document.querySelector('#history-table-body tr[data-id]')) {
-                    document.getElementById('history-table-body').innerHTML = `
-                      <tr><td colspan="6" class="px-6 py-10 text-center text-gray-400">
+      showCustomConfirm(
+        'Delete History Entry',
+        `Are you sure you want to delete "${title}"?`,
+        () => {
+          fetch(`/api/history/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
+            .then(r => r.json())
+            .then(data => {
+              if (data.success) {
+                showToast('Deleted successfully');
+                const row = document.querySelector(`tr[data-id="${id}"]`);
+                if (row) {
+                  row.style.opacity = '0';
+                  row.style.transform = 'translateX(-10px)';
+                  row.style.transition = 'all 0.3s';
+                  setTimeout(() => {
+                    row.remove();
+                    if (!document.querySelector('#history-table-body tr[data-id]')) {
+                      document.getElementById('history-table-body').innerHTML = `
+                        <tr><td colspan="6" class="px-6 py-10 text-center text-gray-400">
+                          <i class="ti ti-history-off text-3xl mb-2 block"></i>
+                          No history entries found
+                        </td></tr>`;
+                    }
+                  }, 300);
+                }
+              } else {
+                showToast(data.error || 'Failed to delete history', 'error');
+              }
+            })
+            .catch(err => {
+              showToast('Error deleting history', 'error');
+            });
+        },
+        { icon: 'ti-trash', okText: 'Delete', okClass: 'bg-red-500 hover:bg-red-600 text-white' }
+      );
+    }
                         <div class="flex flex-col items-center">
                           <i class="ti ti-history text-3xl mb-2"></i>
                           <p>No stream history found</p>
