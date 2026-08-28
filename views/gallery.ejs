@@ -3046,6 +3046,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  window._removeSelectedFileByIndex = function(idx) {
+    if (idx >= 0 && idx < selectedFiles.length) {
+      selectedFiles.splice(idx, 1);
+      if (selectedFiles.length > 0) updateFilesList();
+      else resetUploadForm();
+    }
+  };
+
   async function updateFilesList() {
     const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
     selectedFileCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} selected (${formatFileSize(totalSize)})`;
@@ -3058,25 +3066,28 @@ document.addEventListener('DOMContentLoaded', function() {
       const category = getFileCategory(file);
       
       const div = document.createElement('div');
-      div.className = 'flex items-center justify-between p-3 rounded-xl bg-dark-700/80 border border-gray-700 hover:border-gray-600 transition-all shadow-sm gap-3';
+      div.className = 'flex flex-col p-3 rounded-xl bg-dark-700/80 border border-gray-700 hover:border-gray-600 transition-all shadow-sm gap-2';
       div.id = `selected-file-row-${file._uid}`;
       
       div.innerHTML = `
-        <div class="flex items-center gap-3.5 min-w-0 flex-1">
-          <div class="w-20 h-15 rounded-lg bg-dark-600 flex items-center justify-center shrink-0 border border-gray-700 animate-pulse">
-            <i class="ti ti-loader text-gray-400 text-lg animate-spin"></i>
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold text-white truncate max-w-md">${file.name}</p>
-            <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-              <span class="text-[10px] bg-dark-800 text-gray-300 px-2 py-0.5 rounded border border-gray-600/40 font-medium">${formatFileSize(file.size)}</span>
-              <span class="text-[10px] text-gray-500">Inspecting metadata...</span>
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3.5 min-w-0 flex-1">
+            <div class="w-20 h-15 rounded-lg bg-dark-600 flex items-center justify-center shrink-0 border border-gray-700 animate-pulse">
+              <i class="ti ti-loader text-gray-400 text-lg animate-spin"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-white truncate max-w-md">${file.name}</p>
+              <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                <span class="text-[10px] bg-dark-800 text-gray-300 px-2 py-0.5 rounded border border-gray-600/40 font-medium">${formatFileSize(file.size)}</span>
+                <span class="text-[10px] text-gray-500">Inspecting metadata...</span>
+              </div>
             </div>
           </div>
+          <button type="button" class="text-gray-400 hover:text-red-400 p-2 rounded-lg hover:bg-dark-600 transition-colors shrink-0" data-index="${i}" title="Remove file">
+            <i class="ti ti-trash text-base"></i>
+          </button>
         </div>
-        <button type="button" class="text-gray-400 hover:text-red-400 p-2 rounded-lg hover:bg-dark-600 transition-colors shrink-0" data-index="${i}" title="Remove file">
-          <i class="ti ti-trash text-base"></i>
-        </button>
+        <div class="duplicate-alert-area hidden"></div>
       `;
 
       div.querySelector('button').addEventListener('click', () => {
@@ -3088,8 +3099,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
       selectedFilesList.appendChild(div);
 
-      inspectMediaFile(file).then(meta => {
+      inspectMediaFile(file).then(async (meta) => {
         if (!div.isConnected) return;
+        file._meta = meta;
         let thumbContent = '';
         if (meta.thumbnailUrl) {
           thumbContent = `
@@ -3136,28 +3148,62 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         }
 
-        div.innerHTML = `
-          <div class="flex items-center gap-3.5 min-w-0 flex-1">
-            <div class="${thumbBoxClass}">
-              ${thumbContent}
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-semibold text-white truncate max-w-md" title="${meta.name}">${meta.name}</p>
-              <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                ${badgesHtml}
+        const rowTop = div.querySelector('.flex.items-center.justify-between.gap-3');
+        if (rowTop) {
+          rowTop.innerHTML = `
+            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+              <div class="${thumbBoxClass}">
+                ${thumbContent}
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-white truncate max-w-md" title="${meta.name}">${meta.name}</p>
+                <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  ${badgesHtml}
+                </div>
               </div>
             </div>
-          </div>
-          <button type="button" class="text-gray-400 hover:text-red-400 p-2 rounded-lg hover:bg-dark-600 transition-colors shrink-0" title="Remove file">
-            <i class="ti ti-trash text-base"></i>
-          </button>
-        `;
-        div.querySelector('button').addEventListener('click', () => {
-          const currIdx = selectedFiles.indexOf(file);
-          if (currIdx !== -1) selectedFiles.splice(currIdx, 1);
-          if (selectedFiles.length > 0) updateFilesList();
-          else resetUploadForm();
-        });
+            <button type="button" class="text-gray-400 hover:text-red-400 p-2 rounded-lg hover:bg-dark-600 transition-colors shrink-0" title="Remove file">
+              <i class="ti ti-trash text-base"></i>
+            </button>
+          `;
+          rowTop.querySelector('button').addEventListener('click', () => {
+            const currIdx = selectedFiles.indexOf(file);
+            if (currIdx !== -1) selectedFiles.splice(currIdx, 1);
+            if (selectedFiles.length > 0) updateFilesList();
+            else resetUploadForm();
+          });
+        }
+
+        // Smart Duplicate Check
+        try {
+          const dupRes = await fetch('/api/videos/check-duplicates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              files: [{ name: file.name, size: file.size, duration: meta.duration || 0 }]
+            })
+          });
+          const dupData = await dupRes.json();
+          if (dupData.success && dupData.duplicates && dupData.duplicates.length > 0) {
+            const dup = dupData.duplicates[0];
+            file._duplicate = dup;
+            const alertArea = div.querySelector('.duplicate-alert-area');
+            if (alertArea) {
+              alertArea.classList.remove('hidden');
+              alertArea.innerHTML = `
+                <div class="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between gap-2 text-xs">
+                  <div class="flex items-center gap-2 text-amber-300 font-medium truncate min-w-0">
+                    <i class="ti ti-alert-triangle text-amber-400 shrink-0 text-base"></i>
+                    <span class="truncate">Video sudah ada di Galeri: <strong>"${dup.matchedVideo.title}"</strong> (${formatFileSize(dup.matchedVideo.file_size)})</span>
+                  </div>
+                  <button type="button" class="px-2.5 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-semibold shrink-0 transition-colors flex items-center gap-1" onclick="window._removeSelectedFileByIndex(${i})">
+                    <i class="ti ti-x text-xs"></i> <span>Hapus (Skip)</span>
+                  </button>
+                </div>
+              `;
+            }
+          }
+        } catch (e) {}
       });
     }
   }
@@ -3208,10 +3254,29 @@ document.addEventListener('DOMContentLoaded', function() {
     if (floatMetrics) floatMetrics.textContent = `${overallPct}% complete${etaLabel}`;
   }
 
+  let currentItemAborted = false;
+  let currentUploadingIndex = -1;
+
+  window._cancelUploadSingle = function(idx) {
+    if (window._cancelledUploadIndexes) {
+      window._cancelledUploadIndexes.add(idx);
+    }
+    if (currentUploadingIndex === idx) {
+      currentItemAborted = true;
+      if (currentActiveXhr) {
+        try { currentActiveXhr.abort(); } catch (e) {}
+        currentActiveXhr = null;
+      }
+    }
+    updateFileProgress(idx, 'cancelled', 0, 0, selectedFiles[idx]?.size);
+  };
+
   const triggerUploadProcess = async function() {
     if (selectedFiles.length === 0) return;
     isUploadInProgress = true;
     uploadAborted = false;
+    currentItemAborted = false;
+    currentUploadingIndex = -1;
     uploadDropzone.classList.add('hidden');
     selectedFileInfo.classList.add('hidden');
     uploadProgress.classList.remove('hidden');
@@ -3222,174 +3287,176 @@ document.addEventListener('DOMContentLoaded', function() {
     fileLoadedBytesMap.clear();
     selectedFiles.forEach((_, idx) => fileLoadedBytesMap.set(idx, 0));
       
-      const fileSuccessSet = new Set();
-      const cancelledIndexes = new Set();
-      uploadFilesList.innerHTML = '';
-      selectedFiles.forEach((f, idx) => {
-        const category = getFileCategory(f);
-        let icon = 'ti-video text-blue-400';
-        if (category === 'audio') icon = 'ti-music text-purple-400';
-        if (category === 'image') icon = 'ti-photo text-green-400';
-        
-        const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-2.5 rounded-lg bg-dark-700/60 border border-gray-700/50 gap-2';
-        div.id = `upload-queue-item-${idx}`;
-        div.innerHTML = `
+    const fileSuccessSet = new Set();
+    const cancelledIndexes = new Set();
+    window._cancelledUploadIndexes = cancelledIndexes;
+    uploadFilesList.innerHTML = '';
+
+    selectedFiles.forEach((f, idx) => {
+      const category = getFileCategory(f);
+      let icon = 'ti-video text-blue-400';
+      if (category === 'audio') icon = 'ti-music text-purple-400';
+      if (category === 'image') icon = 'ti-photo text-green-400';
+      
+      const div = document.createElement('div');
+      div.className = 'p-3 rounded-xl bg-dark-700/60 border border-gray-700/60 transition-all space-y-2';
+      div.id = `upload-queue-item-${idx}`;
+      div.innerHTML = `
+        <div class="flex items-center justify-between gap-3 min-w-0">
           <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div class="w-7 h-7 rounded bg-dark-600 flex items-center justify-center shrink-0">
+            <div class="w-8 h-8 rounded-lg bg-dark-600 flex items-center justify-center shrink-0 border border-gray-700">
               <i class="ti ${icon} text-sm"></i>
             </div>
             <div class="min-w-0 flex-1">
-              <p class="text-xs text-gray-200 truncate max-w-sm font-medium">${f.name}</p>
-              <p class="text-[10px] text-gray-500 file-substatus">Waiting in queue (${formatFileSize(f.size)})</p>
+              <p class="text-xs text-gray-200 truncate font-semibold">${f.name}</p>
+              <p class="text-[10px] text-gray-400 file-substatus font-mono">Waiting in queue (${formatFileSize(f.size)})</p>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0 file-action-area">
             <span class="file-status text-xs text-gray-400 font-semibold">Waiting</span>
-            <button type="button" class="file-cancel-btn text-gray-500 hover:text-red-400 p-1 rounded hover:bg-dark-600 transition-colors" data-idx="${idx}" title="Cancel item">
+            <button type="button" class="file-cancel-btn text-gray-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-dark-600 transition-colors" onclick="window._cancelUploadSingle(${idx})" title="Cancel this file">
               <i class="ti ti-x text-sm"></i>
             </button>
           </div>
-        `;
+        </div>
+        <div class="w-full bg-dark-900 rounded-full h-1.5 overflow-hidden">
+          <div class="file-row-progress bg-blue-500 h-1.5 rounded-full transition-all duration-150" style="width: 0%"></div>
+        </div>
+      `;
 
-        div.querySelector('.file-cancel-btn').onclick = (e) => {
-          e.stopPropagation();
-          cancelledIndexes.add(idx);
-          const st = div.querySelector('.file-status');
-          const sub = div.querySelector('.file-substatus');
-          if (st) { st.textContent = 'Cancelled'; st.className = 'file-status text-xs text-gray-500 font-semibold'; }
-          if (sub) { sub.textContent = 'Skipped by user'; }
-          div.querySelector('.file-cancel-btn')?.remove();
-        };
+      uploadFilesList.appendChild(div);
+    });
 
-        uploadFilesList.appendChild(div);
+    updateBatchMetrics(0, selectedFiles[0].name);
+
+    const runUploadSingle = async (i) => {
+      if (uploadAborted || cancelledIndexes.has(i)) return false;
+      const file = selectedFiles[i];
+      currentUploadingIndex = i;
+      currentItemAborted = false;
+
+      uploadProgressStatus.textContent = `Uploading (${i + 1}/${selectedFiles.length}): ${file.name}`;
+      updateFileProgress(i, 'uploading', 0, 0, file.size);
+      
+      let result;
+      // 25 MB Threshold for Chunked Turbo Upload
+      if (file.size > 25 * 1024 * 1024) {
+        result = await uploadChunked(file, i, selectedFiles.length);
+      } else {
+        result = await uploadUniversalSingle(file, i, selectedFiles.length);
+      }
+      
+      if (result && result.cancelled) {
+        fileSuccessSet.delete(i);
+        cancelledIndexes.add(i);
+        updateFileProgress(i, 'cancelled', 0, 0, file.size);
+      } else if (result && result.success) {
+        fileSuccessSet.add(i);
+        fileLoadedBytesMap.set(i, file.size);
+        updateFileProgress(i, 'success', 100, file.size, file.size);
+      } else {
+        fileSuccessSet.delete(i);
+        updateFileProgress(i, 'error', 0, 0, file.size);
+      }
+      updateBatchMetrics(i, file.name);
+      return result && result.success;
+    };
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      if (uploadAborted) break;
+      if (cancelledIndexes.has(i)) continue;
+      await runUploadSingle(i);
+    }
+
+    const renderCompletionState = async () => {
+      isUploadInProgress = false;
+      currentUploadingIndex = -1;
+      await window.refreshGalleryData?.();
+      loadDiskUsage();
+
+      if (uploadAborted) return;
+
+      const failedIndices = [];
+      selectedFiles.forEach((_, idx) => {
+        if (!fileSuccessSet.has(idx) && !cancelledIndexes.has(idx)) {
+          failedIndices.push(idx);
+        }
       });
 
-      updateBatchMetrics(0, selectedFiles[0].name);
+      const successCount = fileSuccessSet.size;
 
-      const runUploadSingle = async (i) => {
-        if (uploadAborted) return false;
-        const file = selectedFiles[i];
-        
-        const activeCancelBtn = document.querySelector(`#upload-queue-item-${i} .file-cancel-btn`);
-        if (activeCancelBtn) activeCancelBtn.remove();
+      if (failedIndices.length === 0) {
+        uploadProgressStatus.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="ti ti-circle-check text-base"></i> All files uploaded successfully (${successCount}/${selectedFiles.length})</span>`;
+        showToast('success', `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`);
+        notifyUploadComplete('🎉 Upload Selesai!', `${successCount} file telah berhasil diproses ke Galeri.`);
 
-        uploadProgressStatus.textContent = `Uploading (${i + 1}/${selectedFiles.length}): ${file.name}`;
-        updateFileProgress(i, 'uploading', 0, 0, file.size);
-        
-        let result;
-        if (file.size > 50 * 1024 * 1024) {
-          result = await uploadChunked(file, i, selectedFiles.length);
-        } else {
-          result = await uploadUniversalSingle(file, i, selectedFiles.length);
-        }
-        
-        if (result && result.success) {
-          fileSuccessSet.add(i);
-          fileLoadedBytesMap.set(i, file.size);
-          updateFileProgress(i, 'success', 100, file.size, file.size);
-        } else {
-          fileSuccessSet.delete(i);
-          updateFileProgress(i, 'error', 0, 0, file.size);
-        }
-        updateBatchMetrics(i, file.name);
-        return result && result.success;
-      };
-
-      for (let i = 0; i < selectedFiles.length; i++) {
-        if (uploadAborted) break;
-        if (cancelledIndexes.has(i)) continue;
-        await runUploadSingle(i);
+        // Update floating widget
+        const floatTitle = document.getElementById('floatingUploadTitle');
+        if (floatTitle) floatTitle.innerHTML = `<span class="text-emerald-400 font-bold">✓ All ${successCount} files uploaded</span>`;
+        const floatIcon = document.getElementById('floatingUploadIcon');
+        if (floatIcon) { floatIcon.className = 'ti ti-check text-emerald-400 text-lg'; }
+        setTimeout(() => { hideFloatingUploadWidget(); }, 5000);
+      } else {
+        uploadProgressStatus.innerHTML = `<span class="text-amber-400 font-bold flex items-center gap-1.5"><i class="ti ti-alert-triangle text-base"></i> Finished with issues (${successCount} succeeded, ${failedIndices.length} failed)</span>`;
+        showToast('warning', `${successCount} uploaded, ${failedIndices.length} failed`);
+        notifyUploadComplete('⚠️ Upload Selesai Sebagian', `${successCount} berhasil, ${failedIndices.length} gagal.`);
       }
 
-      const renderCompletionState = async () => {
-        isUploadInProgress = false;
-        await window.refreshGalleryData?.();
-        loadDiskUsage();
-
-        if (uploadAborted) return;
-
-        const failedIndices = [];
-        selectedFiles.forEach((_, idx) => {
-          if (!fileSuccessSet.has(idx) && !cancelledIndexes.has(idx)) {
-            failedIndices.push(idx);
-          }
-        });
-
-        const successCount = fileSuccessSet.size;
-
-        if (failedIndices.length === 0) {
-          uploadProgressStatus.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="ti ti-circle-check text-base"></i> All files uploaded successfully (${successCount}/${selectedFiles.length})</span>`;
-          showToast('success', `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`);
-          notifyUploadComplete('🎉 Upload Selesai!', `${successCount} file telah berhasil diproses ke Galeri.`);
-
-          // Update floating widget
-          const floatTitle = document.getElementById('floatingUploadTitle');
-          if (floatTitle) floatTitle.innerHTML = `<span class="text-emerald-400 font-bold">✓ All ${successCount} files uploaded</span>`;
-          const floatIcon = document.getElementById('floatingUploadIcon');
-          if (floatIcon) { floatIcon.className = 'ti ti-check text-emerald-400 text-lg'; }
-          setTimeout(() => { hideFloatingUploadWidget(); }, 5000);
-        } else {
-          uploadProgressStatus.innerHTML = `<span class="text-amber-400 font-bold flex items-center gap-1.5"><i class="ti ti-alert-triangle text-base"></i> Finished with issues (${successCount} succeeded, ${failedIndices.length} failed)</span>`;
-          showToast('warning', `${successCount} uploaded, ${failedIndices.length} failed`);
-          notifyUploadComplete('⚠️ Upload Selesai Sebagian', `${successCount} berhasil, ${failedIndices.length} gagal.`);
-        }
-
-        const modalFooterAction = document.getElementById('modalFooterAction');
-        if (modalFooterAction) {
-          let retryAllBtn = '';
-          if (failedIndices.length > 0) {
-            retryAllBtn = `
-              <button type="button" id="retryAllFailedBtn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors text-sm font-medium shadow-md flex items-center gap-2">
-                <i class="ti ti-reload text-base"></i>
-                <span>Retry Failed (${failedIndices.length})</span>
-              </button>
-            `;
-          }
-          modalFooterAction.innerHTML = `
-            ${retryAllBtn}
-            <button type="button" onclick="closeUploadModal()" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium shadow-md flex items-center gap-2">
-              <i class="ti ti-check text-base"></i>
-              <span>Done</span>
+      const modalFooterAction = document.getElementById('modalFooterAction');
+      if (modalFooterAction) {
+        let retryAllBtn = '';
+        if (failedIndices.length > 0) {
+          retryAllBtn = `
+            <button type="button" id="retryAllFailedBtn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors text-sm font-medium shadow-md flex items-center gap-2">
+              <i class="ti ti-reload text-base"></i>
+              <span>Retry Failed (${failedIndices.length})</span>
             </button>
           `;
-
-          const retryAll = document.getElementById('retryAllFailedBtn');
-          if (retryAll) {
-            retryAll.onclick = async () => {
-              retryAll.disabled = true;
-              retryAll.innerHTML = '<i class="ti ti-loader animate-spin text-base"></i> <span>Retrying...</span>';
-              isUploadInProgress = true;
-              uploadAborted = false;
-              for (const idx of failedIndices) {
-                if (uploadAborted) break;
-                await runUploadSingle(idx);
-              }
-              await renderCompletionState();
-            };
-          }
         }
-      };
+        modalFooterAction.innerHTML = `
+          ${retryAllBtn}
+          <button type="button" onclick="closeUploadModal()" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium shadow-md flex items-center gap-2">
+            <i class="ti ti-check text-base"></i>
+            <span>Done</span>
+          </button>
+        `;
 
-      window._retryUploadSingle = async (idx) => {
-        isUploadInProgress = true;
-        uploadAborted = false;
-        await runUploadSingle(idx);
-        await renderCompletionState();
-      };
+        const retryAll = document.getElementById('retryAllFailedBtn');
+        if (retryAll) {
+          retryAll.onclick = async () => {
+            retryAll.disabled = true;
+            retryAll.innerHTML = '<i class="ti ti-loader animate-spin text-base"></i> <span>Retrying...</span>';
+            isUploadInProgress = true;
+            uploadAborted = false;
+            for (const idx of failedIndices) {
+              if (uploadAborted) break;
+              await runUploadSingle(idx);
+            }
+            await renderCompletionState();
+          };
+        }
+      }
+    };
 
+    window._retryUploadSingle = async (idx) => {
+      isUploadInProgress = true;
+      uploadAborted = false;
+      await runUploadSingle(idx);
       await renderCompletionState();
     };
 
-    window._triggerUploadProcess = triggerUploadProcess;
-    window._bindUploadButtonHandler = (btn) => {
-      if (btn) btn.onclick = triggerUploadProcess;
-    };
-    const currentUploadBtn = document.getElementById('uploadButton');
-    if (currentUploadBtn) {
-      currentUploadBtn.onclick = triggerUploadProcess;
-    }
-    setUploadButtonState(selectedFiles.length > 0);
+    await renderCompletionState();
+  };
+
+  window._triggerUploadProcess = triggerUploadProcess;
+  window._bindUploadButtonHandler = (btn) => {
+    if (btn) btn.onclick = triggerUploadProcess;
+  };
+  const currentUploadBtn = document.getElementById('uploadButton');
+  if (currentUploadBtn) {
+    currentUploadBtn.onclick = triggerUploadProcess;
+  }
+  setUploadButtonState(selectedFiles.length > 0);
 
   function updateFileProgress(index, status, percent, loadedBytes, totalBytes) {
     const item = document.getElementById(`upload-queue-item-${index}`);
@@ -3397,25 +3464,50 @@ document.addEventListener('DOMContentLoaded', function() {
       const el = item.querySelector('.file-status');
       const sub = item.querySelector('.file-substatus');
       const actionArea = item.querySelector('.file-action-area');
+      const pBar = item.querySelector('.file-row-progress');
+
       if (status === 'uploading') {
-        el.textContent = `${percent}%`;
-        el.className = 'file-status text-xs text-primary font-bold';
+        if (pBar) {
+          pBar.style.width = `${percent}%`;
+          pBar.className = 'file-row-progress bg-blue-500 h-1.5 rounded-full transition-all duration-150';
+        }
+        if (el) {
+          el.textContent = `${percent}%`;
+          el.className = 'file-status text-xs text-primary font-bold';
+        }
         if (sub && loadedBytes !== undefined && totalBytes !== undefined) {
           sub.textContent = `${formatFileSize(loadedBytes)} / ${formatFileSize(totalBytes)} (${percent}%)`;
         }
         if (actionArea) {
-          actionArea.innerHTML = `<span class="file-status text-xs text-primary font-bold">${percent}%</span>`;
+          actionArea.innerHTML = `
+            <span class="file-status text-xs text-primary font-bold mr-1">${percent}%</span>
+            <button type="button" class="file-cancel-btn text-red-400 hover:text-red-300 px-2 py-0.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded text-[11px] font-semibold flex items-center gap-1 transition-all" onclick="window._cancelUploadSingle(${index})" title="Cancel this file">
+              <i class="ti ti-x text-xs"></i> <span>Cancel</span>
+            </button>
+          `;
         }
       } else if (status === 'success') {
-        el.textContent = '✓ Done';
-        el.className = 'file-status text-xs text-green-400 font-bold';
+        if (pBar) {
+          pBar.style.width = '100%';
+          pBar.className = 'file-row-progress bg-emerald-500 h-1.5 rounded-full';
+        }
         if (sub && totalBytes) sub.textContent = `Completed (${formatFileSize(totalBytes)})`;
         if (actionArea) {
-          actionArea.innerHTML = `<span class="file-status text-xs text-green-400 font-bold">✓ Done</span>`;
+          actionArea.innerHTML = `<span class="file-status text-xs text-emerald-400 font-bold flex items-center gap-1"><i class="ti ti-check text-xs"></i> Done</span>`;
+        }
+      } else if (status === 'cancelled') {
+        if (pBar) {
+          pBar.style.width = '0%';
+          pBar.className = 'file-row-progress bg-gray-600 h-1.5 rounded-full';
+        }
+        if (sub) sub.textContent = 'Skipped / Cancelled by user';
+        if (actionArea) {
+          actionArea.innerHTML = `<span class="file-status text-xs text-gray-500 font-semibold">Cancelled</span>`;
         }
       } else if (status === 'error') {
-        el.textContent = '✗ Failed';
-        el.className = 'file-status text-xs text-red-400 font-bold';
+        if (pBar) {
+          pBar.className = 'file-row-progress bg-red-500 h-1.5 rounded-full';
+        }
         if (sub) sub.textContent = 'Upload failed';
         if (actionArea) {
           actionArea.innerHTML = `
@@ -3430,7 +3522,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   async function uploadUniversalSingle(file, index, total) {
-    if (uploadAborted) return { success: false };
+    if (uploadAborted || currentItemAborted) return { success: false, cancelled: currentItemAborted };
     return new Promise((resolve) => {
       const formData = new FormData();
       formData.append('media', file);
@@ -3465,7 +3557,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
       xhr.addEventListener('error', () => { currentActiveXhr = null; resolve({ success: false }); });
-      xhr.addEventListener('abort', () => { currentActiveXhr = null; resolve({ success: false }); });
+      xhr.addEventListener('abort', () => { currentActiveXhr = null; resolve({ success: false, cancelled: true }); });
       xhr.addEventListener('timeout', () => { currentActiveXhr = null; resolve({ success: false }); });
       xhr.open('POST', '/api/media/upload-universal', true);
       xhr.send(formData);
@@ -3473,8 +3565,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   async function uploadChunked(file, index, totalFiles) {
-    if (uploadAborted) return { success: false };
-    const chunkSize = 50 * 1024 * 1024;
+    if (uploadAborted || currentItemAborted) return { success: false, cancelled: currentItemAborted };
+    // Turbo Chunk Size: 25 MB
+    const chunkSize = 25 * 1024 * 1024;
     const totalChunks = Math.ceil(file.size / chunkSize);
     try {
       const init = await fetch('/api/videos/chunk/init', {
@@ -3512,7 +3605,7 @@ document.addEventListener('DOMContentLoaded', function() {
       uploaded.forEach(c => chunkProgress.set(c, Math.min(chunkSize, file.size - c * chunkSize)));
 
       const uploadChunkSingle = async (chunkIndex) => {
-        if (uploadAborted) return;
+        if (uploadAborted || currentItemAborted) return;
         if (uploaded.has(chunkIndex)) return;
         const start = chunkIndex * chunkSize;
         const end = Math.min(start + chunkSize, file.size);
@@ -3521,7 +3614,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let retries = 4;
         let backoffMs = 1000;
         while (retries > 0) {
-          if (uploadAborted) return;
+          if (uploadAborted || currentItemAborted) return;
           try {
             await new Promise((resolve, reject) => {
               const xhr = new XMLHttpRequest();
@@ -3561,7 +3654,7 @@ document.addEventListener('DOMContentLoaded', function() {
             break;
           } catch (err) {
             retries--;
-            if (retries === 0 || uploadAborted) throw err;
+            if (retries === 0 || uploadAborted || currentItemAborted) throw err;
             await new Promise(r => setTimeout(r, backoffMs));
             backoffMs *= 1.5;
           }
@@ -3575,7 +3668,7 @@ document.addEventListener('DOMContentLoaded', function() {
       for (let w = 0; w < concurrency; w++) {
         workers.push((async () => {
           while (nextChunk < totalChunks) {
-            if (uploadAborted) break;
+            if (uploadAborted || currentItemAborted) break;
             const current = nextChunk++;
             await uploadChunkSingle(current);
           }
@@ -3583,7 +3676,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       await Promise.all(workers);
-      if (uploadAborted) return { success: false };
+      if (uploadAborted || currentItemAborted) return { success: false, cancelled: currentItemAborted };
 
       const queueSub = document.querySelector(`#upload-queue-item-${index} .file-substatus`);
       if (queueSub) queueSub.textContent = 'Assembling chunks & generating thumbnail...';
@@ -3601,6 +3694,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       return { success: true };
     } catch (error) {
+      if (currentItemAborted) return { success: false, cancelled: true };
       console.error('Chunked upload error:', error);
       currentActiveUploadId = null;
       return { success: false, error: error.message };

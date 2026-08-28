@@ -2776,6 +2776,90 @@ app.post('/api/audio/upload', isAuthenticated, (req, res, next) => {
   }
 });
 
+app.post('/api/videos/check-duplicates', isAuthenticated, async (req, res) => {
+  try {
+    const { files } = req.body;
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      return res.json({ success: true, duplicates: [] });
+    }
+
+    const userId = req.session.userId;
+    const userRole = req.session.user_role;
+    
+    // Fetch all user accessible videos
+    const userVideos = await new Promise((resolve, reject) => {
+      let query = 'SELECT id, title, filepath, thumbnail_path, file_size, duration FROM videos';
+      const params = [];
+      if (userRole !== 'admin') {
+        query += ' WHERE user_id = ?';
+        params.push(userId);
+      }
+      db.all(query, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const duplicates = [];
+
+    files.forEach((file, index) => {
+      if (!file) return;
+      const targetSize = parseInt(file.size, 10) || 0;
+      const targetName = (file.name || '').trim().toLowerCase();
+      const targetDuration = parseFloat(file.duration) || 0;
+
+      // Check match:
+      // 1. Exact file size match (or size within 512 bytes)
+      // 2. Or exact title match
+      // 3. Or duration within 0.5s AND size difference < 2%
+      const match = userVideos.find(v => {
+        const vSize = v.file_size || 0;
+        const vTitle = (v.title || '').trim().toLowerCase();
+        const vDuration = parseFloat(v.duration) || 0;
+
+        // Exact size match
+        if (targetSize > 0 && vSize > 0 && Math.abs(vSize - targetSize) <= 1024) {
+          return true;
+        }
+
+        // Exact title match with valid size
+        if (targetName && (vTitle === targetName || path.basename(v.filepath || '').toLowerCase() === targetName)) {
+          return true;
+        }
+
+        // Close duration match (within 0.5s) AND similar file size (within 2%)
+        if (targetDuration > 0 && vDuration > 0 && Math.abs(vDuration - targetDuration) < 0.5) {
+          if (targetSize > 0 && vSize > 0 && Math.abs(vSize - targetSize) / targetSize < 0.02) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+      if (match) {
+        duplicates.push({
+          inputIndex: index,
+          name: file.name,
+          size: file.size,
+          matchedVideo: {
+            id: match.id,
+            title: match.title,
+            file_size: match.file_size,
+            duration: match.duration,
+            thumbnail_path: match.thumbnail_path
+          }
+        });
+      }
+    });
+
+    res.json({ success: true, duplicates });
+  } catch (error) {
+    console.error('Check duplicates error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post('/api/videos/chunk/init', isAuthenticated, async (req, res) => {
   try {
     const { filename, fileSize, totalChunks } = req.body;

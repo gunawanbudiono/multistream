@@ -2,7 +2,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const crypto = require('crypto');
 
-const CHUNK_SIZE = 50 * 1024 * 1024;
+const CHUNK_SIZE = 25 * 1024 * 1024;
 const TEMP_DIR = path.join(__dirname, '../public/uploads/temp');
 const INFO_DIR = path.join(__dirname, '../public/uploads/temp/info');
 const VIDEOS_DIR = path.join(__dirname, '../public/uploads/videos');
