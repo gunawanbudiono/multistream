@@ -291,11 +291,11 @@ async function getAllUploadSessions() {
             infoMtime
           );
 
-          // Strict heartbeat: active only if chunk activity happened in the last 45s (or freshly created in last 30s)
+          // Active heartbeat: active as long as session is uploading and has activity within 5 minutes
           const timeSinceLastAct = now - lastAct;
           const isActive = info.status === 'uploading' && (
-            (uploadedChunks.length > 0 && timeSinceLastAct < 45 * 1000) ||
-            (uploadedChunks.length === 0 && (now - (info.createdAt || 0)) < 30 * 1000)
+            (uploadedChunks.length > 0 && timeSinceLastAct < 5 * 60 * 1000) ||
+            (uploadedChunks.length === 0 && (now - (info.createdAt || 0)) < 3 * 60 * 1000)
           );
 
           const progress = (info.fileSize && info.fileSize > 0)
