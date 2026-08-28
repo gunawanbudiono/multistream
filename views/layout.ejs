@@ -163,6 +163,15 @@
 
       <div
         class="hidden lg:fixed lg:flex top-0 right-0 left-20 items-center justify-end h-14 px-6 bg-dark-800 shadow-md z-10 <%= (req.session && req.session.isImpersonating) ? 'hidden' : '' %>">
+        <!-- Live Active Upload Indicator (Admin Only) -->
+        <% if (req.session && req.session.user_role === 'admin') { %>
+        <div id="globalActiveUploadBadge" class="hidden items-center gap-1.5 px-3 py-1 mr-4 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold animate-pulse cursor-pointer shadow-sm transition-all" title="Upload in progress - Click to view details">
+          <i class="ti ti-upload text-sm text-amber-400"></i>
+          <span id="globalActiveUploadBadgeText">Upload Active</span>
+        </div>
+        <div id="globalActiveUploadSeparator" class="hidden h-4 w-px bg-gray-600 mr-4"></div>
+        <% } %>
+
         <div id="server-time-display" class="flex items-center gap-1.5 text-gray-400 text-sm mr-4">
           <span id="server-date">--</span>
           <span class="text-gray-600">•</span>
@@ -638,4 +647,46 @@
       closeAppUpdateModal();
     }
   });
+
+  <% if (req.session && req.session.user_role === 'admin') { %>
+  async function pollActiveUploads() {
+    try {
+      const res = await fetch('/api/system/active-uploads');
+      const data = await res.json();
+      const badge = document.getElementById('globalActiveUploadBadge');
+      const text = document.getElementById('globalActiveUploadBadgeText');
+      const sep = document.getElementById('globalActiveUploadSeparator');
+
+      if (data.success && data.activeUploads && data.activeUploads.length > 0) {
+        const top = data.activeUploads[0];
+        const count = data.activeUploads.length;
+        const countLabel = count > 1 ? ` (+${count - 1} more)` : '';
+        const shortName = (top.filename || '').length > 18 ? top.filename.substring(0, 16) + '...' : (top.filename || 'media');
+        const label = `${top.username}: ${shortName} (${top.progress}%)${countLabel}`;
+        
+        if (text) text.innerText = label;
+        if (badge) {
+          badge.classList.remove('hidden');
+          badge.classList.add('flex');
+          badge.onclick = () => {
+            if (typeof openStorageCleanerModal === 'function') {
+              openStorageCleanerModal();
+            } else {
+              window.location.href = '/dashboard';
+            }
+          };
+        }
+        if (sep) sep.classList.remove('hidden');
+      } else {
+        if (badge) {
+          badge.classList.add('hidden');
+          badge.classList.remove('flex');
+        }
+        if (sep) sep.classList.add('hidden');
+      }
+    } catch (e) {}
+  }
+  setTimeout(pollActiveUploads, 1000);
+  setInterval(pollActiveUploads, 8000);
+  <% } %>
 </script>

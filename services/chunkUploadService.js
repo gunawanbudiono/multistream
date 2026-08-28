@@ -251,6 +251,50 @@ async function cleanupOldUploads(maxAgeMs = 2 * 60 * 60 * 1000) {
   }
 }
 
+async function getAllUploadSessions() {
+  const sessions = [];
+  if (await fs.pathExists(INFO_DIR)) {
+    const files = await fs.readdir(INFO_DIR);
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        const infoPath = path.join(INFO_DIR, file);
+        try {
+          const info = await fs.readJson(infoPath);
+          const uploadedChunks = await getUploadedChunksList(info.uploadId, info.totalChunks);
+          let uploadedBytes = 0;
+          for (const idx of uploadedChunks) {
+            const cp = getChunkPath(info.uploadId, idx);
+            try {
+              const stat = await fs.stat(cp);
+              uploadedBytes += stat.size;
+            } catch (e) {
+              uploadedBytes += CHUNK_SIZE;
+            }
+          }
+          const progress = info.totalChunks > 0 ? Math.min(100, (uploadedChunks.length / info.totalChunks) * 100).toFixed(1) : 0;
+          const lastAct = info.lastActivity || info.createdAt || 0;
+          const isActive = (Date.now() - lastAct) < (5 * 60 * 1000) && info.status === 'uploading';
+          sessions.push({
+            ...info,
+            uploadedChunks,
+            uploadedChunksCount: uploadedChunks.length,
+            uploadedBytes,
+            progress: parseFloat(progress),
+            isActive,
+            ageMs: Date.now() - lastAct
+          });
+        } catch (e) {}
+      }
+    }
+  }
+  return sessions;
+}
+
+async function getActiveUploads() {
+  const all = await getAllUploadSessions();
+  return all.filter(s => s.isActive);
+}
+
 // Run garbage collection on startup and periodically every 15 minutes
 setTimeout(() => {
   cleanupOldUploads(2 * 60 * 60 * 1000);
@@ -269,5 +313,7 @@ module.exports = {
   mergeChunks,
   cleanupUpload,
   cleanupOldUploads,
-  findExistingUpload
+  findExistingUpload,
+  getAllUploadSessions,
+  getActiveUploads
 };

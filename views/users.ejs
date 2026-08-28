@@ -177,7 +177,13 @@
                         <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-normal">You</span>
                       <% } %>
                     </div>
-                    <div class="text-xs text-gray-400 font-mono">ID: <%= user.id ? user.id.substring(0, 8) + '...' : '--' %></div>
+                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span class="text-xs text-gray-400 font-mono">ID: <%= user.id ? user.id.substring(0, 8) + '...' : '--' %></span>
+                      <div id="userRowUploadBadge-<%= user.id %>" class="hidden items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-semibold animate-pulse">
+                        <i class="ti ti-upload text-[10px]"></i>
+                        <span class="user-upload-text">Uploading...</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </td>
@@ -2114,4 +2120,32 @@
       }
     }
   });
+
+  // Real-Time Active Uploads Tracker for User Rows
+  async function pollUserUploadStatus() {
+    try {
+      const res = await fetch('/api/system/active-uploads');
+      const data = await res.json();
+      
+      document.querySelectorAll('[id^="userRowUploadBadge-"]').forEach(el => {
+        el.classList.add('hidden');
+        el.classList.remove('inline-flex');
+      });
+
+      if (data.success && data.activeUploads && data.activeUploads.length > 0) {
+        data.activeUploads.forEach(upload => {
+          const badge = document.getElementById(`userRowUploadBadge-${upload.userId}`);
+          if (badge) {
+            const txt = badge.querySelector('.user-upload-text');
+            const shortName = (upload.filename || '').length > 14 ? upload.filename.substring(0, 12) + '...' : upload.filename;
+            if (txt) txt.innerText = `Uploading: ${shortName} (${upload.progress}%)`;
+            badge.classList.remove('hidden');
+            badge.classList.add('inline-flex');
+          }
+        });
+      }
+    } catch (e) {}
+  }
+  setTimeout(pollUserUploadStatus, 1500);
+  setInterval(pollUserUploadStatus, 8000);
 </script>

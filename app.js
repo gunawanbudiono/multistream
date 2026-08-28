@@ -2799,6 +2799,19 @@ app.post('/api/videos/chunk/init', isAuthenticated, async (req, res) => {
     }
 
     const info = await chunkUploadService.initUpload(filename, fileSize, totalChunks, req.session.userId, { folderId });
+    
+    // Log upload start for audit trail & real-time monitoring
+    if (!(info.uploadedChunks && info.uploadedChunks.length > 0)) {
+      logActivity({
+        userId: req.session.userId,
+        performedBy: req.session.username,
+        actionType: 'MEDIA_UPLOAD_START',
+        category: 'media',
+        description: `Started chunk upload '${filename}' (${(parseInt(fileSize, 10) / (1024 * 1024)).toFixed(1)} MB, ${totalChunks} chunks)`,
+        req
+      });
+    }
+
     res.json({ 
       success: true, 
       uploadId: info.uploadId, 
@@ -3448,7 +3461,32 @@ app.get('/api/system/storage-audit', isAdmin, async (req, res) => {
       } catch (e) {}
     }
 
-    // 3. Application Logs
+    // 3. Detailed Temp Upload Sessions Breakdown
+    const allUploadSessions = await chunkUploadService.getAllUploadSessions();
+    const enrichedSessions = await Promise.all(allUploadSessions.map(async (s) => {
+      let username = 'User';
+      try {
+        const u = await User.findById(s.userId);
+        if (u) username = u.username;
+      } catch (e) {}
+      return {
+        uploadId: s.uploadId,
+        filename: s.filename,
+        fileSize: s.fileSize,
+        totalChunks: s.totalChunks,
+        uploadedChunksCount: s.uploadedChunksCount,
+        uploadedBytes: s.uploadedBytes,
+        progress: s.progress,
+        username,
+        userId: s.userId,
+        status: s.status,
+        isActive: s.isActive,
+        lastActivity: s.lastActivity || s.createdAt,
+        ageMs: s.ageMs
+      };
+    }));
+
+    // 4. Application Logs
     const logsDir = path.join(__dirname, 'logs');
     const logsInfo = getDirectorySize(logsDir);
 
@@ -3469,7 +3507,8 @@ app.get('/api/system/storage-audit', isAdmin, async (req, res) => {
           fileCount: totalTempCount,
           staleBytes: staleUploadBytes,
           staleCount: staleUploadCount,
-          activeBytes: activeUploadBytes
+          activeBytes: activeUploadBytes,
+          sessions: enrichedSessions
         },
         activeUploads: {
           count: activeUploadsCount,
@@ -3485,6 +3524,56 @@ app.get('/api/system/storage-audit', isAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Storage audit error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/system/active-uploads', isAuthenticated, async (req, res) => {
+  try {
+    const allSessions = await chunkUploadService.getAllUploadSessions();
+    const enrichedSessions = await Promise.all(allSessions.map(async (s) => {
+      let username = 'User';
+      try {
+        const u = await User.findById(s.userId);
+        if (u) username = u.username;
+      } catch (e) {}
+      return {
+        uploadId: s.uploadId,
+        filename: s.filename,
+        fileSize: s.fileSize,
+        totalChunks: s.totalChunks,
+        uploadedChunksCount: s.uploadedChunksCount,
+        uploadedBytes: s.uploadedBytes,
+        progress: s.progress,
+        username,
+        userId: s.userId,
+        status: s.status,
+        isActive: s.isActive,
+        lastActivity: s.lastActivity || s.createdAt,
+        ageMs: s.ageMs
+      };
+    }));
+    const activeUploads = enrichedSessions.filter(s => s.isActive);
+    res.json({
+      success: true,
+      activeUploads,
+      totalActive: activeUploads.length,
+      allSessions: enrichedSessions
+    });
+  } catch (error) {
+    console.error('Error fetching active uploads:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/system/storage-purge-session/:uploadId', isAdmin, async (req, res) => {
+  try {
+    const { uploadId } = req.params;
+    if (!uploadId) return res.status(400).json({ success: false, error: 'Missing upload ID' });
+    await chunkUploadService.cleanupUpload(uploadId);
+    res.json({ success: true, message: 'Upload session purged successfully' });
+  } catch (error) {
+    console.error('Error purging upload session:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
