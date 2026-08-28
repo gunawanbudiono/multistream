@@ -168,7 +168,7 @@
         class="hidden lg:fixed lg:flex top-0 right-0 left-20 items-center justify-end h-14 px-6 bg-dark-800 shadow-md z-10 <%= (req.session && req.session.isImpersonating) ? 'hidden' : '' %>">
         <!-- Live Active Upload Indicator (Admin Only) -->
         <% if (req.session && req.session.user_role === 'admin') { %>
-        <div id="globalActiveUploadBadge" class="hidden items-center gap-1.5 px-3 py-1 mr-4 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold animate-pulse cursor-pointer shadow-sm transition-all" title="Upload in progress - Click to view details">
+        <div id="globalActiveUploadBadge" class="hidden items-center gap-1.5 px-3 py-1 mr-4 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold cursor-pointer shadow-sm transition-all" title="Upload in progress - Click to view details">
           <i class="ti ti-upload text-sm text-amber-400"></i>
           <span id="globalActiveUploadBadgeText">Upload Active</span>
         </div>
@@ -704,6 +704,16 @@
   });
 
   <% if (req.session && req.session.user_role === 'admin') { %>
+  let activeUploadPollTimer = null;
+  
+  function formatBytesReadable(bytes) {
+    if (!bytes || bytes <= 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
   async function pollActiveUploads() {
     try {
       const res = await fetch('/api/system/active-uploads');
@@ -713,11 +723,23 @@
       const sep = document.getElementById('globalActiveUploadSeparator');
 
       if (data.success && data.activeUploads && data.activeUploads.length > 0) {
-        const top = data.activeUploads[0];
-        const count = data.activeUploads.length;
-        const countLabel = count > 1 ? ` (+${count - 1} more)` : '';
-        const shortName = (top.filename || '').length > 18 ? top.filename.substring(0, 16) + '...' : (top.filename || 'media');
-        const label = `${top.username}: ${shortName} (${top.progress}%)${countLabel}`;
+        const uploads = data.activeUploads;
+        const count = uploads.length;
+        let label = '';
+
+        if (count === 1) {
+          const top = uploads[0];
+          const uploadedStr = formatBytesReadable(top.uploadedBytes);
+          const totalStr = formatBytesReadable(top.fileSize);
+          label = `1 Upload Active • ${uploadedStr} / ${totalStr} (${top.progress}%)`;
+        } else {
+          const totalUploaded = uploads.reduce((acc, u) => acc + (u.uploadedBytes || 0), 0);
+          const totalSize = uploads.reduce((acc, u) => acc + (u.fileSize || 0), 0);
+          const totalProgress = totalSize > 0 ? ((totalUploaded / totalSize) * 100).toFixed(1) : 0;
+          const uploadedStr = formatBytesReadable(totalUploaded);
+          const totalStr = formatBytesReadable(totalSize);
+          label = `${count} Uploads Active • Total ${uploadedStr} / ${totalStr} (${totalProgress}%)`;
+        }
         
         if (text) text.innerText = label;
         if (badge) {
@@ -732,17 +754,27 @@
           };
         }
         if (sep) sep.classList.remove('hidden');
+
+        // Adaptive polling: 3s while active uploads are running
+        if (activeUploadPollTimer) clearTimeout(activeUploadPollTimer);
+        activeUploadPollTimer = setTimeout(pollActiveUploads, 3000);
       } else {
         if (badge) {
           badge.classList.add('hidden');
           badge.classList.remove('flex');
         }
         if (sep) sep.classList.add('hidden');
+
+        // Idle polling every 8s
+        if (activeUploadPollTimer) clearTimeout(activeUploadPollTimer);
+        activeUploadPollTimer = setTimeout(pollActiveUploads, 8000);
       }
-    } catch (e) {}
+    } catch (e) {
+      if (activeUploadPollTimer) clearTimeout(activeUploadPollTimer);
+      activeUploadPollTimer = setTimeout(pollActiveUploads, 8000);
+    }
   }
   setTimeout(pollActiveUploads, 1000);
-  setInterval(pollActiveUploads, 8000);
   <% } %>
 </script>
 

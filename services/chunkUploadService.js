@@ -262,18 +262,46 @@ async function getAllUploadSessions() {
           const info = await fs.readJson(infoPath);
           const uploadedChunks = await getUploadedChunksList(info.uploadId, info.totalChunks);
           let uploadedBytes = 0;
+          let latestChunkTime = 0;
+          
           for (const idx of uploadedChunks) {
             const cp = getChunkPath(info.uploadId, idx);
             try {
               const stat = await fs.stat(cp);
               uploadedBytes += stat.size;
+              if (stat.mtimeMs > latestChunkTime) {
+                latestChunkTime = stat.mtimeMs;
+              }
             } catch (e) {
               uploadedBytes += CHUNK_SIZE;
             }
           }
-          const progress = info.totalChunks > 0 ? Math.min(100, (uploadedChunks.length / info.totalChunks) * 100).toFixed(1) : 0;
-          const lastAct = info.lastActivity || info.createdAt || 0;
-          const isActive = (Date.now() - lastAct) < (5 * 60 * 1000) && info.status === 'uploading';
+
+          let infoMtime = 0;
+          try {
+            const infoStat = await fs.stat(infoPath);
+            infoMtime = infoStat.mtimeMs || 0;
+          } catch (e) {}
+
+          const now = Date.now();
+          const lastAct = Math.max(
+            info.lastActivity || 0,
+            info.createdAt || 0,
+            latestChunkTime,
+            infoMtime
+          );
+
+          // Strict heartbeat: active only if chunk activity happened in the last 45s (or freshly created in last 30s)
+          const timeSinceLastAct = now - lastAct;
+          const isActive = info.status === 'uploading' && (
+            (uploadedChunks.length > 0 && timeSinceLastAct < 45 * 1000) ||
+            (uploadedChunks.length === 0 && (now - (info.createdAt || 0)) < 30 * 1000)
+          );
+
+          const progress = (info.fileSize && info.fileSize > 0)
+            ? Math.min(100, (uploadedBytes / info.fileSize) * 100).toFixed(1)
+            : (info.totalChunks > 0 ? Math.min(100, (uploadedChunks.length / info.totalChunks) * 100).toFixed(1) : 0);
+
           sessions.push({
             ...info,
             uploadedChunks,
@@ -281,7 +309,8 @@ async function getAllUploadSessions() {
             uploadedBytes,
             progress: parseFloat(progress),
             isActive,
-            ageMs: Date.now() - lastAct
+            lastActivity: lastAct,
+            ageMs: timeSinceLastAct
           });
         } catch (e) {}
       }

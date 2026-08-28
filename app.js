@@ -58,6 +58,7 @@ const app = express();
 app.set("trust proxy", 1);
 const port = process.env.PORT || 7575;
 const tokens = new csrf();
+const userLastSeenMap = new Map();
 
 ensureDirectories();
 app.locals.helpers = {
@@ -176,6 +177,10 @@ app.use(async (req, res, next) => {
   res.locals.appVersion = packageJson.version;
   res.locals.isImpersonating = req.session ? !!req.session.isImpersonating : false;
   res.locals.originalAdminUsername = req.session ? req.session.originalAdminUsername : null;
+  
+  if (req.session && req.session.userId) {
+    userLastSeenMap.set(req.session.userId, Date.now());
+  }
   next();
 });
 app.use(function (req, res, next) {
@@ -1371,8 +1376,11 @@ app.get('/users', isAdmin, async (req, res) => {
       const quotaBytes = quotaGb * 1024 * 1024 * 1024;
       const quotaPercent = quotaBytes > 0 ? Math.min(100, Math.round((bytes / quotaBytes) * 100)) : 0;
 
+      const isOnline = (Date.now() - (userLastSeenMap.get(user.id) || 0)) < 3 * 60 * 1000;
+
       return {
          ...user,
+         isOnline,
          videoCount: videoStats.count || 0,
          totalVideoSizeBytes: bytes,
          totalVideoSize: formatFileSizeGB(bytes),
@@ -3554,10 +3562,20 @@ app.get('/api/system/active-uploads', isAuthenticated, async (req, res) => {
       };
     }));
     const activeUploads = enrichedSessions.filter(s => s.isActive);
+    
+    const onlineUserIds = [];
+    const now = Date.now();
+    for (const [uid, lastSeen] of userLastSeenMap.entries()) {
+      if (now - lastSeen < 3 * 60 * 1000) {
+        onlineUserIds.push(uid);
+      }
+    }
+
     res.json({
       success: true,
       activeUploads,
       totalActive: activeUploads.length,
+      onlineUserIds,
       allSessions: enrichedSessions
     });
   } catch (error) {

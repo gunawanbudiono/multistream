@@ -4943,7 +4943,7 @@
           } else {
             sessionsListEl.innerHTML = sessions.map(s => {
               const statusBadge = s.isActive
-                ? `<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Active</span>`
+                ? `<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>`
                 : `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-semibold flex items-center gap-1"><i class="ti ti-clock-pause"></i> Incomplete</span>`;
               
               const uploadedStr = formatBytesToReadable(s.uploadedBytes);
@@ -4970,7 +4970,7 @@
                     <span>${s.uploadedChunksCount} / ${s.totalChunks} Chunks • ${uploadedStr} / ${totalStr} (${s.progress}%)</span>
                   </div>
                   <div class="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                    <div class="${s.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'} h-1.5 rounded-full transition-all duration-300" style="width: ${s.progress}%"></div>
+                    <div class="${s.isActive ? 'bg-emerald-500' : 'bg-amber-500'} h-1.5 rounded-full transition-all duration-300" style="width: ${s.progress}%"></div>
                   </div>
                 </div>
               `;
@@ -4979,14 +4979,18 @@
         }
         
         if (scanSummaryText) {
-          if (activeUploads.count > 0) {
-            scanSummaryText.innerHTML = `<span class="text-amber-300">⚠️ Active upload detected. Active upload chunks are protected. Found ${formatBytesToReadable(total)} reclaimable junk.</span>`;
+          if (activeUploads.count > 0 && total > 0) {
+            scanSummaryText.innerHTML = `<span class="text-amber-300">⚠️ Active upload detected. Upload files are safely protected. Found ${formatBytesToReadable(total)} reclaimable cache.</span>`;
             if (cleanBtn) cleanBtn.disabled = false;
+          } else if (activeUploads.count > 0 && total === 0) {
+            scanSummaryText.innerHTML = `<span class="text-amber-300">⚠️ Active upload in progress & protected. No reclaimable junk found (0 MB).</span>`;
+            if (cleanBtn) cleanBtn.disabled = true;
           } else if (total > 0) {
             scanSummaryText.innerText = `Scan complete. Found ${formatBytesToReadable(total)} of reclaimable system junk.`;
             if (cleanBtn) cleanBtn.disabled = false;
           } else {
             scanSummaryText.innerText = 'System is 100% clean and optimal! No junk files found.';
+            if (cleanBtn) cleanBtn.disabled = true;
           }
         }
       } catch (err) {

@@ -179,8 +179,8 @@
                     </div>
                     <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span class="text-xs text-gray-400 font-mono">ID: <%= user.id ? user.id.substring(0, 8) + '...' : '--' %></span>
-                      <div id="userRowUploadBadge-<%= user.id %>" class="hidden items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-semibold animate-pulse">
-                        <i class="ti ti-upload text-[10px]"></i>
+                      <div id="userRowUploadBadge-<%= user.id %>" class="hidden items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-semibold">
+                        <i class="ti ti-upload text-[10px] text-amber-400"></i>
                         <span class="user-upload-text">Uploading...</span>
                       </div>
                     </div>
@@ -258,21 +258,28 @@
                 </div>
               </td>
 
-              <!-- Last Login & Created (Accurate Jakarta WIB Format) -->
+              <!-- Last Login & Presence (Accurate Jakarta WIB Format) -->
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex flex-col">
-                  <% if (user.last_login_at) { %>
-                    <div class="text-xs font-semibold text-white flex items-center gap-1.5" title="<%= helpers.formatDateTime(user.last_login_at) %>">
-                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                      <span><%= helpers.formatRelativeTime(user.last_login_at) %></span>
-                      <span class="text-[10px] text-gray-400 font-normal">(<%= helpers.formatDateTime(user.last_login_at) %>)</span>
-                    </div>
-                  <% } else { %>
-                    <div class="text-xs text-gray-500 italic flex items-center gap-1.5">
-                      <span class="w-1.5 h-1.5 rounded-full bg-gray-600"></span>
-                      <span>Never logged in</span>
-                    </div>
-                  <% } %>
+                  <div id="userPresenceStatus-<%= user.id %>">
+                    <% if (user.isOnline) { %>
+                      <div class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span>Online Now</span>
+                      </div>
+                    <% } else if (user.last_login_at) { %>
+                      <div class="text-xs font-medium text-gray-300 flex items-center gap-1.5" title="<%= helpers.formatDateTime(user.last_login_at) %>">
+                        <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+                        <span><%= helpers.formatRelativeTime(user.last_login_at) %></span>
+                        <span class="text-[10px] text-gray-400 font-normal">(<%= helpers.formatDateTime(user.last_login_at) %>)</span>
+                      </div>
+                    <% } else { %>
+                      <div class="text-xs text-gray-500 italic flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-gray-600"></span>
+                        <span>Never logged in</span>
+                      </div>
+                    <% } %>
+                  </div>
                   <div class="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
                     <i class="ti ti-calendar text-[10px] text-gray-500"></i>
                     <span>Joined <%= helpers.formatDateTime(user.created_at) %></span>
@@ -2121,7 +2128,17 @@
     }
   });
 
-  // Real-Time Active Uploads Tracker for User Rows
+  // Real-Time Active Uploads & Online Presence Tracker for User Rows
+  let userUploadPollTimer = null;
+
+  function formatBytesToReadableShort(bytes) {
+    if (!bytes || bytes <= 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
   async function pollUserUploadStatus() {
     try {
       const res = await fetch('/api/system/active-uploads');
@@ -2132,20 +2149,52 @@
         el.classList.remove('inline-flex');
       });
 
-      if (data.success && data.activeUploads && data.activeUploads.length > 0) {
-        data.activeUploads.forEach(upload => {
-          const badge = document.getElementById(`userRowUploadBadge-${upload.userId}`);
-          if (badge) {
-            const txt = badge.querySelector('.user-upload-text');
-            const shortName = (upload.filename || '').length > 14 ? upload.filename.substring(0, 12) + '...' : upload.filename;
-            if (txt) txt.innerText = `Uploading: ${shortName} (${upload.progress}%)`;
-            badge.classList.remove('hidden');
-            badge.classList.add('inline-flex');
-          }
-        });
+      if (data.success) {
+        if (data.activeUploads && data.activeUploads.length > 0) {
+          data.activeUploads.forEach(upload => {
+            const badge = document.getElementById(`userRowUploadBadge-${upload.userId}`);
+            if (badge) {
+              const txt = badge.querySelector('.user-upload-text');
+              const shortName = (upload.filename || '').length > 14 ? upload.filename.substring(0, 12) + '...' : upload.filename;
+              const uploadedStr = formatBytesToReadableShort(upload.uploadedBytes);
+              const totalStr = formatBytesToReadableShort(upload.fileSize);
+              if (txt) txt.innerText = `Uploading: ${shortName} • ${uploadedStr} / ${totalStr} (${upload.progress}%)`;
+              badge.classList.remove('hidden');
+              badge.classList.add('inline-flex');
+            }
+          });
+        }
+
+        // Live Presence Update
+        if (data.onlineUserIds && Array.isArray(data.onlineUserIds)) {
+          document.querySelectorAll('[id^="userPresenceStatus-"]').forEach(el => {
+            const userId = el.id.replace('userPresenceStatus-', '');
+            const isOnline = data.onlineUserIds.includes(userId);
+            if (isOnline) {
+              el.innerHTML = `
+                <div class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>Online Now</span>
+                </div>`;
+            }
+          });
+        }
+
+        if (data.activeUploads && data.activeUploads.length > 0) {
+          if (userUploadPollTimer) clearTimeout(userUploadPollTimer);
+          userUploadPollTimer = setTimeout(pollUserUploadStatus, 3000);
+        } else {
+          if (userUploadPollTimer) clearTimeout(userUploadPollTimer);
+          userUploadPollTimer = setTimeout(pollUserUploadStatus, 8000);
+        }
+      } else {
+        if (userUploadPollTimer) clearTimeout(userUploadPollTimer);
+        userUploadPollTimer = setTimeout(pollUserUploadStatus, 8000);
       }
-    } catch (e) {}
+    } catch (e) {
+      if (userUploadPollTimer) clearTimeout(userUploadPollTimer);
+      userUploadPollTimer = setTimeout(pollUserUploadStatus, 8000);
+    }
   }
   setTimeout(pollUserUploadStatus, 1500);
-  setInterval(pollUserUploadStatus, 8000);
 </script>
