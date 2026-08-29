@@ -125,3 +125,12 @@ Sebelum AI melaporkan bahwa suatu tugas selesai, AI **WAJIB** menjalankan 3 peng
    - **Centralized Business Logic**: Logika manipulasi data wajib berada di dalam Models (`models/User.js`, `models/Video.js`, `models/Stream.js`), bukan tersebar acak di route handler.
    - **Consistent UI State**: Parameter status (seperti `isImpersonating`, role badge, dan user avatars) wajib bersumber dari satu session middleware terpusat untuk mencegah *state mismatch* di client.
    - **Naming Consistency**: Seluruh penamaan variabel, fungsi, route endpoint, direktori sistem, dan container Docker wajib konsisten dan deskriptif.
+
+---
+
+## 🚫 14. STRICT WORKSPACE & MULTI-PROJECT ISOLATION RULE
+
+1. 🛑 **NO CROSS-PROJECT EXECUTION**: Workspace dan sesi chat ini **EKSKLUSIF HANYA untuk project `multistream`** (`c:\Antigravity\multistream`). AI **DILARANG KERAS** mengeksekusi, mengedit file, membuat file, atau menjalankan git/deploy command untuk project lain (seperti `starhits-finance`, `AI-Music`, `catalog-delivery`, `trackdelivery`, dll) di dalam workspace ini.
+2. ⚠️ **IMMEDIATE PROJECT BOUNDARY REMINDER**: Jika user secara tidak sengaja menanyakan, mengirim screenshot, atau meminta modifikasi terkait project di luar `multistream`:
+   - AI **WAJIB LANGSUNG MEMBERIKAN REMINDER / PERINGATAN DI AWAL** bahwa request tersebut berada di luar lingkup project MultiStream.
+   - AI hanya boleh memberikan saran konseptual atau teks prompt terpisah yang siap di-copy user ke project yang bersangkutan, dan **DILARANG** melakukan modifikasi file pada direktori project lain agar riwayat percakapan dan repositori tidak tercampur aduk.
