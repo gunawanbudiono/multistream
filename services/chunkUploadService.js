@@ -100,6 +100,10 @@ async function saveChunk(uploadId, chunkIndex, chunkData) {
     if (await fs.pathExists(infoPath)) {
       const now = new Date();
       await fs.utimes(infoPath, now, now);
+      // Keep lastActivity updated so long uploads (> 2h) are never killed
+      const info = await fs.readJson(infoPath);
+      info.lastActivity = Date.now();
+      await fs.writeJson(infoPath, info);
     }
   } catch (e) {}
 
@@ -146,12 +150,13 @@ async function mergeChunks(uploadId) {
   const random = Math.floor(Math.random() * 1000000);
   const finalFilename = `${basename}-${timestamp}-${random}${ext}`;
   const finalPath = path.join(VIDEOS_DIR, finalFilename);
-  const writeStream = fs.createWriteStream(finalPath, { flags: 'w', highWaterMark: 1024 * 1024 });
+  // High buffer (4MB) for ultra-fast disk assembly of multi-GB files
+  const writeStream = fs.createWriteStream(finalPath, { flags: 'w', highWaterMark: 4 * 1024 * 1024 });
 
   for (let i = 0; i < info.totalChunks; i++) {
     const chunkPath = getChunkPath(uploadId, i);
     await new Promise((resolve, reject) => {
-      const readStream = fs.createReadStream(chunkPath, { highWaterMark: 1024 * 1024 });
+      const readStream = fs.createReadStream(chunkPath, { highWaterMark: 4 * 1024 * 1024 });
       readStream.on('error', reject);
       readStream.on('end', async () => {
         try {
@@ -199,22 +204,23 @@ async function cleanupUpload(uploadId) {
   } catch (e) {}
 }
 
-async function cleanupOldUploads(maxAgeMs = 2 * 60 * 60 * 1000) {
+async function cleanupOldUploads(maxAgeMs = 24 * 60 * 60 * 1000) {
   try {
     const now = Date.now();
     const activeUploadIds = new Set();
 
-    // 1. Clean Stale / Abandoned Sessions (> 2 Hours Inactivity)
+    // 1. Clean Stale / Abandoned Sessions (Only if Inactive for > 24 Hours)
     if (await fs.pathExists(INFO_DIR)) {
       const files = await fs.readdir(INFO_DIR);
       for (const file of files) {
         if (file.endsWith('.json')) {
           const infoPath = path.join(INFO_DIR, file);
           try {
+            const stat = await fs.stat(infoPath);
             const info = await fs.readJson(infoPath);
-            const lastActivity = info.lastActivity || info.createdAt || 0;
+            const lastActivity = Math.max(info.lastActivity || 0, info.createdAt || 0, stat.mtimeMs || 0);
             if (info.status !== 'completed' && (now - lastActivity) > maxAgeMs) {
-              console.log(`[ChunkUploadService] Cleaning up stale upload session: ${info.uploadId} (Inactive for > 2h)`);
+              console.log(`[ChunkUploadService] Cleaning up stale upload session: ${info.uploadId} (Inactive for > 24h)`);
               await cleanupUpload(info.uploadId);
             } else {
               activeUploadIds.add(info.uploadId);
@@ -226,7 +232,7 @@ async function cleanupOldUploads(maxAgeMs = 2 * 60 * 60 * 1000) {
       }
     }
 
-    // 2. Orphan Chunk Sweeper (Chunks without active info JSON or older than 2 hours)
+    // 2. Orphan Chunk Sweeper (Chunks without active info JSON or older than 24 hours)
     if (await fs.pathExists(TEMP_DIR)) {
       const tempFiles = await fs.readdir(TEMP_DIR);
       for (const file of tempFiles) {

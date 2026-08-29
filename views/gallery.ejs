@@ -3683,14 +3683,33 @@ document.addEventListener('DOMContentLoaded', function() {
       const floatSub = document.getElementById('floatingUploadSubtitle');
       if (floatSub) floatSub.textContent = '100% • Finalizing media on server...';
 
-      const complete = await fetch('/api/videos/chunk/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uploadId })
-      });
-      const completeData = await complete.json();
+      let completeRetries = 3;
+      let completeBackoffMs = 2000;
+      let completeData = null;
+
+      while (completeRetries > 0) {
+        if (uploadAborted || currentItemAborted) break;
+        try {
+          const complete = await fetch('/api/videos/chunk/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uploadId })
+          });
+          completeData = await complete.json();
+          if (completeData && completeData.success) break;
+          throw new Error(completeData?.error || `Finalization failed with status ${complete.status}`);
+        } catch (cErr) {
+          completeRetries--;
+          if (completeRetries === 0 || uploadAborted || currentItemAborted) throw cErr;
+          await new Promise(r => setTimeout(r, completeBackoffMs));
+          completeBackoffMs *= 1.5;
+        }
+      }
+
       currentActiveUploadId = null;
-      if (!completeData.success) throw new Error(completeData.error || 'Failed to complete upload');
+      if (!completeData || !completeData.success) {
+        throw new Error(completeData?.error || 'Failed to complete and assemble upload');
+      }
 
       return { success: true };
     } catch (error) {
