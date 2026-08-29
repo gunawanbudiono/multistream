@@ -3642,7 +3642,11 @@ app.get('/api/system/active-uploads', isAuthenticated, async (req, res) => {
         status: s.status,
         isActive: s.isActive,
         lastActivity: s.lastActivity || s.createdAt,
-        ageMs: s.ageMs
+        ageMs: s.ageMs,
+        speedBps: s.speedBps || 0,
+        speedFormatted: s.speedFormatted || '0 KB/s',
+        etaSeconds: s.etaSeconds || 0,
+        etaFormatted: s.etaFormatted || '--'
       };
     }));
     const activeUploads = enrichedSessions.filter(s => s.isActive);

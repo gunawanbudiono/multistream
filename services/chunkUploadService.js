@@ -96,6 +96,7 @@ async function saveChunk(uploadId, chunkIndex, chunkData) {
   await fs.writeFile(chunkPath, chunkData);
   
   try {
+    recordChunkSpeed(uploadId, chunkData.length);
     const infoPath = getInfoPath(uploadId);
     if (await fs.pathExists(infoPath)) {
       const now = new Date();
@@ -257,6 +258,84 @@ async function cleanupOldUploads(maxAgeMs = 24 * 60 * 60 * 1000) {
   }
 }
 
+const uploadSpeedTracker = new Map();
+
+function recordChunkSpeed(uploadId, bytes) {
+  const now = Date.now();
+  if (!uploadSpeedTracker.has(uploadId)) {
+    uploadSpeedTracker.set(uploadId, []);
+  }
+  const samples = uploadSpeedTracker.get(uploadId);
+  samples.push({ time: now, bytes });
+  const cutoff = now - 180 * 1000;
+  while (samples.length > 0 && samples[0].time < cutoff) {
+    samples.shift();
+  }
+}
+
+function formatBytesSpeed(bytesPerSec) {
+  if (!bytesPerSec || bytesPerSec <= 0) return '0 KB/s';
+  const mb = bytesPerSec / (1024 * 1024);
+  const mbps = (bytesPerSec * 8) / (1000 * 1000);
+  if (mb >= 1) {
+    return `${mb.toFixed(1)} MB/s (${mbps.toFixed(1)} Mbps)`;
+  }
+  const kb = bytesPerSec / 1024;
+  return `${kb.toFixed(0)} KB/s (${mbps.toFixed(1)} Mbps)`;
+}
+
+function formatEtaDuration(seconds) {
+  if (!seconds || seconds <= 0) return '--';
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${h}j ${m}m`;
+  }
+  if (seconds >= 60) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}m ${s}s`;
+  }
+  return `${seconds}s`;
+}
+
+function calculateSpeedAndEta(uploadId, info, uploadedBytes) {
+  const now = Date.now();
+  const samples = uploadSpeedTracker.get(uploadId) || [];
+  let speedBps = 0;
+
+  if (samples.length >= 2) {
+    const timeSpan = (samples[samples.length - 1].time - samples[0].time) / 1000;
+    if (timeSpan > 2) {
+      let totalBytesInWindow = 0;
+      for (let i = 1; i < samples.length; i++) {
+        totalBytesInWindow += samples[i].bytes;
+      }
+      speedBps = totalBytesInWindow / timeSpan;
+    }
+  }
+
+  // Fallback: overall session average speed
+  if (speedBps <= 0 && info && info.createdAt && uploadedBytes > 0) {
+    const elapsedSec = (now - info.createdAt) / 1000;
+    if (elapsedSec > 5) {
+      speedBps = uploadedBytes / elapsedSec;
+    }
+  }
+
+  const speedFormatted = formatBytesSpeed(speedBps);
+  const remainingBytes = Math.max(0, (info?.fileSize || 0) - uploadedBytes);
+  const etaSeconds = speedBps > 0 && remainingBytes > 0 ? Math.round(remainingBytes / speedBps) : 0;
+  const etaFormatted = formatEtaDuration(etaSeconds);
+
+  return {
+    speedBps: Math.round(speedBps),
+    speedFormatted,
+    etaSeconds,
+    etaFormatted
+  };
+}
+
 async function getAllUploadSessions() {
   const sessions = [];
   if (await fs.pathExists(INFO_DIR)) {
@@ -308,6 +387,8 @@ async function getAllUploadSessions() {
             ? Math.min(100, (uploadedBytes / info.fileSize) * 100).toFixed(1)
             : (info.totalChunks > 0 ? Math.min(100, (uploadedChunks.length / info.totalChunks) * 100).toFixed(1) : 0);
 
+          const speedMetrics = calculateSpeedAndEta(info.uploadId, info, uploadedBytes);
+
           sessions.push({
             ...info,
             uploadedChunks,
@@ -316,7 +397,8 @@ async function getAllUploadSessions() {
             progress: parseFloat(progress),
             isActive,
             lastActivity: lastAct,
-            ageMs: timeSinceLastAct
+            ageMs: timeSinceLastAct,
+            ...speedMetrics
           });
         } catch (e) {}
       }
@@ -332,11 +414,11 @@ async function getActiveUploads() {
 
 // Run garbage collection on startup and periodically every 15 minutes
 setTimeout(() => {
-  cleanupOldUploads(2 * 60 * 60 * 1000);
+  cleanupOldUploads(24 * 60 * 60 * 1000);
 }, 5000);
 
 setInterval(() => {
-  cleanupOldUploads(2 * 60 * 60 * 1000);
+  cleanupOldUploads(24 * 60 * 60 * 1000);
 }, 15 * 60 * 1000);
 
 module.exports = {
@@ -350,5 +432,6 @@ module.exports = {
   cleanupOldUploads,
   findExistingUpload,
   getAllUploadSessions,
-  getActiveUploads
+  getActiveUploads,
+  recordChunkSpeed
 };
