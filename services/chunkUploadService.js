@@ -299,11 +299,12 @@ function formatEtaDuration(seconds) {
   return `${seconds}s`;
 }
 
-function calculateSpeedAndEta(uploadId, info, uploadedBytes) {
+function calculateSpeedAndEta(uploadId, info, uploadedBytes, chunkStats = []) {
   const now = Date.now();
-  const samples = uploadSpeedTracker.get(uploadId) || [];
   let speedBps = 0;
 
+  // 1. Calculate from in-memory recent chunk samples if available
+  const samples = uploadSpeedTracker.get(uploadId) || [];
   if (samples.length >= 2) {
     const timeSpan = (samples[samples.length - 1].time - samples[0].time) / 1000;
     if (timeSpan > 2) {
@@ -315,7 +316,25 @@ function calculateSpeedAndEta(uploadId, info, uploadedBytes) {
     }
   }
 
-  // Fallback: overall session average speed
+  // 2. Fallback / Instant: Calculate from recent filesystem chunk arrival timestamps (top 4 chunks)
+  if (speedBps <= 0 && chunkStats && chunkStats.length >= 2) {
+    const sorted = [...chunkStats].sort((a, b) => b.mtimeMs - a.mtimeMs);
+    const recent = sorted.slice(0, 4);
+    if (recent.length >= 2) {
+      const newest = recent[0].mtimeMs;
+      const oldest = recent[recent.length - 1].mtimeMs;
+      const deltaSec = (newest - oldest) / 1000;
+      if (deltaSec >= 2) {
+        let bytesInRecent = 0;
+        for (let i = 0; i < recent.length - 1; i++) {
+          bytesInRecent += recent[i].size;
+        }
+        speedBps = bytesInRecent / deltaSec;
+      }
+    }
+  }
+
+  // 3. Fallback: overall session average speed
   if (speedBps <= 0 && info && info.createdAt && uploadedBytes > 0) {
     const elapsedSec = (now - info.createdAt) / 1000;
     if (elapsedSec > 5) {
@@ -348,12 +367,14 @@ async function getAllUploadSessions() {
           const uploadedChunks = await getUploadedChunksList(info.uploadId, info.totalChunks);
           let uploadedBytes = 0;
           let latestChunkTime = 0;
+          const chunkStats = [];
           
           for (const idx of uploadedChunks) {
             const cp = getChunkPath(info.uploadId, idx);
             try {
               const stat = await fs.stat(cp);
               uploadedBytes += stat.size;
+              chunkStats.push({ index: idx, mtimeMs: stat.mtimeMs, size: stat.size });
               if (stat.mtimeMs > latestChunkTime) {
                 latestChunkTime = stat.mtimeMs;
               }
@@ -387,7 +408,7 @@ async function getAllUploadSessions() {
             ? Math.min(100, (uploadedBytes / info.fileSize) * 100).toFixed(1)
             : (info.totalChunks > 0 ? Math.min(100, (uploadedChunks.length / info.totalChunks) * 100).toFixed(1) : 0);
 
-          const speedMetrics = calculateSpeedAndEta(info.uploadId, info, uploadedBytes);
+          const speedMetrics = calculateSpeedAndEta(info.uploadId, info, uploadedBytes, chunkStats);
 
           sessions.push({
             ...info,

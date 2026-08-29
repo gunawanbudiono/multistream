@@ -714,6 +714,52 @@
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
+  let activeUploadState = null;
+  let activeUploadTickerTimer = null;
+
+  function formatEtaDurationReadable(seconds) {
+    if (!seconds || seconds <= 0) return '--';
+    if (seconds >= 3600) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${h}j ${m}m ${s}s`;
+    }
+    if (seconds >= 60) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}m ${s}s`;
+    }
+    return `${seconds}s`;
+  }
+
+  function tickActiveUploadBadge() {
+    if (!activeUploadState || !activeUploadState.active) {
+      if (activeUploadTickerTimer) {
+        clearInterval(activeUploadTickerTimer);
+        activeUploadTickerTimer = null;
+      }
+      return;
+    }
+
+    const text = document.getElementById('globalActiveUploadBadgeText');
+    if (!text) return;
+
+    const now = Date.now();
+    const elapsedSec = (now - activeUploadState.lastUpdated) / 1000;
+    const top = activeUploadState.top;
+
+    if (top) {
+      const currentEtaSec = Math.max(0, (top.etaSeconds || 0) - Math.floor(elapsedSec));
+      const etaStr = formatEtaDurationReadable(currentEtaSec);
+      const uploadedStr = formatBytesReadable(top.uploadedBytes);
+      const totalStr = formatBytesReadable(top.fileSize);
+      const speedPart = (top.speedFormatted && top.speedFormatted !== '0 KB/s') ? ` • ⚡ ${top.speedFormatted}` : '';
+      const etaPart = (etaStr && etaStr !== '--') ? ` • ⏱️ ${etaStr}` : '';
+      text.innerText = `1 Upload Active • ${uploadedStr} / ${totalStr} (${top.progress}%)${speedPart}${etaPart}`;
+    }
+  }
+
   async function pollActiveUploads() {
     try {
       const res = await fetch('/api/system/active-uploads');
@@ -729,12 +775,23 @@
 
         if (count === 1) {
           const top = uploads[0];
+          activeUploadState = {
+            active: true,
+            top,
+            lastUpdated: Date.now()
+          };
           const uploadedStr = formatBytesReadable(top.uploadedBytes);
           const totalStr = formatBytesReadable(top.fileSize);
           const speedPart = (top.speedFormatted && top.speedFormatted !== '0 KB/s') ? ` • ⚡ ${top.speedFormatted}` : '';
           const etaPart = (top.etaFormatted && top.etaFormatted !== '--') ? ` • ⏱️ ${top.etaFormatted}` : '';
           label = `1 Upload Active • ${uploadedStr} / ${totalStr} (${top.progress}%)${speedPart}${etaPart}`;
+          
+          // Start 1-second countdown ticker for smooth UI
+          if (!activeUploadTickerTimer) {
+            activeUploadTickerTimer = setInterval(tickActiveUploadBadge, 1000);
+          }
         } else {
+          activeUploadState = null;
           const totalUploaded = uploads.reduce((acc, u) => acc + (u.uploadedBytes || 0), 0);
           const totalSize = uploads.reduce((acc, u) => acc + (u.fileSize || 0), 0);
           const totalProgress = totalSize > 0 ? ((totalUploaded / totalSize) * 100).toFixed(1) : 0;
@@ -757,6 +814,11 @@
         if (activeUploadPollTimer) clearTimeout(activeUploadPollTimer);
         activeUploadPollTimer = setTimeout(pollActiveUploads, 3000);
       } else {
+        activeUploadState = null;
+        if (activeUploadTickerTimer) {
+          clearInterval(activeUploadTickerTimer);
+          activeUploadTickerTimer = null;
+        }
         if (badge) {
           badge.classList.add('hidden');
           badge.classList.remove('flex');
