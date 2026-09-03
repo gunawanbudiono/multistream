@@ -1987,15 +1987,15 @@ function getPerItemProgressHtml(idx, itemStatus) {
     return `
       <div class="mt-2.5 space-y-1.5 bg-indigo-500/10 border border-indigo-500/25 p-2.5 rounded-lg">
         <div class="flex items-center justify-between text-xs text-indigo-300">
-          <span class="font-medium flex items-center gap-1.5"><i class="ti ti-satellite text-xs animate-spin text-indigo-400"></i> Connecting & resolving stream...</span>
-          <span class="text-indigo-400 font-mono text-[11px] animate-pulse font-semibold">Initializing</span>
+          <span class="font-medium flex items-center gap-1.5"><i class="ti ti-satellite text-xs animate-spin text-indigo-400"></i> Initializing 16-channel turbo stream...</span>
+          <span class="text-indigo-400 font-mono text-[11px] animate-pulse font-semibold">Readying</span>
         </div>
         <div class="w-full bg-dark-700 rounded-full h-1.5 overflow-hidden">
-          <div class="bg-gradient-to-r from-indigo-600 to-indigo-400 h-1.5 rounded-full animate-pulse" style="width: 25%"></div>
+          <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 h-1.5 rounded-full animate-pulse" style="width: 45%; transition: width 0.35s ease;"></div>
         </div>
         <div class="flex items-center justify-between text-[10px] text-gray-400">
-          <span>Negotiating high-speed YouTube CDN stream...</span>
-          <span class="text-indigo-300">Connecting</span>
+          <span>Resolving YouTube CDN & Botguard tokens...</span>
+          <span class="text-indigo-300">Starting...</span>
         </div>
       </div>
     `;
@@ -2367,8 +2367,8 @@ async function startYtDownloadQueue() {
             if (area) {
               if (s.status === 'downloading' && bar && pct) {
                 bar.style.width = `${s.progress}%`;
-                animateNumberText(`ytItemPct-${idx}`, s.progress, (v) => `${Math.round(v)}%`, 750);
-                if (size) animateSizeProgressText(`ytItemSize-${idx}`, s.sizeProgress || '', 750);
+                animateNumberText(`ytItemPct-${idx}`, s.progress, (v) => `${Math.round(v)}%`, 350);
+                if (size) animateSizeProgressText(`ytItemSize-${idx}`, s.sizeProgress || '', 350);
                 if (speed) speed.textContent = s.speed ? `⚡ ${s.speed}` : '';
               } else {
                 const currentStatusAttr = area.getAttribute('data-status');
@@ -2386,11 +2386,11 @@ async function startYtDownloadQueue() {
           progressItemTitle.textContent = `Overall Progress (${completedCount}/${job.totalItems} completed)`;
         }
         if (progressBar) {
-          progressBar.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+          progressBar.style.transition = 'width 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
           progressBar.style.width = `${job.progress}%`;
         }
         if (progressPercentage) {
-          animateNumberText('ytProgressPercentage', job.progress, (v) => `${Math.round(v)}%`, 750);
+          animateNumberText('ytProgressPercentage', job.progress, (v) => `${Math.round(v)}%`, 350);
         }
         if (progressMetrics) {
           let metricsHtml = '';
@@ -2449,7 +2449,7 @@ async function startYtDownloadQueue() {
       } catch (err) {
         console.error('YouTube poll error:', err);
       }
-    }, 800);
+    }, 350);
   } catch (error) {
     console.error('YouTube download start error:', error);
     showToast('error', error.message || 'Failed to start download');

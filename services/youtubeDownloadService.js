@@ -518,7 +518,7 @@ async function downloadSingleItem(job, item, i, onProgress) {
     '--fragment-retries', '2',
     '--file-access-retries', '2',
     '--downloader', 'default:aria2c',
-    '--downloader-args', 'aria2c:-x 16 -j 16 -s 16 -k 1M --summary-interval=1',
+    '--downloader-args', 'aria2c:-x 16 -j 16 -s 16 -k 1M --file-allocation=none --summary-interval=1',
     '--concurrent-fragments', '16',
     '--buffer-size', '32M',
     '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s',
