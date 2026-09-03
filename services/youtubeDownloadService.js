@@ -457,6 +457,28 @@ async function processJobQueue(jobId, queueItems) {
   }
 }
 
+function getAccumulatedBytesOnDisk(targetPath) {
+  try {
+    let total = 0;
+    const dir = path.dirname(targetPath);
+    const prefix = path.basename(targetPath);
+    if (fs.existsSync(dir)) {
+      const files = fs.readdirSync(dir);
+      for (const f of files) {
+        if (f.startsWith(prefix) && !f.endsWith('.aria2') && !f.endsWith('.ytdl')) {
+          try {
+            const st = fs.statSync(path.join(dir, f));
+            total += st.size;
+          } catch (e) {}
+        }
+      }
+    }
+    return total;
+  } catch (e) {
+    return 0;
+  }
+}
+
 async function downloadSingleItem(job, item, i, onProgress) {
   if (job.status === 'cancelled') return;
 
@@ -492,13 +514,15 @@ async function downloadSingleItem(job, item, i, onProgress) {
     ...formatArg,
     '--no-colors',
     '--newline',
-    '--retries', '1',
-    '--fragment-retries', '1',
-    '--file-access-retries', '1',
+    '--retries', '2',
+    '--fragment-retries', '2',
+    '--file-access-retries', '2',
+    '--downloader', 'default:aria2c',
+    '--downloader-args', 'aria2c:-x 16 -j 16 -s 16 -k 1M --summary-interval=1',
+    '--concurrent-fragments', '16',
+    '--buffer-size', '32M',
     '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s',
     '--geo-bypass',
-    '--buffer-size', '16M',
-    '--concurrent-fragments', '4',
     ...getPotArgs(),
     ...getCookieArgs(),
     '-o', finalFilePath,
@@ -513,6 +537,55 @@ async function downloadSingleItem(job, item, i, onProgress) {
     const child = spawn(runner.cmd, args);
     job.activeProcesses.add(child);
     let stderrBuffer = '';
+
+    let lastBytes = 0;
+    let lastTime = Date.now();
+    const expectedBytes = item.filesize || 0;
+
+    // True Live Real-Time Disk Accumulation Ticker (Every 350ms)
+    const diskMonitor = setInterval(() => {
+      if (job.status === 'cancelled') return;
+      const currentBytes = getAccumulatedBytesOnDisk(finalFilePath);
+      if (currentBytes > 0) {
+        const now = Date.now();
+        const dt = (now - lastTime) / 1000;
+        if (dt >= 0.4) {
+          const delta = currentBytes - lastBytes;
+          if (delta > 0) {
+            const rawSpeed = Math.round(delta / dt);
+            const speedText = `${formatBytes(rawSpeed)}/s`;
+            let itemPct = 0;
+            let sizeProg = '';
+            let eta = '';
+
+            if (expectedBytes > 0) {
+              itemPct = Math.min(98, Math.max(1, Math.round((currentBytes / expectedBytes) * 100)));
+              sizeProg = `${formatBytes(currentBytes)} / ${formatBytes(expectedBytes)}`;
+              if (rawSpeed > 0 && currentBytes < expectedBytes) {
+                const remainingSec = Math.round((expectedBytes - currentBytes) / rawSpeed);
+                eta = formatDuration(remainingSec);
+              }
+            } else {
+              sizeProg = formatBytes(currentBytes);
+            }
+
+            if (job.itemsStatus && job.itemsStatus[i]) {
+              if (itemPct > (job.itemsStatus[i].progress || 0)) {
+                job.itemsStatus[i].progress = itemPct;
+              }
+              job.itemsStatus[i].speed = speedText;
+              job.itemsStatus[i].rawSpeedBps = rawSpeed;
+              if (eta) job.itemsStatus[i].eta = eta;
+              job.itemsStatus[i].sizeProgress = sizeProg;
+              job.itemsStatus[i].status = (itemPct >= 98 && !isAudio) ? 'merging' : 'downloading';
+            }
+            if (typeof onProgress === 'function') onProgress();
+          }
+          lastBytes = currentBytes;
+          lastTime = now;
+        }
+      }
+    }, 350);
 
     child.stdout.on('data', (data) => {
       const raw = data.toString();
@@ -559,38 +632,18 @@ async function downloadSingleItem(job, item, i, onProgress) {
             }
 
             const rawEta = parts[2]?.trim();
-            const downloadedRaw = parts[3]?.trim();
-            let totalRaw = parts[4]?.trim();
-
-            if (!totalRaw || totalRaw === 'NA' || totalRaw === 'N/A' || totalRaw === 'Unknown') {
-              if (item.filesizeFormatted) {
-                totalRaw = item.filesizeFormatted;
-              }
-            }
-
-            let sizeProg = '';
-            if (downloadedRaw && downloadedRaw !== 'NA' && downloadedRaw !== 'N/A') {
-              if (streamPhase === 0) {
-                videoStreamBytesStr = cleanUnits(downloadedRaw);
-              }
-              const cleanTotal = cleanUnits(totalRaw);
-              const cleanDownloaded = (streamPhase === 1 && videoStreamBytesStr)
-                ? videoStreamBytesStr
-                : cleanUnits(downloadedRaw);
-
-              if (cleanTotal && cleanTotal !== 'NA' && cleanTotal !== 'N/A') {
-                sizeProg = `${cleanDownloaded} / ${cleanTotal}`;
-              } else {
-                sizeProg = cleanDownloaded;
-              }
-            }
 
             if (job.itemsStatus && job.itemsStatus[i]) {
-              job.itemsStatus[i].progress = itemPct;
-              job.itemsStatus[i].speed = speedText;
-              job.itemsStatus[i].rawSpeedBps = speedBps;
-              job.itemsStatus[i].eta = (rawEta && rawEta !== 'Unknown' && rawEta !== 'NA' && rawEta !== 'N/A') ? rawEta : '';
-              job.itemsStatus[i].sizeProgress = sizeProg;
+              if (expectedBytes <= 0 && itemPct > (job.itemsStatus[i].progress || 0)) {
+                job.itemsStatus[i].progress = itemPct;
+              }
+              if (speedText && !job.itemsStatus[i].speed) {
+                job.itemsStatus[i].speed = speedText;
+                job.itemsStatus[i].rawSpeedBps = speedBps;
+              }
+              if (rawEta && rawEta !== 'Unknown' && rawEta !== 'NA' && rawEta !== 'N/A' && !job.itemsStatus[i].eta) {
+                job.itemsStatus[i].eta = rawEta;
+              }
               if (itemPct >= 98 && !isAudio) {
                 job.itemsStatus[i].status = 'merging';
               } else {
@@ -613,6 +666,7 @@ async function downloadSingleItem(job, item, i, onProgress) {
     });
 
     child.on('close', (code) => {
+      clearInterval(diskMonitor);
       job.activeProcesses.delete(child);
       if (code === 0 || job.status === 'cancelled') {
         resolve();
@@ -623,6 +677,7 @@ async function downloadSingleItem(job, item, i, onProgress) {
     });
 
     child.on('error', (err) => {
+      clearInterval(diskMonitor);
       job.activeProcesses.delete(child);
       reject(err);
     });

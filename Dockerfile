@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     tzdata \
     python3 \
     python3-pip \
+    aria2 \
     curl \
     make \
     g++ \
