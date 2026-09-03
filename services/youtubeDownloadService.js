@@ -108,8 +108,8 @@ function getCookieArgs() {
 
 function formatYtDlpError(errText) {
   const raw = String(errText || '');
-  if (/Sign in to confirm you('re| are) not a bot|--cookies|confirm you're not a bot|cookies are expired|requires authentication|login/i.test(raw)) {
-    const err = new Error('YouTube session cookie has expired or verification is required. Please refresh your cookies in Cookie Setup to continue.');
+  if (/Sign in to confirm you('re| are) not a bot|--cookies|confirm you're not a bot|cookies are expired|requires authentication|login|HTTP Error 403|Forbidden|access denied|403 Forbidden|GVS PO Token|SABR/i.test(raw)) {
+    const err = new Error('YouTube session cookie expired or verification required (HTTP 403 / Bot Check). Please refresh your cookies in Cookie Setup to continue.');
     err.code = 'COOKIE_EXPIRED';
     err.needsCookie = true;
     return err;
@@ -131,7 +131,7 @@ function formatYtDlpError(errText) {
     return err;
   }
   const cleaned = raw.replace(/^ERROR:\s*(\[[^\]]+\]\s*)?([a-zA-Z0-9_-]+:\s*)?/, '').split('\n')[0].trim();
-  const err = new Error(cleaned || 'Failed to inspect YouTube URL');
+  const err = new Error(cleaned || 'Failed to process YouTube stream');
   err.code = 'YT_ERROR';
   return err;
 }
@@ -155,7 +155,7 @@ async function inspectVideo(rawUrl) {
       url
     ];
 
-    execFile(runner.cmd, args, { maxBuffer: 10 * 1024 * 1024, timeout: 35000 }, (error, stdout, stderr) => {
+    execFile(runner.cmd, args, { maxBuffer: 10 * 1024 * 1024, timeout: 35000 }, async (error, stdout, stderr) => {
       if (error) {
         return reject(formatYtDlpError(stderr || error.message));
       }
@@ -248,6 +248,37 @@ async function inspectVideo(rawUrl) {
 
         const defaultRes = sortedResolutions.find(r => r.height === 1080 || r.height === 720) || sortedResolutions[0];
 
+        // Fast proactive stream probe: check if Google Video Server allows video playback with current cookies
+        let needsCookie = false;
+        let cookieWarning = '';
+        const probeFormat = formats.find(f => f.url && f.height && f.height >= 720) || formats.find(f => f.url);
+        if (probeFormat && probeFormat.url && probeFormat.url.startsWith('http')) {
+          try {
+            const https = require('https');
+            const http = require('http');
+            const client = probeFormat.url.startsWith('https') ? https : http;
+            await new Promise((pRes) => {
+              const req = client.request(probeFormat.url, {
+                method: 'HEAD',
+                timeout: 3500,
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+                  ...(probeFormat.http_headers || {})
+                }
+              }, (res) => {
+                if (res.statusCode === 403 || res.statusCode === 429) {
+                  needsCookie = true;
+                  cookieWarning = 'YouTube session cookie expired / restricted (HTTP 403 Forbidden). Please click "Refresh Cookie" to update your session.';
+                }
+                pRes();
+              });
+              req.on('error', () => pRes());
+              req.on('timeout', () => { req.destroy(); pRes(); });
+              req.end();
+            });
+          } catch (e) {}
+        }
+
         const result = {
           id: info.id,
           title: info.title || 'Untitled Video',
@@ -257,7 +288,9 @@ async function inspectVideo(rawUrl) {
           thumbnail: info.thumbnail || (info.thumbnails && info.thumbnails[0]?.url) || '',
           url: info.webpage_url || url,
           resolutions: sortedResolutions,
-          defaultResolution: defaultRes ? defaultRes.height : (sortedResolutions[0]?.height || '360')
+          defaultResolution: defaultRes ? defaultRes.height : (sortedResolutions[0]?.height || '360'),
+          needsCookie,
+          cookieWarning
         };
 
         resolve(result);
@@ -293,10 +326,12 @@ function startDownloadJob(userId, queueItems, folderId = null) {
       sizeProgress: '',
       speed: '',
       rawSpeedBps: 0,
-      eta: ''
+      eta: '',
+      needsCookie: false
     })),
     downloadedFiles: [],
     activeProcesses: new Set(),
+    needsCookie: false,
     error: null,
     createdAt: Date.now()
   };
@@ -306,6 +341,7 @@ function startDownloadJob(userId, queueItems, folderId = null) {
     console.error(`[YouTubeDownloader] Job ${jobId} failed:`, err);
     job.status = 'failed';
     job.error = err.message;
+    job.needsCookie = err.needsCookie || false;
   });
 
   return jobId;
@@ -361,7 +397,7 @@ async function processJobQueue(jobId, queueItems) {
   }
 
   async function worker(workerId) {
-    while (nextIndex < total && job.status !== 'cancelled') {
+    while (nextIndex < total && job.status !== 'cancelled' && !job.needsCookie) {
       const i = nextIndex++;
       const item = queueItems[i];
       if (!item) break;
@@ -381,6 +417,14 @@ async function processJobQueue(jobId, queueItems) {
         if (job.itemsStatus[i]) {
           job.itemsStatus[i].status = 'failed';
           job.itemsStatus[i].error = err.message;
+          job.itemsStatus[i].code = err.code;
+          job.itemsStatus[i].needsCookie = err.needsCookie || false;
+        }
+        if (err.needsCookie) {
+          job.needsCookie = true;
+          job.error = err.message;
+          job.status = 'failed';
+          break; // Stop remaining downloads immediately
         }
       }
       updateOverallProgress();
@@ -395,13 +439,20 @@ async function processJobQueue(jobId, queueItems) {
   await Promise.all(workers);
 
   if (job.status !== 'cancelled') {
-    const allFailed = job.itemsStatus.every(s => s.status === 'failed');
-    if (allFailed && total > 0) {
+    const anyCookieError = job.itemsStatus.some(s => s.needsCookie);
+    if (anyCookieError) {
       job.status = 'failed';
-      job.error = job.itemsStatus[0]?.error || 'All downloads failed';
+      job.needsCookie = true;
+      job.error = job.itemsStatus.find(s => s.needsCookie)?.error || 'YouTube session cookie expired';
     } else {
-      job.status = 'completed';
-      job.progress = 100;
+      const allFailed = job.itemsStatus.every(s => s.status === 'failed');
+      if (allFailed && total > 0) {
+        job.status = 'failed';
+        job.error = job.itemsStatus[0]?.error || 'All downloads failed';
+      } else {
+        job.status = 'completed';
+        job.progress = 100;
+      }
     }
   }
 }
@@ -441,6 +492,9 @@ async function downloadSingleItem(job, item, i, onProgress) {
     ...formatArg,
     '--no-colors',
     '--newline',
+    '--retries', '1',
+    '--fragment-retries', '1',
+    '--file-access-retries', '1',
     '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s',
     '--geo-bypass',
     '--buffer-size', '16M',
@@ -462,6 +516,10 @@ async function downloadSingleItem(job, item, i, onProgress) {
 
     child.stdout.on('data', (data) => {
       const raw = data.toString();
+      if (/HTTP Error 403|Forbidden|access denied|Sign in to confirm you('re| are) not a bot/i.test(raw)) {
+        stderrBuffer += raw;
+        try { child.kill('SIGTERM'); } catch (e) {}
+      }
       const lines = raw.split(/\r|\n/).filter(Boolean);
       for (const line of lines) {
         const trimmed = line.trim();
@@ -547,7 +605,11 @@ async function downloadSingleItem(job, item, i, onProgress) {
     });
 
     child.stderr.on('data', (data) => {
-      stderrBuffer += data.toString();
+      const text = data.toString();
+      stderrBuffer += text;
+      if (/HTTP Error 403|Forbidden|access denied|Sign in to confirm you('re| are) not a bot|confirm you're not a bot/i.test(text)) {
+        try { child.kill('SIGTERM'); } catch (e) {}
+      }
     });
 
     child.on('close', (code) => {
@@ -724,6 +786,7 @@ function getJobStatus(jobId) {
     sizeProgress: job.sizeProgress || '',
     itemsStatus: job.itemsStatus || [],
     filesCount: job.downloadedFiles.length,
+    needsCookie: job.needsCookie || false,
     error: job.error
   };
 }

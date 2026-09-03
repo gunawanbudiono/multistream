@@ -1925,19 +1925,20 @@ async function handleScanYouTubeUrl() {
       showToast('success', `Added "${meta.title.slice(0, 30)}..." to queue`);
     }
 
-    // Check if YouTube SABR downgraded formats to 360p
+    // Check if YouTube SABR downgraded formats to 360p or if proactive probe detected cookie expiration
     const maxVideoHeight = Math.max(...(meta.resolutions || []).filter(r => typeof r.height === 'number').map(r => r.height), 0);
     const banner = document.getElementById('ytCookieAlertBanner');
-    if (maxVideoHeight > 0 && maxVideoHeight <= 360) {
+    if (meta.needsCookie || (maxVideoHeight > 0 && maxVideoHeight <= 360)) {
       if (banner) {
         banner.classList.remove('hidden');
         const titleEl = document.getElementById('ytCookieBannerTitle');
         const descEl = document.getElementById('ytCookieBannerDesc');
         const btnTextEl = document.getElementById('ytCookieBannerBtnText');
-        if (titleEl) titleEl.textContent = 'YouTube SABR Stream Detected (360p Cap)';
-        if (descEl) descEl.textContent = 'YouTube restricted this video to 360p. Refresh cookies to unlock Full HD (1080p/4K).';
+        if (titleEl) titleEl.textContent = meta.needsCookie ? 'YouTube Cookie Expired / Verification Required' : 'YouTube SABR Stream Detected (360p Cap)';
+        if (descEl) descEl.textContent = meta.cookieWarning || 'YouTube session expired or restricted to 360p. Click "Refresh Cookie" to paste fresh cookies and unlock Full HD.';
         if (btnTextEl) btnTextEl.textContent = 'Refresh Cookie';
       }
+      showToast('error', '⚠️ YouTube cookie expired. Please click "Refresh Cookie" to update your session.');
     } else {
       if (banner) banner.classList.add('hidden');
     }
@@ -2429,7 +2430,20 @@ async function startYtDownloadQueue() {
           ytActiveJobId = null;
           ytLatestJobStatus = null;
           renderYtQueue();
-          showToast('error', `Download failed: ${job.error || 'Unknown error'}`);
+          const isCookieError = job.needsCookie || /cookie|403|Forbidden|bot/i.test(job.error || '');
+          if (isCookieError) {
+            showToast('error', '⚠️ YouTube cookie expired. Please update cookies to resume downloads.');
+            const banner = document.getElementById('ytCookieAlertBanner');
+            if (banner) banner.classList.remove('hidden');
+            if (typeof openYouTubeCookieModal === 'function') {
+              openYouTubeCookieModal();
+              if (typeof showCookieModalAlert === 'function') {
+                showCookieModalAlert('error', job.error || 'YouTube session expired (403 Forbidden). Please paste fresh cookies.');
+              }
+            }
+          } else {
+            showToast('error', `Download failed: ${job.error || 'Unknown error'}`);
+          }
           submitBtn.disabled = false;
         }
       } catch (err) {
