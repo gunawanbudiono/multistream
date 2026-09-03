@@ -443,6 +443,8 @@ async function downloadSingleItem(job, item, i, onProgress) {
     '--newline',
     '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s',
     '--geo-bypass',
+    '--buffer-size', '16M',
+    '--concurrent-fragments', '4',
     ...getPotArgs(),
     ...getCookieArgs(),
     '-o', finalFilePath,
@@ -456,6 +458,7 @@ async function downloadSingleItem(job, item, i, onProgress) {
   await new Promise((resolve, reject) => {
     const child = spawn(runner.cmd, args);
     job.activeProcesses.add(child);
+    let stderrBuffer = '';
 
     child.stdout.on('data', (data) => {
       const raw = data.toString();
@@ -464,8 +467,9 @@ async function downloadSingleItem(job, item, i, onProgress) {
         const trimmed = line.trim();
         if (trimmed.includes('|')) {
           const parts = trimmed.split('|');
-          const pctStr = parts[0]?.replace('%', '').trim();
-          const pct = parseFloat(pctStr);
+          const rawPart0 = parts[0]?.trim() || '';
+          const pctMatch = rawPart0.match(/([\d.]+)%/);
+          const pct = pctMatch ? parseFloat(pctMatch[1]) : parseFloat(rawPart0.replace(/[^0-9.]/g, ''));
           if (!isNaN(pct)) {
             if (pct < lastRawPct && lastRawPct > 70 && !isAudio) {
               streamPhase = 1;
@@ -542,14 +546,17 @@ async function downloadSingleItem(job, item, i, onProgress) {
       }
     });
 
-    child.stderr.on('data', () => {});
+    child.stderr.on('data', (data) => {
+      stderrBuffer += data.toString();
+    });
 
     child.on('close', (code) => {
       job.activeProcesses.delete(child);
       if (code === 0 || job.status === 'cancelled') {
         resolve();
       } else {
-        reject(new Error(`yt-dlp exited with code ${code}`));
+        const formattedErr = formatYtDlpError(stderrBuffer || `yt-dlp exited with code ${code}`);
+        reject(formattedErr);
       }
     });
 
