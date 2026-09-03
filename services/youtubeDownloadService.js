@@ -503,6 +503,7 @@ async function downloadSingleItem(job, item, i, onProgress) {
     formatArg = [
       '-f', `bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`,
       '--merge-output-format', 'mp4',
+      '--postprocessor-args', 'ffmpeg:-movflags +faststart',
       '--no-playlist'
     ];
   }
@@ -518,7 +519,7 @@ async function downloadSingleItem(job, item, i, onProgress) {
     '--fragment-retries', '2',
     '--file-access-retries', '2',
     '--downloader', 'default:aria2c',
-    '--downloader-args', 'aria2c:-x 16 -j 16 -s 16 -k 1M --file-allocation=none --summary-interval=1',
+    '--downloader-args', 'aria2c:-x 16 -j 16 -s 16 -k 1M --file-allocation=none --enable-http-pipelining=true --summary-interval=1',
     '--concurrent-fragments', '16',
     '--buffer-size', '32M',
     '--progress-template', 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s',
@@ -801,12 +802,9 @@ function extractMetadata(filePath, thumbDiskPath, isAudio) {
       }
 
       ffmpeg(filePath)
-        .screenshots({
-          timestamps: ['10%'],
-          filename: path.basename(thumbDiskPath),
-          folder: path.dirname(thumbDiskPath),
-          size: '854x?'
-        })
+        .inputOptions(['-ss 00:00:01'])
+        .outputOptions(['-vframes 1', '-q:v 2'])
+        .output(thumbDiskPath)
         .on('end', () => {
           safeResolve({
             duration,
@@ -824,7 +822,8 @@ function extractMetadata(filePath, thumbDiskPath, isAudio) {
             fps,
             thumbnail_path: '/images/default-video-thumbnail.svg'
           });
-        });
+        })
+        .run();
     });
   });
 }
