@@ -1817,7 +1817,10 @@ document.getElementById('ytUrlInput')?.addEventListener('keydown', (e) => {
 function cleanClientYouTubeUrl(raw) {
   if (!raw) return '';
   try {
-    const trimmed = raw.trim();
+    let trimmed = raw.trim();
+    if (!/^https?:\/\//i.test(trimmed)) {
+      trimmed = 'https://' + trimmed;
+    }
     if (trimmed.includes('youtube.com') || trimmed.includes('youtu.be')) {
       const parsed = new URL(trimmed);
       const v = parsed.searchParams.get('v');
@@ -1826,7 +1829,7 @@ function cleanClientYouTubeUrl(raw) {
         const id = parsed.pathname.split('/shorts/')[1]?.split('?')[0]?.split('/')[0];
         if (id) return `https://www.youtube.com/watch?v=${id}`;
       }
-      if (parsed.hostname === 'youtu.be') {
+      if (parsed.hostname.includes('youtu.be')) {
         const id = parsed.pathname.replace(/^\//, '').split('?')[0];
         if (id) return `https://www.youtube.com/watch?v=${id}`;
       }

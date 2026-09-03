@@ -65,7 +65,10 @@ function sanitizeFilename(title) {
 function cleanYoutubeUrl(url) {
   if (!url || typeof url !== 'string') return url;
   try {
-    const trimmed = url.trim();
+    let trimmed = url.trim();
+    if (!/^https?:\/\//i.test(trimmed)) {
+      trimmed = 'https://' + trimmed;
+    }
     if (trimmed.includes('youtube.com') || trimmed.includes('youtu.be')) {
       const parsed = new URL(trimmed);
       const v = parsed.searchParams.get('v');
@@ -74,7 +77,7 @@ function cleanYoutubeUrl(url) {
         const id = parsed.pathname.split('/shorts/')[1]?.split('?')[0]?.split('/')[0];
         if (id) return `https://www.youtube.com/watch?v=${id}`;
       }
-      if (parsed.hostname === 'youtu.be') {
+      if (parsed.hostname.includes('youtu.be')) {
         const id = parsed.pathname.replace(/^\//, '').split('?')[0];
         if (id) return `https://www.youtube.com/watch?v=${id}`;
       }
@@ -118,6 +121,11 @@ function getCookieArgs() {
 
 function formatYtDlpError(errText) {
   const raw = String(errText || '');
+  if (/Unsupported URL|Incomplete YouTube ID|is not a valid URL|generic information extractor/i.test(raw)) {
+    const err = new Error('Tautan YouTube tidak lengkap atau terpotong. Pastikan link tersalin utuh (contoh: https://www.youtube.com/watch?v=...)');
+    err.code = 'INVALID_URL';
+    return err;
+  }
   if (/Sign in to confirm you('re| are) not a bot|--cookies|confirm you're not a bot|cookies are expired|requires authentication|login|HTTP Error 403|Forbidden|access denied|403 Forbidden|GVS PO Token|SABR/i.test(raw)) {
     const err = new Error('YouTube session cookie expired or verification required (HTTP 403 / Bot Check). Please refresh your cookies in Cookie Setup to continue.');
     err.code = 'COOKIE_EXPIRED';
