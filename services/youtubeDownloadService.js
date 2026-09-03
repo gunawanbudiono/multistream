@@ -101,7 +101,7 @@ function getCacheArgs() {
       fs.mkdirSync(cacheDir, { recursive: true });
     }
   } catch (e) {}
-  return ['--cachedir', cacheDir];
+  return ['--cache-dir', cacheDir];
 }
 
 function getCookieArgs() {
