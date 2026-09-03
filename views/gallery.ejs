@@ -2402,10 +2402,18 @@ async function startYtDownloadQueue() {
           } else {
             const activeLabelText = job.activeLabel || `Item ${job.currentIndex + 1} of ${job.totalItems}`;
             metricsHtml = `<span class="inline-flex items-center gap-1 text-gray-300"><i class="ti ti-layers-subtract text-indigo-400"></i> Active: <strong class="text-white">${activeLabelText}</strong></span>`;
-            if (job.speed) {
+            
+            const currentItem = (job.itemsStatus && job.itemsStatus[job.currentIndex]) ? job.itemsStatus[job.currentIndex] : null;
+            const itemStatusStr = currentItem ? currentItem.status : 'connecting';
+
+            if (itemStatusStr === 'merging') {
+              metricsHtml += `<span class="text-gray-600">•</span><span class="inline-flex items-center gap-1 text-amber-300 font-medium"><i class="ti ti-loader-2 text-xs animate-spin text-amber-400"></i> Merging MP4 container...</span>`;
+            } else if (itemStatusStr === 'processing') {
+              metricsHtml += `<span class="text-gray-600">•</span><span class="inline-flex items-center gap-1 text-blue-300 font-medium"><i class="ti ti-loader-2 text-xs animate-spin text-blue-400"></i> Saving to Gallery...</span>`;
+            } else if (job.speed) {
               metricsHtml += `<span class="text-gray-600">•</span><span class="inline-flex items-center gap-1 text-gray-300"><i class="ti ti-bolt text-red-400"></i> <strong class="text-white">${job.speed}</strong></span>`;
             } else {
-              metricsHtml += `<span class="text-gray-600">•</span><span class="inline-flex items-center gap-1 text-indigo-300"><i class="ti ti-satellite text-xs animate-spin text-indigo-400"></i> Connecting to YouTube stream...</span>`;
+              metricsHtml += `<span class="text-gray-600">•</span><span class="inline-flex items-center gap-1 text-indigo-300"><i class="ti ti-satellite text-xs animate-spin text-indigo-400"></i> Connecting & resolving stream...</span>`;
             }
           }
           progressMetrics.innerHTML = metricsHtml;
