@@ -896,11 +896,25 @@ setInterval(() => {
   }
 }, 15 * 60 * 1000);
 
+/**
+ * Pre-warms the local POT provider and yt-dlp cache on modal open so downloads start instantaneously.
+ */
+function prewarmSession() {
+  try {
+    const http = require('http');
+    const req = http.request('http://127.0.0.1:4416/ping', { method: 'GET', timeout: 2000 }, (res) => {});
+    req.on('error', () => {});
+    req.on('timeout', () => { req.destroy(); });
+    req.end();
+  } catch (e) {}
+}
+
 module.exports = {
   inspectVideo,
   verifyCookie,
   startDownloadJob,
   getJobStatus,
   cancelJob,
-  formatYtDlpError
+  formatYtDlpError,
+  prewarmSession
 };

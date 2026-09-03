@@ -4483,6 +4483,15 @@ app.post('/api/youtube/inspect', isAuthenticated, async (req, res) => {
   }
 });
 
+app.post('/api/youtube/prewarm', isAuthenticated, async (req, res) => {
+  try {
+    youtubeDownloadService.prewarmSession();
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ success: true });
+  }
+});
+
 app.post('/api/youtube/download', isAuthenticated, async (req, res) => {
   try {
     const { items, folderId } = req.body;

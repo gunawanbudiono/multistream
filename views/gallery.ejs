@@ -1612,6 +1612,9 @@ function openYouTubeDownloadModal() {
   const modal = document.getElementById('youtubeDownloadModal');
   if (!modal) return;
 
+  // Pre-warm local Botguard token provider & YouTube session in the background
+  fetch('/api/youtube/prewarm', { method: 'POST' }).catch(() => {});
+
   if (!ytActiveJobId) {
     ytDownloadQueue = [];
     const input = document.getElementById('ytUrlInput');
