@@ -461,7 +461,7 @@ function getAccumulatedBytesOnDisk(targetPath) {
   try {
     let total = 0;
     const dir = path.dirname(targetPath);
-    const prefix = path.basename(targetPath);
+    const prefix = path.parse(targetPath).name;
     if (fs.existsSync(dir)) {
       const files = fs.readdirSync(dir);
       for (const f of files) {
@@ -549,41 +549,46 @@ async function downloadSingleItem(job, item, i, onProgress) {
       if (currentBytes > 0) {
         const now = Date.now();
         const dt = (now - lastTime) / 1000;
+        let speedText = job.itemsStatus[i]?.speed || '';
+        let rawSpeed = job.itemsStatus[i]?.rawSpeedBps || 0;
         if (dt >= 0.4) {
           const delta = currentBytes - lastBytes;
           if (delta > 0) {
-            const rawSpeed = Math.round(delta / dt);
-            const speedText = `${formatBytes(rawSpeed)}/s`;
-            let itemPct = 0;
-            let sizeProg = '';
-            let eta = '';
-
-            if (expectedBytes > 0) {
-              itemPct = Math.min(98, Math.max(1, Math.round((currentBytes / expectedBytes) * 100)));
-              sizeProg = `${formatBytes(currentBytes)} / ${formatBytes(expectedBytes)}`;
-              if (rawSpeed > 0 && currentBytes < expectedBytes) {
-                const remainingSec = Math.round((expectedBytes - currentBytes) / rawSpeed);
-                eta = formatDuration(remainingSec);
-              }
-            } else {
-              sizeProg = formatBytes(currentBytes);
-            }
-
-            if (job.itemsStatus && job.itemsStatus[i]) {
-              if (itemPct > (job.itemsStatus[i].progress || 0)) {
-                job.itemsStatus[i].progress = itemPct;
-              }
-              job.itemsStatus[i].speed = speedText;
-              job.itemsStatus[i].rawSpeedBps = rawSpeed;
-              if (eta) job.itemsStatus[i].eta = eta;
-              job.itemsStatus[i].sizeProgress = sizeProg;
-              job.itemsStatus[i].status = (itemPct >= 98 && !isAudio) ? 'merging' : 'downloading';
-            }
-            if (typeof onProgress === 'function') onProgress();
+            rawSpeed = Math.round(delta / dt);
+            speedText = `${formatBytes(rawSpeed)}/s`;
           }
           lastBytes = currentBytes;
           lastTime = now;
         }
+
+        let itemPct = 0;
+        let sizeProg = '';
+        let eta = '';
+
+        if (expectedBytes > 0) {
+          itemPct = Math.min(98, Math.max(1, Math.round((currentBytes / expectedBytes) * 100)));
+          sizeProg = `${formatBytes(currentBytes)} / ${formatBytes(expectedBytes)}`;
+          if (rawSpeed > 0 && currentBytes < expectedBytes) {
+            const remainingSec = Math.round((expectedBytes - currentBytes) / rawSpeed);
+            eta = formatDuration(remainingSec);
+          }
+        } else {
+          sizeProg = formatBytes(currentBytes);
+        }
+
+        if (job.itemsStatus && job.itemsStatus[i]) {
+          if (itemPct > (job.itemsStatus[i].progress || 0)) {
+            job.itemsStatus[i].progress = itemPct;
+          }
+          if (speedText) {
+            job.itemsStatus[i].speed = speedText;
+            job.itemsStatus[i].rawSpeedBps = rawSpeed;
+          }
+          if (eta) job.itemsStatus[i].eta = eta;
+          job.itemsStatus[i].sizeProgress = sizeProg;
+          job.itemsStatus[i].status = (itemPct >= 98 && !isAudio) ? 'merging' : 'downloading';
+        }
+        if (typeof onProgress === 'function') onProgress();
       }
     }, 350);
 
