@@ -501,7 +501,7 @@ async function downloadSingleItem(job, item, i, onProgress) {
     ];
   } else {
     formatArg = [
-      '-f', `bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`,
+      '-f', `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${height}]+bestaudio[ext=m4a]/bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`,
       '--merge-output-format', 'mp4',
       '--postprocessor-args', 'ffmpeg:-movflags +faststart',
       '--no-playlist'
@@ -578,16 +578,19 @@ async function downloadSingleItem(job, item, i, onProgress) {
         }
 
         if (job.itemsStatus && job.itemsStatus[i]) {
-          if (itemPct > (job.itemsStatus[i].progress || 0)) {
-            job.itemsStatus[i].progress = itemPct;
+          const currentStatus = job.itemsStatus[i].status;
+          if (currentStatus !== 'merging' && currentStatus !== 'processing' && currentStatus !== 'completed') {
+            job.itemsStatus[i].status = 'downloading';
+            if (itemPct > (job.itemsStatus[i].progress || 0)) {
+              job.itemsStatus[i].progress = itemPct;
+            }
+            if (speedText) {
+              job.itemsStatus[i].speed = speedText;
+              job.itemsStatus[i].rawSpeedBps = rawSpeed;
+            }
+            if (eta) job.itemsStatus[i].eta = eta;
+            job.itemsStatus[i].sizeProgress = sizeProg;
           }
-          if (speedText) {
-            job.itemsStatus[i].speed = speedText;
-            job.itemsStatus[i].rawSpeedBps = rawSpeed;
-          }
-          if (eta) job.itemsStatus[i].eta = eta;
-          job.itemsStatus[i].sizeProgress = sizeProg;
-          job.itemsStatus[i].status = (itemPct >= 98 && !isAudio) ? 'merging' : 'downloading';
         }
         if (typeof onProgress === 'function') onProgress();
       }
@@ -599,6 +602,19 @@ async function downloadSingleItem(job, item, i, onProgress) {
         stderrBuffer += raw;
         try { child.kill('SIGTERM'); } catch (e) {}
       }
+
+      // Detect FFmpeg Merger Phase with high accuracy
+      if (raw.includes('[Merger]') || raw.includes('Merging formats') || raw.includes('[FixupM4a]')) {
+        if (job.itemsStatus && job.itemsStatus[i]) {
+          job.itemsStatus[i].status = 'merging';
+          job.itemsStatus[i].progress = 99;
+          job.itemsStatus[i].speed = '';
+          job.itemsStatus[i].rawSpeedBps = 0;
+          job.itemsStatus[i].sizeProgress = 'Combining media into MP4 container...';
+        }
+        if (typeof onProgress === 'function') onProgress();
+      }
+
       const lines = raw.split(/\r|\n/).filter(Boolean);
       for (const line of lines) {
         const trimmed = line.trim();
@@ -640,20 +656,19 @@ async function downloadSingleItem(job, item, i, onProgress) {
             const rawEta = parts[2]?.trim();
 
             if (job.itemsStatus && job.itemsStatus[i]) {
-              if (expectedBytes <= 0 && itemPct > (job.itemsStatus[i].progress || 0)) {
-                job.itemsStatus[i].progress = itemPct;
-              }
-              if (speedText && !job.itemsStatus[i].speed) {
-                job.itemsStatus[i].speed = speedText;
-                job.itemsStatus[i].rawSpeedBps = speedBps;
-              }
-              if (rawEta && rawEta !== 'Unknown' && rawEta !== 'NA' && rawEta !== 'N/A' && !job.itemsStatus[i].eta) {
-                job.itemsStatus[i].eta = rawEta;
-              }
-              if (itemPct >= 98 && !isAudio) {
-                job.itemsStatus[i].status = 'merging';
-              } else {
+              const currentStatus = job.itemsStatus[i].status;
+              if (currentStatus !== 'merging' && currentStatus !== 'processing' && currentStatus !== 'completed') {
                 job.itemsStatus[i].status = 'downloading';
+                if (expectedBytes <= 0 && itemPct > (job.itemsStatus[i].progress || 0)) {
+                  job.itemsStatus[i].progress = itemPct;
+                }
+                if (speedText && !job.itemsStatus[i].speed) {
+                  job.itemsStatus[i].speed = speedText;
+                  job.itemsStatus[i].rawSpeedBps = speedBps;
+                }
+                if (rawEta && rawEta !== 'Unknown' && rawEta !== 'NA' && rawEta !== 'N/A' && !job.itemsStatus[i].eta) {
+                  job.itemsStatus[i].eta = rawEta;
+                }
               }
             }
 
