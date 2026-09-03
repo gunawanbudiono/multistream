@@ -248,37 +248,6 @@ async function inspectVideo(rawUrl) {
 
         const defaultRes = sortedResolutions.find(r => r.height === 1080 || r.height === 720) || sortedResolutions[0];
 
-        // Fast proactive stream probe: check if Google Video Server allows video playback with current cookies
-        let needsCookie = false;
-        let cookieWarning = '';
-        const probeFormat = formats.find(f => f.url && f.height && f.height >= 720) || formats.find(f => f.url);
-        if (probeFormat && probeFormat.url && probeFormat.url.startsWith('http')) {
-          try {
-            const https = require('https');
-            const http = require('http');
-            const client = probeFormat.url.startsWith('https') ? https : http;
-            await new Promise((pRes) => {
-              const req = client.request(probeFormat.url, {
-                method: 'HEAD',
-                timeout: 3500,
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-                  ...(probeFormat.http_headers || {})
-                }
-              }, (res) => {
-                if (res.statusCode === 403 || res.statusCode === 429) {
-                  needsCookie = true;
-                  cookieWarning = 'YouTube session cookie expired / restricted (HTTP 403 Forbidden). Please click "Refresh Cookie" to update your session.';
-                }
-                pRes();
-              });
-              req.on('error', () => pRes());
-              req.on('timeout', () => { req.destroy(); pRes(); });
-              req.end();
-            });
-          } catch (e) {}
-        }
-
         const result = {
           id: info.id,
           title: info.title || 'Untitled Video',
@@ -289,8 +258,8 @@ async function inspectVideo(rawUrl) {
           url: info.webpage_url || url,
           resolutions: sortedResolutions,
           defaultResolution: defaultRes ? defaultRes.height : (sortedResolutions[0]?.height || '360'),
-          needsCookie,
-          cookieWarning
+          needsCookie: false,
+          cookieWarning: ''
         };
 
         resolve(result);
