@@ -91,6 +91,16 @@ function getPotArgs() {
   ];
 }
 
+function getCacheArgs() {
+  const cacheDir = path.join(__dirname, '..', 'db', '.cache', 'yt-dlp');
+  try {
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+  } catch (e) {}
+  return ['--cachedir', cacheDir];
+}
+
 function getCookieArgs() {
   const cookiePaths = [
     path.join(__dirname, '..', 'db', 'cookies.txt'),
@@ -145,6 +155,7 @@ async function inspectVideo(rawUrl) {
   return new Promise((resolve, reject) => {
     const args = [
       ...runner.prefixArgs,
+      ...getCacheArgs(),
       '--dump-single-json',
       '--no-warnings',
       '--skip-download',
@@ -481,6 +492,7 @@ async function downloadSingleItem(job, item, i, onProgress) {
   const runner = getYtDlpRunner();
   const args = [
     ...runner.prefixArgs,
+    ...getCacheArgs(),
     ...formatArg,
     '--no-colors',
     '--newline',
